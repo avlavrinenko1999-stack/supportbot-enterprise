@@ -8,6 +8,7 @@ from app.handlers.admin.common import edit_callback_message, get_current_admin
 from app.keyboards.company import companies_menu, company_card_menu, companies_reply_menu, company_card_reply_menu
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
+from app.ui.navigation import PageService
 
 router = Router()
 
@@ -74,7 +75,7 @@ async def companies_entry_from_reply_menu(message: Message, state: FSMContext) -
         )
         return
 
-    await state.update_data(companies_page=1)
+    await PageService.set_page(state, "companies", 1)
     text, keyboard = await build_companies_text_and_keyboard(page=1)
 
     await MessageService.replace_service_message(
@@ -89,8 +90,7 @@ async def companies_entry_from_reply_menu(message: Message, state: FSMContext) -
 @router.message(F.text == "➡️ Далее")
 async def companies_next_page(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-    page = int(data.get("companies_page", 1)) + 1
-    await state.update_data(companies_page=page)
+    page = await PageService.next_page(state, "companies")
 
     text, keyboard = await build_companies_text_and_keyboard(page=page)
 
@@ -104,9 +104,7 @@ async def companies_next_page(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "⬅️ Назад")
 async def companies_prev_page(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    page = max(1, int(data.get("companies_page", 1)) - 1)
-    await state.update_data(companies_page=page)
+    page = await PageService.prev_page(state, "companies")
 
     text, keyboard = await build_companies_text_and_keyboard(page=page)
 
@@ -188,8 +186,7 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
     await state.clear()
 
-    data = await state.get_data()
-    page = int(data.get("companies_page", 1))
+    page = await PageService.get_page(state, "companies")
 
     await MessageService.replace_service_message(
         message,

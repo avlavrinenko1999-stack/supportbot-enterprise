@@ -12,6 +12,7 @@ from app.models.company import Company
 from app.models.enums import UserRole
 from app.services.account_admin_service import AccountAdminService
 from app.services.message_service import MessageService
+from app.ui.navigation import PageService
 
 router = Router()
 
@@ -76,7 +77,7 @@ async def coordinators_entry_from_reply_menu(message: Message, state: FSMContext
         )
         return
 
-    await state.update_data(coordinators_page=1)
+    await PageService.set_page(state, "coordinators", 1)
     coordinators = await load_coordinators()
 
     await MessageService.replace_service_message(
@@ -100,9 +101,7 @@ async def coordinators_list_callback(callback: CallbackQuery) -> None:
 
 @router.message(F.text == "➡️ Далее")
 async def coordinators_next_page(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    page = int(data.get("coordinators_page", 1)) + 1
-    await state.update_data(coordinators_page=page)
+    page = await PageService.next_page(state, "coordinators")
 
     coordinators = await load_coordinators()
 
@@ -116,9 +115,7 @@ async def coordinators_next_page(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "⬅️ Назад")
 async def coordinators_prev_page(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    page = max(1, int(data.get("coordinators_page", 1)) - 1)
-    await state.update_data(coordinators_page=page)
+    page = await PageService.prev_page(state, "coordinators")
 
     coordinators = await load_coordinators()
 
