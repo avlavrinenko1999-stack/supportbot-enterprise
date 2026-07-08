@@ -9,5 +9,6 @@ def user_main_menu() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="Профиль")],
         ],
         resize_keyboard=True,
+        is_persistent=True,
         input_field_placeholder="Выберите действие",
     )

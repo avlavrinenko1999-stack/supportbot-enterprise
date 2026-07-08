@@ -9,6 +9,7 @@ def admin_main_menu() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="Координаторы")],
         ],
         resize_keyboard=True,
+        is_persistent=True,
         input_field_placeholder="Выберите действие",
     )
 
@@ -22,5 +23,6 @@ def invite_role_menu() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="Отмена")],
         ],
         resize_keyboard=True,
+        is_persistent=True,
         input_field_placeholder="Выберите роль",
     )

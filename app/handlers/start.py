@@ -76,7 +76,7 @@ async def start(message: Message, state: FSMContext) -> None:
 
     await MessageService.replace_service_message(
         message,
-        f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
         state,
+        f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
         reply_markup=MenuService.keyboard_for(account),
     )
