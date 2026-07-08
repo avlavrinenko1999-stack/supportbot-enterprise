@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.keyboards.admin import admin_main_menu, invite_role_menu
+from app.keyboards.admin import admin_main_menu, invite_role_menu, companies_admin_root_menu
 from app.keyboards.company import companies_menu, company_card_menu
 from app.keyboards.coordinator_admin import coordinators_menu
 from app.models.account import Account
@@ -55,7 +55,7 @@ async def answer_admin_panel(message: Message, state: FSMContext) -> None:
         state,
         "SupportBot Enterprise\n\nАдминистративное меню.",
         delete_user_message=False,
-        reply_markup=admin_main_menu(),
+        reply_markup=companies_admin_root_menu(),
     )
 
 
@@ -386,7 +386,7 @@ async def admin_menu_callback(callback: CallbackQuery) -> None:
     await edit_callback_message(
         callback,
         "SupportBot Enterprise\n\nАдминистративное меню.",
-        reply_markup=None,
+        reply_markup=companies_admin_root_menu(),
     )
 
 
