@@ -11,13 +11,15 @@ def button(
     )
 
 
-def two_columns(
+def to_rows(
     buttons: list[InlineKeyboardButton],
+    columns: int = 2,
 ) -> list[list[InlineKeyboardButton]]:
     rows: list[list[InlineKeyboardButton]] = []
+    columns = max(1, columns)
 
-    for index in range(0, len(buttons), 2):
-        rows.append(buttons[index:index + 2])
+    for index in range(0, len(buttons), columns):
+        rows.append(buttons[index:index + columns])
 
     return rows
 
@@ -26,8 +28,9 @@ def inline_menu(
     *,
     buttons: list[InlineKeyboardButton],
     back_buttons: list[InlineKeyboardButton] | None = None,
+    columns: int = 2,
 ) -> InlineKeyboardMarkup:
-    keyboard = two_columns(buttons)
+    keyboard = to_rows(buttons, columns)
 
     if back_buttons:
         for back_button in back_buttons:

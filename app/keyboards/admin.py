@@ -1,5 +1,6 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup
 
+from app.keyboards.common import button, inline_menu
 from app.keyboards.reply import reply_keyboard
 
 
@@ -26,26 +27,11 @@ def invite_role_menu() -> ReplyKeyboardMarkup:
     )
 
 
-def companies_admin_root_menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🏢 Компании",
-                    callback_data="company:list",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="👤 Координаторы",
-                    callback_data="coordinator:list",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🔗 Создать приглашение",
-                    callback_data="invite:create",
-                )
-            ],
+def companies_admin_root_menu():
+    return inline_menu(
+        buttons=[
+            button("🏢 Компании", "company:list"),
+            button("👤 Координаторы", "coordinator:list"),
+            button("🔗 Создать приглашение", "invite:create"),
         ]
     )
