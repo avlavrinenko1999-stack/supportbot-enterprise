@@ -36,19 +36,23 @@ async def get_current_admin(telegram_id: int) -> Account | None:
 
 
 @router.message(Command("admin"))
-async def admin_menu(message: Message) -> None:
+async def admin_menu(message: Message, state: FSMContext) -> None:
     admin = await get_current_admin(message.from_user.id)
 
     if admin is None:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
+            state,
             "У вас нет доступа к административному меню.",
+            aggressive_cleanup=True,
         )
         return
 
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
+        state,
         "SupportBot Enterprise\n\nАдминистративное меню.",
+        aggressive_cleanup=True,
         reply_markup=admin_main_menu(),
     )
 
@@ -56,7 +60,7 @@ async def admin_menu(message: Message) -> None:
 @router.message(F.text == "Отмена")
 async def cancel_admin_action(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
         "Действие отменено.",
         reply_markup=admin_main_menu(),
@@ -68,7 +72,7 @@ async def create_invite_start(message: Message, state: FSMContext) -> None:
     admin = await get_current_admin(message.from_user.id)
 
     if admin is None:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "У вас нет доступа к этому действию.",
         )
@@ -84,7 +88,7 @@ async def create_invite_start(message: Message, state: FSMContext) -> None:
         ).all()
 
     if not companies:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "Активных компаний пока нет.",
             reply_markup=admin_main_menu(),
@@ -96,7 +100,7 @@ async def create_invite_start(message: Message, state: FSMContext) -> None:
     )
 
     await state.set_state(CreateInviteState.company_id)
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
         "Введите ID компании для приглашения:\n\n"
         f"{companies_text}\n\n"
@@ -107,7 +111,7 @@ async def create_invite_start(message: Message, state: FSMContext) -> None:
 @router.message(CreateInviteState.company_id)
 async def create_invite_company(message: Message, state: FSMContext) -> None:
     if not message.text or not message.text.strip().isdigit():
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "Введите числовой ID компании.",
         )
@@ -124,7 +128,7 @@ async def create_invite_company(message: Message, state: FSMContext) -> None:
         )
 
     if company is None:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "Компания не найдена или отключена. Введите другой ID.",
         )
@@ -133,7 +137,7 @@ async def create_invite_company(message: Message, state: FSMContext) -> None:
     await state.update_data(company_id=company_id)
     await state.set_state(CreateInviteState.role)
 
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
         "Выберите роль для приглашения.",
         reply_markup=invite_role_menu(),
@@ -147,7 +151,7 @@ async def create_invite_role(message: Message, state: FSMContext) -> None:
     try:
         role = InviteRole(role_text)
     except ValueError:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "Некорректная роль. Выберите роль из меню.",
             reply_markup=invite_role_menu(),
@@ -157,7 +161,7 @@ async def create_invite_role(message: Message, state: FSMContext) -> None:
     await state.update_data(role=role.value)
     await state.set_state(CreateInviteState.full_name)
 
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
         "Введите ФИО пользователя, для которого создаётся приглашение.",
     )
@@ -169,7 +173,7 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
 
     if admin is None:
         await state.clear()
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "У вас нет доступа к этому действию.",
         )
@@ -178,7 +182,7 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
     full_name = (message.text or "").strip()
 
     if len(full_name) < 3:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
             "Введите корректное ФИО.",
         )
@@ -204,7 +208,7 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
             )
         except ValueError as error:
             await state.clear()
-            await MessageService.replace_with_answer(
+            await MessageService.replace_service_message(
                 message,
                 str(error),
                 reply_markup=admin_main_menu(),
@@ -213,7 +217,7 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
 
     await state.clear()
 
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
         "Приглашение создано.\n\n"
         f"ФИО: {full_name}\n"

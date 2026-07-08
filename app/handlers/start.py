@@ -1,5 +1,6 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from app.database.db import AsyncSessionLocal
@@ -27,13 +28,15 @@ def build_full_name(message: Message) -> str:
 
 
 @router.message(CommandStart())
-async def start(message: Message) -> None:
+async def start(message: Message, state: FSMContext) -> None:
     command_parts = (message.text or "").split(maxsplit=1)
 
     if len(command_parts) != 2:
-        await MessageService.replace_with_answer(
+        await MessageService.replace_service_message(
             message,
+            state,
             "Для регистрации используйте персональную ссылку-приглашение.",
+            aggressive_cleanup=True,
         )
         return
 
@@ -49,11 +52,18 @@ async def start(message: Message) -> None:
                 telegram_full_name=build_full_name(message),
             )
         except ValueError as error:
-            await MessageService.replace_with_answer(message, str(error))
+            await MessageService.replace_service_message(
+                message,
+                state,
+                str(error),
+                aggressive_cleanup=True,
+            )
             return
 
-    await MessageService.replace_with_answer(
+    await MessageService.replace_service_message(
         message,
+        state,
         f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
+        aggressive_cleanup=True,
         reply_markup=user_main_menu(),
     )
