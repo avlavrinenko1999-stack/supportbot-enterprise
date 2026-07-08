@@ -32,6 +32,28 @@ class UIContext:
         return int(value) if value is not None else None
 
     @staticmethod
+    async def add_recent_company_id(
+        state: FSMContext,
+        company_id: int,
+        *,
+        limit: int = 8,
+    ) -> None:
+        context = await UIContext.get_all(state)
+        recent = list(context.get("recent_company_ids", []))
+
+        company_id = int(company_id)
+        recent = [item for item in recent if int(item) != company_id]
+        recent.insert(0, company_id)
+
+        context["recent_company_ids"] = recent[:limit]
+        await state.update_data(**{UIContext.KEY: context})
+
+    @staticmethod
+    async def get_recent_company_ids(state: FSMContext) -> list[int]:
+        value = await UIContext.get_value(state, "recent_company_ids", [])
+        return [int(item) for item in value]
+
+    @staticmethod
     async def set_category_id(state: FSMContext, category_id: int) -> None:
         await UIContext.set_value(state, "category_id", int(category_id))
 

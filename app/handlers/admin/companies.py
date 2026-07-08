@@ -116,6 +116,27 @@ async def render_disabled_companies(message: Message, state: FSMContext, page: i
     )
 
 
+async def render_recent_companies(message: Message, state: FSMContext, page: int = 1) -> None:
+    recent_ids = await UIContext.get_recent_company_ids(state)
+    companies = await load_companies()
+    company_by_id = {company.id: company for company in companies}
+
+    recent_companies = [
+        company_by_id[company_id]
+        for company_id in recent_ids
+        if company_id in company_by_id
+    ]
+
+    await render_company_list(
+        message,
+        state,
+        recent_companies,
+        page=page,
+        section="companies_recent",
+        title="Последние компании",
+    )
+
+
 async def render_search_results(
     message: Message,
     state: FSMContext,
@@ -174,6 +195,7 @@ async def render_company_card(
 
     await UIContext.set_company_id(state, company.id)
     await UIContext.set_section(state, "company")
+    await UIContext.add_recent_company_id(state, company.id)
 
     await MessageService.replace_service_message(
         message,
@@ -223,13 +245,7 @@ async def companies_disabled(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "🕘 Последние компании")
 async def companies_recent(message: Message, state: FSMContext) -> None:
-    await MessageService.replace_service_message(
-        message,
-        state,
-        "Последние компании появятся здесь после следующего этапа.\n\n"
-        "Сейчас используйте поиск.",
-        reply_markup=companies_catalog_reply_menu(),
-    )
+    await render_recent_companies(message, state, page=1)
 
 
 @router.message(F.text == "🔎 Найти компанию")
@@ -280,6 +296,10 @@ async def companies_next_page(message: Message, state: FSMContext) -> None:
         )
         return
 
+    if section == "companies_recent":
+        await render_recent_companies(message, state, page=page)
+        return
+
     await render_all_companies(message, state, page=page)
 
 
@@ -300,6 +320,10 @@ async def companies_prev_page(message: Message, state: FSMContext) -> None:
             str(data.get("company_search_query", "")),
             page=page,
         )
+        return
+
+    if section == "companies_recent":
+        await render_recent_companies(message, state, page=page)
         return
 
     await render_all_companies(message, state, page=page)
