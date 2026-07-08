@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -52,6 +53,7 @@ async def update_companies() -> None:
                 company.legal_status_code = data.legal_status_code
                 company.registration_date = data.registration_date
                 company.liquidation_date = data.liquidation_date
+                company.last_registry_sync_at = datetime.now(timezone.utc)
 
                 await session.commit()
                 updated += 1

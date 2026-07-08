@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -72,6 +74,11 @@ class Company(Base, IDMixin, TimestampMixin):
 
     phone: Mapped[str | None] = mapped_column(
         String(64),
+        nullable=True,
+    )
+
+    last_registry_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
     )
 
