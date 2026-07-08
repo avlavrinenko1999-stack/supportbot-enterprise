@@ -36,7 +36,7 @@ async def start(message: Message, state: FSMContext) -> None:
             message,
             state,
             "Для регистрации используйте персональную ссылку-приглашение.",
-            aggressive_cleanup=True,
+            delete_user_message=False,
         )
         return
 
@@ -56,7 +56,7 @@ async def start(message: Message, state: FSMContext) -> None:
                 message,
                 state,
                 str(error),
-                aggressive_cleanup=True,
+                delete_user_message=False,
             )
             return
 
@@ -64,6 +64,5 @@ async def start(message: Message, state: FSMContext) -> None:
         message,
         state,
         f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
-        aggressive_cleanup=True,
         reply_markup=user_main_menu(),
     )
