@@ -1,38 +1,63 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
+from app.keyboards.common import button, inline_menu
+from app.keyboards.reply_list import list_reply_menu
 from app.models.account import Account
 
 
 def coordinators_menu(coordinators: list[Account]) -> InlineKeyboardMarkup:
-    keyboard: list[list[InlineKeyboardButton]] = []
+    coordinator_buttons = []
 
     for coordinator in coordinators:
         status = "✅" if coordinator.is_active else "⛔"
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=f"{status} {coordinator.id}. {coordinator.full_name}",
-                    callback_data=f"coordinator:view:{coordinator.id}",
-                )
-            ]
+        coordinator_buttons.append(
+            button(
+                f"{status} {coordinator.id}. {coordinator.full_name}",
+                f"coordinator:view:{coordinator.id}",
+            )
         )
 
-    keyboard.append(
-        [
-            InlineKeyboardButton(
-                text="➕ Создать приглашение координатора",
-                callback_data="coordinator:create",
-            )
-        ]
+    return inline_menu(
+        buttons=[
+            *coordinator_buttons,
+            button("➕ Создать приглашение координатора", "coordinator:create"),
+        ],
+        back_buttons=[
+            button("⬅️ Назад", "admin:menu"),
+        ],
+        columns=1,
     )
 
-    keyboard.append(
-        [
-            InlineKeyboardButton(
-                text="⬅️ Назад",
-                callback_data="admin:menu",
-            )
-        ]
+
+def coordinators_reply_menu(
+    coordinators: list[Account],
+    *,
+    page: int = 1,
+    per_page: int = 8,
+) -> ReplyKeyboardMarkup:
+    coordinator_buttons = []
+
+    for coordinator in coordinators:
+        status = "✅" if coordinator.is_active else "⛔"
+        coordinator_buttons.append(f"{status} {coordinator.id}. {coordinator.full_name}")
+
+    return list_reply_menu(
+        coordinator_buttons,
+        page=page,
+        per_page=per_page,
+        search_text="🔎 Поиск координатора",
+        create_text="➕ Создать приглашение координатора",
+        home_text="🏠 Админ меню",
+        placeholder_prefix="Координаторы",
     )
 
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def coordinator_card_menu() -> InlineKeyboardMarkup:
+    return inline_menu(
+        buttons=[],
+        back_buttons=[
+            button("⬅️ К списку координаторов", "coordinator:list"),
+            button("🏠 Админ меню", "admin:menu"),
+        ],
+        columns=1,
+    )
