@@ -70,6 +70,12 @@ def company_card_menu(company: Company) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text="📂 Категории компании",
+                    callback_data=f"company:categories:{company.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="🎫 Тикеты компании",
                     callback_data=f"company:tickets:{company.id}",
                 )

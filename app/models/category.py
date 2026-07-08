@@ -34,6 +34,12 @@ class Category(Base, IDMixin, TimestampMixin):
         nullable=False
     )
 
+    is_archived: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
     company = relationship(
         "Company",
         back_populates="categories"
@@ -59,4 +65,6 @@ class Category(Base, IDMixin, TimestampMixin):
     repr_cols = (
         "id",
         "name",
+        "is_active",
+        "is_archived",
     )
