@@ -2,7 +2,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.keyboards.admin import companies_admin_root_menu
+from app.keyboards.admin import admin_main_menu
 from app.models.account import Account
 from app.models.enums import UserRole
 from app.services.message_service import MessageService
@@ -39,5 +39,5 @@ async def answer_admin_panel(message: Message, state) -> None:
         state,
         "SupportBot Enterprise\n\nАдминистративное меню.",
         delete_user_message=False,
-        reply_markup=companies_admin_root_menu(),
+        reply_markup=admin_main_menu(),
     )
