@@ -96,6 +96,9 @@ def company_card_reply_menu(*, is_favorite: bool = False) -> ReplyKeyboardMarkup
     return reply_keyboard(
         [
             favorite_text,
+            "🏢 Заполнить по ИНН",
+            "🔄 Обновить из реестра",
+            "☎️ Изменить телефон",
             "✏️ Переименовать",
             "⛔ Отключить",
             "✅ Включить",

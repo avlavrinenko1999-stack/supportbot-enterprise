@@ -119,6 +119,12 @@ class Company(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    audit_events = relationship(
+        "CompanyAuditEvent",
+        back_populates="company",
+        cascade="all, delete-orphan",
+    )
+
     repr_cols = (
         "id",
         "name",
