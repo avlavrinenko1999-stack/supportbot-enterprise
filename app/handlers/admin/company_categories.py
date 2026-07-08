@@ -4,18 +4,21 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.common import edit_callback_message, get_current_admin
+from app.handlers.admin.common import edit_callback_message, get_current_admin, answer_admin_panel
 from app.keyboards.company_categories import (
     category_delete_confirm_menu,
     category_delete_with_tickets_menu,
     category_parent_select_menu,
     company_archived_categories_menu,
+    company_archived_categories_reply_menu,
     company_categories_menu,
+    company_categories_reply_menu,
     company_category_card_menu,
 )
 from app.services.category_service import CategoryDeleteResult, CategoryService
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
+from app.ui.navigation import PageService
 
 router = Router()
 
@@ -32,8 +35,50 @@ async def load_active_categories(company_id: int):
         return await category_service.list_active_categories(company_id)
 
 
+
+@router.message(F.text == "📂 Категории компании")
+async def company_categories_from_reply(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = data.get("selected_company_id")
+
+    if company_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите компанию.",
+        )
+        return
+
+    company_id = int(company_id)
+
+    async with AsyncSessionLocal() as session:
+        company_service = CompanyService(session)
+        category_service = CategoryService(session)
+
+        company = await company_service.get_company(company_id)
+        categories = await category_service.list_active_categories(company_id)
+
+    if company is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Компания не найдена.",
+        )
+        return
+
+    await PageService.set_page(state, "company_categories", 1)
+    await state.update_data(category_company_id=company_id)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Категории компании\n\nКомпания: {company.name}",
+        reply_markup=company_categories_reply_menu(categories, page=1),
+    )
+
+
 @router.callback_query(F.data.startswith("company:categories:"))
-async def company_categories(callback: CallbackQuery) -> None:
+async def company_categories(callback: CallbackQuery, state: FSMContext) -> None:
     company_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
@@ -47,15 +92,18 @@ async def company_categories(callback: CallbackQuery) -> None:
         await edit_callback_message(callback, "Компания не найдена.")
         return
 
-    await edit_callback_message(
-        callback,
+    await PageService.set_page(state, "company_categories", 1)
+    await state.update_data(category_company_id=company_id)
+
+    await callback.message.answer(
         f"Категории компании\n\nКомпания: {company.name}",
-        reply_markup=company_categories_menu(company_id, categories),
+        reply_markup=company_categories_reply_menu(categories, page=1),
     )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("company_category:archive:"))
-async def company_categories_archive(callback: CallbackQuery) -> None:
+async def company_categories_archive(callback: CallbackQuery, state: FSMContext) -> None:
     company_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
@@ -75,10 +123,77 @@ async def company_categories_archive(callback: CallbackQuery) -> None:
         else f"Архив категорий\n\nКомпания: {company.name}\nАрхив пуст."
     )
 
-    await edit_callback_message(
-        callback,
+    await PageService.set_page(state, "company_categories_archive", 1)
+    await state.update_data(category_company_id=company_id)
+
+    await callback.message.answer(
         text,
-        reply_markup=company_archived_categories_menu(company_id, categories),
+        reply_markup=company_archived_categories_reply_menu(categories, page=1),
+    )
+    await callback.answer()
+
+
+
+@router.message(F.text == "🏠 Админ меню")
+async def categories_back_to_admin_menu(message: Message, state: FSMContext) -> None:
+    await answer_admin_panel(message, state)
+
+
+@router.message(F.text == "📦 Архив категорий")
+async def categories_archive_from_reply(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = int(data["category_company_id"])
+
+    async with AsyncSessionLocal() as session:
+        company_service = CompanyService(session)
+        category_service = CategoryService(session)
+
+        company = await company_service.get_company(company_id)
+        categories = await category_service.list_archived_categories(company_id)
+
+    if company is None:
+        await MessageService.replace_service_message(message, state, "Компания не найдена.")
+        return
+
+    await PageService.set_page(state, "company_categories_archive", 1)
+
+    text = (
+        f"Архив категорий\n\nКомпания: {company.name}"
+        if categories
+        else f"Архив категорий\n\nКомпания: {company.name}\nАрхив пуст."
+    )
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        text,
+        reply_markup=company_archived_categories_reply_menu(categories, page=1),
+    )
+
+
+@router.message(F.text == "⬅️ К активным категориям")
+async def categories_back_to_active_from_reply(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = int(data["category_company_id"])
+
+    async with AsyncSessionLocal() as session:
+        company_service = CompanyService(session)
+        category_service = CategoryService(session)
+
+        company = await company_service.get_company(company_id)
+        categories = await category_service.list_active_categories(company_id)
+
+    if company is None:
+        await MessageService.replace_service_message(message, state, "Компания не найдена.")
+        return
+
+    await PageService.set_page(state, "company_categories", 1)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Категории компании\n\nКомпания: {company.name}",
+        reply_markup=company_categories_reply_menu(categories, page=1),
     )
 
 
@@ -101,6 +216,62 @@ async def company_category_view(callback: CallbackQuery) -> None:
 
     await edit_callback_message(
         callback,
+        "Категория\n\n"
+        f"ID: {category.id}\n"
+        f"Название: {category.name}\n"
+        f"Родитель: {parent_name}\n"
+        f"Статус: {status}\n\n"
+        f"Подкатегорий: {stats.children_count}\n"
+        f"Тикетов: {stats.tickets_count}",
+        reply_markup=company_category_card_menu(category),
+    )
+
+
+
+@router.message(F.text.regexp(r"^[📂📦] .+"))
+async def company_category_view_from_reply(message: Message, state: FSMContext) -> None:
+    raw_text = (message.text or "").strip()
+    category_name = raw_text[2:].strip()
+
+    data = await state.get_data()
+    company_id = int(data["category_company_id"])
+
+    async with AsyncSessionLocal() as session:
+        category_service = CategoryService(session)
+
+        active_categories = await category_service.list_active_categories(company_id)
+        archived_categories = await category_service.list_archived_categories(company_id)
+
+        category = next(
+            (
+                item
+                for item in [*active_categories, *archived_categories]
+                if item.name == category_name
+            ),
+            None,
+        )
+
+        if category is None:
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Категория не найдена.",
+            )
+            return
+
+        stats = await category_service.get_category_stats(category.id)
+
+        parent_name = "—"
+        if stats.category.parent_id:
+            parent = await category_service.get_category(stats.category.parent_id)
+            parent_name = parent.name if parent else "—"
+
+    category = stats.category
+    status = "архивная" if category.is_archived else "активная"
+
+    await MessageService.replace_service_message(
+        message,
+        state,
         "Категория\n\n"
         f"ID: {category.id}\n"
         f"Название: {category.name}\n"
