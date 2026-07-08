@@ -28,6 +28,18 @@ class CoordinatorService:
             )
         )
 
+    async def list_company_coordinators(self, company_id: int) -> list[Account]:
+        return list(
+            await self.session.scalars(
+                select(Account)
+                .where(
+                    Account.company_id == company_id,
+                    Account.role == UserRole.COORDINATOR,
+                )
+                .order_by(Account.id)
+            )
+        )
+
     async def create_coordinator_invite(
         self,
         *,

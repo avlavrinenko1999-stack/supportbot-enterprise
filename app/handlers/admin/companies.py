@@ -6,7 +6,9 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import edit_callback_message, get_current_admin
 from app.keyboards.company import companies_menu, company_card_menu
+from app.keyboards.company_coordinators import company_coordinators_menu
 from app.services.company_service import CompanyService
+from app.services.coordinator_service import CoordinatorService
 from app.services.message_service import MessageService
 
 router = Router()
@@ -254,19 +256,6 @@ async def company_enable(callback: CallbackQuery) -> None:
         reply_markup=company_card_menu(company),
     )
 
-
-@router.callback_query(F.data.startswith("company:coordinators:"))
-async def company_coordinators_stub(callback: CallbackQuery) -> None:
-    company_id = int(callback.data.split(":")[-1])
-
-    await edit_callback_message(
-        callback,
-        "Координаторы компании\n\n"
-        "Этот раздел будет реализован на следующем этапе.",
-        reply_markup=InlineBackToCompany(company_id),
-    )
-
-
 @router.callback_query(F.data.startswith("company:employees:"))
 async def company_employees_stub(callback: CallbackQuery) -> None:
     company_id = int(callback.data.split(":")[-1])
@@ -301,3 +290,42 @@ async def company_settings_stub(callback: CallbackQuery) -> None:
         "Этот раздел будет реализован после базового управления сотрудниками.",
         reply_markup=InlineBackToCompany(company_id),
     )
+
+@router.callback_query(F.data.startswith("company:coordinators:"))
+async def company_coordinators(callback: CallbackQuery) -> None:
+    company_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        company_service = CompanyService(session)
+        coordinator_service = CoordinatorService(session)
+
+        company = await company_service.get_company(company_id)
+        coordinators = await coordinator_service.list_company_coordinators(company_id)
+
+    if company is None:
+        await edit_callback_message(
+            callback,
+            "Компания не найдена.",
+            reply_markup=await load_companies_keyboard(),
+        )
+        return
+
+    if coordinators:
+        text_value = (
+            "Координаторы компании\n\n"
+            f"Компания: {company.name}\n"
+            f"Количество: {len(coordinators)}"
+        )
+    else:
+        text_value = (
+            "Координаторы компании\n\n"
+            f"Компания: {company.name}\n"
+            "Координаторы отсутствуют."
+        )
+
+    await edit_callback_message(
+        callback,
+        text_value,
+        reply_markup=company_coordinators_menu(company_id, coordinators),
+    )
+
