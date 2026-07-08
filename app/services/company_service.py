@@ -1,0 +1,86 @@
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.company import Company
+
+
+class CompanyService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def list_companies(self) -> list[Company]:
+        return list(
+            await self.session.scalars(
+                select(Company).order_by(Company.id)
+            )
+        )
+
+    async def create_company(self, name: str) -> Company:
+        clean_name = name.strip()
+
+        if len(clean_name) < 2:
+            raise ValueError("Название компании слишком короткое.")
+
+        existing = await self.session.scalar(
+            select(Company).where(func.lower(Company.name) == clean_name.lower())
+        )
+
+        if existing is not None:
+            raise ValueError("Компания с таким названием уже существует.")
+
+        company = Company(
+            name=clean_name,
+            is_active=True,
+        )
+
+        self.session.add(company)
+        await self.session.commit()
+        await self.session.refresh(company)
+
+        return company
+
+    async def get_company(self, company_id: int) -> Company | None:
+        return await self.session.scalar(
+            select(Company).where(Company.id == company_id)
+        )
+
+    async def rename_company(self, company_id: int, new_name: str) -> Company:
+        company = await self.get_company(company_id)
+
+        if company is None:
+            raise ValueError("Компания не найдена.")
+
+        clean_name = new_name.strip()
+
+        if len(clean_name) < 2:
+            raise ValueError("Название компании слишком короткое.")
+
+        duplicate = await self.session.scalar(
+            select(Company).where(
+                func.lower(Company.name) == clean_name.lower(),
+                Company.id != company_id,
+            )
+        )
+
+        if duplicate is not None:
+            raise ValueError("Компания с таким названием уже существует.")
+
+        company.name = clean_name
+
+        await self.session.commit()
+        await self.session.refresh(company)
+
+        return company
+
+    async def set_company_active(self, company_id: int, is_active: bool) -> Company:
+        company = await self.get_company(company_id)
+
+        if company is None:
+            raise ValueError("Компания не найдена.")
+
+        company.is_active = is_active
+
+        await self.session.commit()
+        await self.session.refresh(company)
+
+        return company
