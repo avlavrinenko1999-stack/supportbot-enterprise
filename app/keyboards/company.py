@@ -51,6 +51,7 @@ def company_card_menu(company: Company) -> InlineKeyboardMarkup:
 
 from aiogram.types import ReplyKeyboardMarkup
 from app.keyboards.reply import reply_keyboard
+from app.keyboards.reply_list import list_reply_menu
 
 
 def companies_reply_menu(
@@ -59,38 +60,20 @@ def companies_reply_menu(
     page: int = 1,
     per_page: int = 8,
 ) -> ReplyKeyboardMarkup:
-    total = len(companies)
-    total_pages = max(1, (total + per_page - 1) // per_page)
-    page = max(1, min(page, total_pages))
+    company_buttons = []
 
-    start = (page - 1) * per_page
-    end = start + per_page
-    visible_companies = companies[start:end]
-
-    buttons: list[str] = []
-
-    for company in visible_companies:
+    for company in companies:
         status = "✅" if company.is_active else "⛔"
-        buttons.append(f"{status} {company.id}. {company.name}")
+        company_buttons.append(f"{status} {company.id}. {company.name}")
 
-    nav_buttons: list[str] = []
-    if page > 1:
-        nav_buttons.append("⬅️ Назад")
-    if page < total_pages:
-        nav_buttons.append("➡️ Далее")
-
-    buttons.extend(nav_buttons)
-    buttons.extend(
-        [
-            "🔎 Поиск компании",
-            "➕ Создать компанию",
-            "🏠 Админ меню",
-        ]
-    )
-
-    return reply_keyboard(
-        buttons,
-        input_field_placeholder=f"Компании: страница {page}/{total_pages}",
+    return list_reply_menu(
+        company_buttons,
+        page=page,
+        per_page=per_page,
+        search_text="🔎 Поиск компании",
+        create_text="➕ Создать компанию",
+        home_text="🏠 Админ меню",
+        placeholder_prefix="Компании",
     )
 
 
