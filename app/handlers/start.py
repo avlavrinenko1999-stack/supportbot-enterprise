@@ -43,6 +43,7 @@ async def start(message: Message, state: FSMContext) -> None:
                 message,
                 state,
                 f"SupportBot Enterprise\n\n{MenuService.title_for(existing_account)}",
+                delete_user_message=False,
                 reply_markup=MenuService.keyboard_for(existing_account),
             )
             return
@@ -78,5 +79,6 @@ async def start(message: Message, state: FSMContext) -> None:
         message,
         state,
         f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
+        delete_user_message=False,
         reply_markup=MenuService.keyboard_for(account),
     )
