@@ -1,14 +1,14 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup
+
+from app.keyboards.reply import reply_keyboard
 
 
 def operator_main_menu() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Новые тикеты")],
-            [KeyboardButton(text="Мои тикеты")],
-            [KeyboardButton(text="Профиль")],
+    return reply_keyboard(
+        [
+            "Новые тикеты",
+            "Мои тикеты",
+            "Профиль",
         ],
-        resize_keyboard=True,
-        is_persistent=True,
         input_field_placeholder="Выберите действие",
     )

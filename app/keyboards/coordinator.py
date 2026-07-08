@@ -1,14 +1,14 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup
+
+from app.keyboards.reply import reply_keyboard
 
 
 def coordinator_main_menu() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Сотрудники")],
-            [KeyboardButton(text="Тикеты компании")],
-            [KeyboardButton(text="Профиль")],
+    return reply_keyboard(
+        [
+            "Сотрудники",
+            "Тикеты компании",
+            "Профиль",
         ],
-        resize_keyboard=True,
-        is_persistent=True,
         input_field_placeholder="Выберите действие",
     )

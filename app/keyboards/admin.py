@@ -1,34 +1,29 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+
+from app.keyboards.reply import reply_keyboard
 
 
 def admin_main_menu() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Создать приглашение")],
-            [KeyboardButton(text="Компании")],
-            [KeyboardButton(text="Координаторы")],
+    return reply_keyboard(
+        [
+            "Создать приглашение",
+            "Компании",
+            "Координаторы",
         ],
-        resize_keyboard=True,
-        is_persistent=True,
         input_field_placeholder="Выберите действие",
     )
 
 
 def invite_role_menu() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="coordinator")],
-            [KeyboardButton(text="operator")],
-            [KeyboardButton(text="user")],
-            [KeyboardButton(text="Отмена")],
+    return reply_keyboard(
+        [
+            "coordinator",
+            "operator",
+            "user",
+            "Отмена",
         ],
-        resize_keyboard=True,
-        is_persistent=True,
         input_field_placeholder="Выберите роль",
     )
-
-
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 def companies_admin_root_menu() -> InlineKeyboardMarkup:
