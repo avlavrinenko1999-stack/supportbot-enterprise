@@ -1,9 +1,12 @@
+from datetime import datetime, timezone
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from app.database.db import AsyncSessionLocal
+from app.integrations.dadata import DadataClient
 from app.handlers.admin.common import answer_admin_panel, get_current_admin
 from app.keyboards.company import (
     companies_catalog_reply_menu,
@@ -20,10 +23,33 @@ from app.ui.navigation import PageService
 router = Router()
 
 
+COMPANY_CONTROL_TEXTS = {
+    "🏢 Заполнить по ИНН",
+    "🔄 Обновить из реестра",
+    "☎️ Изменить телефон",
+    "⭐ В избранное",
+    "⭐ Убрать из избранного",
+    "✏️ Переименовать",
+    "⛔ Отключить",
+    "✅ Включить",
+    "🔗 Создать приглашение",
+    "👤 Координаторы компании",
+    "👷 Операторы компании",
+    "👥 Пользователи компании",
+    "📂 Категории компании",
+    "🎫 Тикеты компании",
+    "⚙️ Настройки компании",
+    "⬅️ Каталог компаний",
+    "🏠 Админ меню",
+}
+
+
 class CompanyState(StatesGroup):
     create_name = State()
     rename_name = State()
     search_query = State()
+    legal_inn = State()
+    phone = State()
 
 
 async def load_companies() -> list:
@@ -212,6 +238,8 @@ async def render_company_card(
     state: FSMContext,
     company_id: int,
 ) -> None:
+    await state.set_state(None)
+
     account = await get_current_account_or_answer(message, state)
     if account is None:
         return
@@ -436,7 +464,7 @@ async def company_create_start(message: Message, state: FSMContext) -> None:
     await MessageService.replace_service_message(
         message,
         state,
-        "Введите название новой компании.",
+        "Введите ИНН компании. Компания будет создана по данным DaData.",
         reply_markup=companies_catalog_reply_menu(),
     )
 
@@ -444,25 +472,80 @@ async def company_create_start(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == "company:create")
 async def company_create_start_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(CompanyState.create_name)
-    await callback.message.answer("Введите название новой компании.")
+    await callback.message.answer("Введите ИНН компании. Компания будет создана по данным DaData.")
     await callback.answer()
 
 
 @router.message(CompanyState.create_name)
 async def company_create_finish(message: Message, state: FSMContext) -> None:
+    text = (message.text or "").strip()
+
+    if text in COMPANY_CONTROL_TEXTS:
+        await state.set_state(None)
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Создание компании отменено. Выберите действие заново.",
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
+
     account = await get_current_account_or_answer(message, state)
     if account is None:
         await state.clear()
         return
 
+    try:
+        legal_data = await DadataClient().find_company_by_inn(text)
+    except ValueError as error:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            str(error),
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
+
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
 
-        try:
-            company = await service.create_company(message.text or "")
-        except ValueError as error:
-            await MessageService.replace_service_message(message, state, str(error))
+        duplicate = await service.find_duplicate_by_legal_data(legal_data)
+
+        if duplicate is not None:
+            if service.is_legal_data_empty(duplicate):
+                company = await service.update_legal_data(duplicate.id, legal_data)
+                company.last_registry_sync_at = datetime.now(timezone.utc)
+                await session.commit()
+
+                await state.clear()
+                await MessageService.replace_service_message(
+                    message,
+                    state,
+                    "Найдена существующая пустая карточка компании.\n\n"
+                    f"ID: {company.id}\n"
+                    f"Название: {company.name}\n\n"
+                    "Карточка заполнена данными DaData.",
+                )
+                await render_company_card(message, state, company.id)
+                return
+
+            await state.clear()
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Компания уже есть в базе и содержит реквизиты.\n\n"
+                f"ID: {duplicate.id}\n"
+                f"Название: {duplicate.name}\n"
+                f"ИНН: {duplicate.inn or 'не заполнен'}\n"
+                f"ОГРН: {duplicate.ogrn or 'не заполнен'}\n\n"
+                "Открываю существующую карточку.",
+            )
+            await render_company_card(message, state, duplicate.id)
             return
+
+        company = await service.create_company_from_legal_data(legal_data)
+        company.last_registry_sync_at = datetime.now(timezone.utc)
+        await session.commit()
 
     await state.clear()
     await render_company_card(message, state, company.id)
