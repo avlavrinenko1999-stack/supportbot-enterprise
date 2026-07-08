@@ -1,12 +1,22 @@
 import hashlib
-from datetime import datetime, timezone
+import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
-from app.models.enums import UserRole
+from app.models.company import Company
+from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
+
+
+@dataclass(frozen=True)
+class CreatedInvite:
+    invite: Invite
+    token: str
+    link: str
 
 
 class InviteService:
@@ -16,6 +26,58 @@ class InviteService:
     @staticmethod
     def make_token_hash(token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def generate_token() -> str:
+        return secrets.token_urlsafe(32)
+
+    async def create_invite(
+        self,
+        *,
+        created_by: Account,
+        company_id: int,
+        role: InviteRole,
+        full_name: str,
+        bot_username: str,
+        expires_days: int = 7,
+    ) -> CreatedInvite:
+        if created_by.role != UserRole.ADMIN:
+            raise ValueError("Недостаточно прав для создания приглашения.")
+
+        company = await self.session.scalar(
+            select(Company).where(
+                Company.id == company_id,
+                Company.is_active.is_(True),
+            )
+        )
+
+        if company is None:
+            raise ValueError("Компания не найдена или отключена.")
+
+        token = self.generate_token()
+        token_hash = self.make_token_hash(token)
+
+        invite = Invite(
+            token_hash=token_hash,
+            full_name=full_name.strip(),
+            role=role,
+            company_id=company.id,
+            created_by_id=created_by.id,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
+            used_at=None,
+            used_by_account_id=None,
+            is_active=True,
+        )
+
+        self.session.add(invite)
+        await self.session.commit()
+        await self.session.refresh(invite)
+
+        return CreatedInvite(
+            invite=invite,
+            token=token,
+            link=f"https://t.me/{bot_username}?start={token}",
+        )
 
     async def register_by_token(
         self,
