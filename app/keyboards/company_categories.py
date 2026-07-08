@@ -1,7 +1,8 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from app.keyboards.common import back_menu, button, confirm_menu, inline_menu
 from app.models.category import Category
+from app.keyboards.reply_list import list_reply_menu
 
 
 def _category_label(category: Category) -> str:
@@ -118,4 +119,51 @@ def category_delete_confirm_menu(category: Category) -> InlineKeyboardMarkup:
         yes_callback=f"company_category:delete_confirm:{category.id}",
         no_callback=f"company_category:view:{category.id}",
         back_callback=f"company_category:view:{category.id}",
+    )
+
+
+
+def company_categories_reply_menu(
+    categories: list[Category],
+    *,
+    page: int = 1,
+    per_page: int = 8,
+) -> ReplyKeyboardMarkup:
+    category_buttons = [
+        _category_label(category)
+        for category in categories
+    ]
+
+    return list_reply_menu(
+        category_buttons,
+        page=page,
+        per_page=per_page,
+        search_text="🔎 Поиск категории",
+        create_text="➕ Создать категорию",
+        archive_text="📦 Архив категорий",
+        back_text="⬅️ К карточке компании",
+        home_text="🏠 Админ меню",
+        placeholder_prefix="Категории",
+    )
+
+
+def company_archived_categories_reply_menu(
+    categories: list[Category],
+    *,
+    page: int = 1,
+    per_page: int = 8,
+) -> ReplyKeyboardMarkup:
+    category_buttons = [
+        f"📦 {category.name}"
+        for category in categories
+    ]
+
+    return list_reply_menu(
+        category_buttons,
+        page=page,
+        per_page=per_page,
+        search_text="🔎 Поиск в архиве",
+        back_text="⬅️ К активным категориям",
+        home_text="🏠 Админ меню",
+        placeholder_prefix="Архив категорий",
     )
