@@ -1,240 +1,121 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.keyboards.common import back_menu, button, confirm_menu, inline_menu
 from app.models.category import Category
 
 
-def _category_label(category: Category, level: int = 0) -> str:
-    prefix = "   " * level
+def _category_label(category: Category) -> str:
     icon = "📦" if category.is_archived else "📂"
-    return f"{prefix}{icon} {category.name}"
+    return f"{icon} {category.name}"
 
 
 def company_categories_menu(
     company_id: int,
     categories: list[Category],
 ) -> InlineKeyboardMarkup:
-    keyboard: list[list[InlineKeyboardButton]] = []
-
-    for category in categories:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=_category_label(category),
-                    callback_data=f"company_category:view:{category.id}",
-                )
-            ]
+    category_buttons = [
+        button(
+            _category_label(category),
+            f"company_category:view:{category.id}",
         )
+        for category in categories
+    ]
 
-    keyboard.extend(
-        [
-            [
-                InlineKeyboardButton(
-                    text="➕ Создать категорию",
-                    callback_data=f"company_category:create:{company_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ Создать подкатегорию",
-                    callback_data=f"company_category:create_child_select_parent:{company_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📦 Архив категорий",
-                    callback_data=f"company_category:archive:{company_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ К карточке компании",
-                    callback_data=f"company:view:{company_id}",
-                )
-            ],
-        ]
+    action_buttons = [
+        button("➕ Создать категорию", f"company_category:create:{company_id}"),
+        button(
+            "➕ Создать подкатегорию",
+            f"company_category:create_child_select_parent:{company_id}",
+        ),
+        button("📦 Архив категорий", f"company_category:archive:{company_id}"),
+    ]
+
+    return inline_menu(
+        buttons=category_buttons + action_buttons,
+        back_buttons=[
+            button("⬅️ К карточке компании", f"company:view:{company_id}"),
+        ],
     )
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def category_parent_select_menu(
     company_id: int,
     categories: list[Category],
 ) -> InlineKeyboardMarkup:
-    keyboard: list[list[InlineKeyboardButton]] = []
+    parent_buttons = [
+        button(f"📂 {category.name}", f"company_category:create_child:{category.id}")
+        for category in categories
+    ]
 
-    for category in categories:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=f"📂 {category.name}",
-                    callback_data=f"company_category:create_child:{category.id}",
-                )
-            ]
-        )
-
-    keyboard.append(
-        [
-            InlineKeyboardButton(
-                text="⬅️ К категориям компании",
-                callback_data=f"company:categories:{company_id}",
-            )
-        ]
+    return inline_menu(
+        buttons=parent_buttons,
+        back_buttons=[
+            button("⬅️ К категориям компании", f"company:categories:{company_id}"),
+        ],
     )
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def company_category_card_menu(
     category: Category,
 ) -> InlineKeyboardMarkup:
-    keyboard: list[list[InlineKeyboardButton]] = [
-        [
-            InlineKeyboardButton(
-                text="✏️ Переименовать",
-                callback_data=f"company_category:rename:{category.id}",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="👥 Координаторы категории",
-                callback_data=f"company_category:coordinators:{category.id}",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="👷 Операторы категории",
-                callback_data=f"company_category:operators:{category.id}",
-            )
-        ],
+    action_buttons = [
+        button("✏️ Переименовать", f"company_category:rename:{category.id}"),
+        button("👥 Координаторы", f"company_category:coordinators:{category.id}"),
+        button("👷 Операторы", f"company_category:operators:{category.id}"),
+        button("🗑 Удалить", f"company_category:delete:{category.id}"),
     ]
 
     if category.is_archived:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text="♻️ Восстановить",
-                    callback_data=f"company_category:restore:{category.id}",
-                )
-            ]
+        action_buttons.append(
+            button("♻️ Восстановить", f"company_category:restore:{category.id}")
         )
     else:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text="📦 Архивировать",
-                    callback_data=f"company_category:archive_one:{category.id}",
-                )
-            ]
+        action_buttons.append(
+            button("📦 Архивировать", f"company_category:archive_one:{category.id}")
         )
 
-    keyboard.extend(
-        [
-            [
-                InlineKeyboardButton(
-                    text="🗑 Удалить",
-                    callback_data=f"company_category:delete:{category.id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ К категориям компании",
-                    callback_data=f"company:categories:{category.company_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ К карточке компании",
-                    callback_data=f"company:view:{category.company_id}",
-                )
-            ],
-        ]
+    return inline_menu(
+        buttons=action_buttons,
+        back_buttons=[
+            button("⬅️ К категориям компании", f"company:categories:{category.company_id}"),
+            button("⬅️ К карточке компании", f"company:view:{category.company_id}"),
+        ],
     )
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def company_archived_categories_menu(
     company_id: int,
     categories: list[Category],
 ) -> InlineKeyboardMarkup:
-    keyboard: list[list[InlineKeyboardButton]] = []
+    category_buttons = [
+        button(f"📦 {category.name}", f"company_category:view:{category.id}")
+        for category in categories
+    ]
 
-    for category in categories:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=f"📦 {category.name}",
-                    callback_data=f"company_category:view:{category.id}",
-                )
-            ]
-        )
-
-    keyboard.extend(
-        [
-            [
-                InlineKeyboardButton(
-                    text="⬅️ К активным категориям",
-                    callback_data=f"company:categories:{company_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ К карточке компании",
-                    callback_data=f"company:view:{company_id}",
-                )
-            ],
-        ]
+    return inline_menu(
+        buttons=category_buttons,
+        back_buttons=[
+            button("⬅️ К активным категориям", f"company:categories:{company_id}"),
+            button("⬅️ К карточке компании", f"company:view:{company_id}"),
+        ],
     )
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def category_delete_with_tickets_menu(category: Category) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ Да, переместить в архив",
-                    callback_data=f"company_category:archive_one:{category.id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="❌ Нет",
-                    callback_data=f"company_category:view:{category.id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ Назад",
-                    callback_data=f"company_category:view:{category.id}",
-                )
-            ],
-        ]
+    return confirm_menu(
+        yes_text="✅ Да, в архив",
+        no_text="❌ Нет",
+        yes_callback=f"company_category:archive_one:{category.id}",
+        no_callback=f"company_category:view:{category.id}",
+        back_callback=f"company_category:view:{category.id}",
     )
 
 
 def category_delete_confirm_menu(category: Category) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="✅ Да, удалить",
-                    callback_data=f"company_category:delete_confirm:{category.id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="❌ Нет",
-                    callback_data=f"company_category:view:{category.id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⬅️ Назад",
-                    callback_data=f"company_category:view:{category.id}",
-                )
-            ],
-        ]
+    return confirm_menu(
+        yes_text="✅ Да, удалить",
+        no_text="❌ Нет",
+        yes_callback=f"company_category:delete_confirm:{category.id}",
+        no_callback=f"company_category:view:{category.id}",
+        back_callback=f"company_category:view:{category.id}",
     )

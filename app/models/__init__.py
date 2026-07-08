@@ -23,3 +23,5 @@ __all__ = [
     "TicketEvent",
     "InternalNote",
 ]
+
+from app.models.category_member import CategoryMember

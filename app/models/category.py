@@ -62,6 +62,12 @@ class Category(Base, IDMixin, TimestampMixin):
         back_populates="category"
     )
 
+    members = relationship(
+        "CategoryMember",
+        back_populates="category",
+        cascade="all, delete-orphan"
+    )
+
     repr_cols = (
         "id",
         "name",

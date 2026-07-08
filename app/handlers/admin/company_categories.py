@@ -250,3 +250,206 @@ async def company_category_child_create_finish(
         f"Подкатегория создана: {category.name}",
         reply_markup=company_categories_menu(company_id, categories),
     )
+
+
+@router.callback_query(F.data.startswith("company_category:rename:"))
+async def company_category_rename_start(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    category_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        service = CategoryService(session)
+        category = await service.get_category(category_id)
+
+    if category is None:
+        await edit_callback_message(callback, "Категория не найдена.")
+        return
+
+    await state.update_data(rename_category_id=category_id)
+    await state.set_state(CompanyCategoryState.rename_name)
+
+    await edit_callback_message(
+        callback,
+        "Переименование категории\n\n"
+        f"Текущее название: {category.name}\n\n"
+        "Введите новое название.",
+        reply_markup=company_category_card_menu(category),
+    )
+
+
+@router.message(CompanyCategoryState.rename_name)
+async def company_category_rename_finish(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    admin = await get_current_admin(message.from_user.id)
+
+    if admin is None:
+        await state.clear()
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "У вас нет доступа к этому действию.",
+            delete_user_message=False,
+        )
+        return
+
+    data = await state.get_data()
+    category_id = int(data["rename_category_id"])
+
+    async with AsyncSessionLocal() as session:
+        service = CategoryService(session)
+
+        try:
+            category = await service.rename_category(
+                category_id=category_id,
+                new_name=message.text or "",
+            )
+        except ValueError as error:
+            await MessageService.replace_service_message(message, state, str(error))
+            return
+
+    await state.clear()
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Категория переименована: {category.name}",
+        reply_markup=company_category_card_menu(category),
+    )
+
+
+@router.callback_query(F.data.startswith("company_category:archive_one:"))
+async def company_category_archive_one(callback: CallbackQuery) -> None:
+    category_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        service = CategoryService(session)
+
+        try:
+            category = await service.archive_category(category_id)
+        except ValueError as error:
+            await edit_callback_message(callback, str(error))
+            return
+
+    await edit_callback_message(
+        callback,
+        f"Категория перемещена в архив.\n\nКатегория: {category.name}",
+        reply_markup=company_category_card_menu(category),
+    )
+
+
+@router.callback_query(F.data.startswith("company_category:restore:"))
+async def company_category_restore(callback: CallbackQuery) -> None:
+    category_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        service = CategoryService(session)
+
+        try:
+            category = await service.restore_category(category_id)
+        except ValueError as error:
+            await edit_callback_message(callback, str(error))
+            return
+
+    await edit_callback_message(
+        callback,
+        f"Категория восстановлена.\n\nКатегория: {category.name}",
+        reply_markup=company_category_card_menu(category),
+    )
+
+
+@router.callback_query(F.data.startswith("company_category:delete:"))
+async def company_category_delete_request(callback: CallbackQuery) -> None:
+    category_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        service = CategoryService(session)
+
+        try:
+            stats = await service.get_category_stats(category_id)
+        except ValueError as error:
+            await edit_callback_message(callback, str(error))
+            return
+
+    category = stats.category
+
+    if stats.children_count > 0:
+        await edit_callback_message(
+            callback,
+            "Категорию нельзя удалить.\n\n"
+            "У этой категории есть дочерние категории. "
+            "Сначала удалите или перенесите в архив дочерние категории.",
+            reply_markup=company_category_card_menu(category),
+        )
+        return
+
+    if stats.tickets_count > 0:
+        await edit_callback_message(
+            callback,
+            "По этой категории существуют обращения.\n\n"
+            "Её нельзя удалить.\n\n"
+            "Переместить категорию в архив?",
+            reply_markup=category_delete_with_tickets_menu(category),
+        )
+        return
+
+    await edit_callback_message(
+        callback,
+        "Удалить категорию?\n\n"
+        f"Категория: {category.name}",
+        reply_markup=category_delete_confirm_menu(category),
+    )
+
+
+@router.callback_query(F.data.startswith("company_category:delete_confirm:"))
+async def company_category_delete_confirm(callback: CallbackQuery) -> None:
+    category_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        service = CategoryService(session)
+
+        try:
+            category = await service.get_category(category_id)
+
+            if category is None:
+                await edit_callback_message(callback, "Категория не найдена.")
+                return
+
+            company_id = category.company_id
+            category_name = category.name
+            result = await service.delete_category(category_id)
+
+            if result == CategoryDeleteResult.DELETED:
+                categories = await service.list_active_categories(company_id)
+                await edit_callback_message(
+                    callback,
+                    f"Категория удалена.\n\nКатегория: {category_name}",
+                    reply_markup=company_categories_menu(company_id, categories),
+                )
+                return
+
+            if result == CategoryDeleteResult.HAS_TICKETS:
+                await edit_callback_message(
+                    callback,
+                    "По этой категории существуют обращения.\n\n"
+                    "Её нельзя удалить.\n\n"
+                    "Переместить категорию в архив?",
+                    reply_markup=category_delete_with_tickets_menu(category),
+                )
+                return
+
+            if result == CategoryDeleteResult.HAS_CHILDREN:
+                await edit_callback_message(
+                    callback,
+                    "Категорию нельзя удалить.\n\n"
+                    "У этой категории есть дочерние категории.",
+                    reply_markup=company_category_card_menu(category),
+                )
+                return
+
+        except ValueError as error:
+            await edit_callback_message(callback, str(error))
+            return
