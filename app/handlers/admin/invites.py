@@ -5,8 +5,8 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.common import edit_callback_message, get_current_admin
-from app.keyboards.admin import companies_admin_root_menu, invite_role_menu
+from app.handlers.admin.common import answer_admin_panel, edit_callback_message, get_current_admin
+from app.keyboards.admin import invite_role_menu
 from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import InviteRole
@@ -34,18 +34,14 @@ async def start_invite_creation(message_or_callback, state: FSMContext) -> None:
 
     if not companies:
         text = "Активных компаний пока нет."
+
         if isinstance(message_or_callback, CallbackQuery):
-            await edit_callback_message(
-                message_or_callback,
-                text,
-                reply_markup=companies_admin_root_menu(),
-            )
+            await edit_callback_message(message_or_callback, text)
         else:
             await MessageService.replace_service_message(
                 message_or_callback,
                 state,
                 text,
-                reply_markup=companies_admin_root_menu(),
             )
         return
 
@@ -138,6 +134,11 @@ async def create_invite_company(message: Message, state: FSMContext) -> None:
 async def create_invite_role(message: Message, state: FSMContext) -> None:
     role_text = (message.text or "").strip()
 
+    if role_text == "Отмена":
+        await state.clear()
+        await answer_admin_panel(message, state)
+        return
+
     try:
         role = InviteRole(role_text)
     except ValueError:
@@ -174,6 +175,11 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
 
     full_name = (message.text or "").strip()
 
+    if full_name == "Отмена":
+        await state.clear()
+        await answer_admin_panel(message, state)
+        return
+
     if len(full_name) < 3:
         await MessageService.replace_service_message(
             message,
@@ -206,7 +212,6 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
                 message,
                 state,
                 str(error),
-                reply_markup=companies_admin_root_menu(),
             )
             return
 
@@ -220,5 +225,6 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
         f"Роль: {data['role']}\n"
         f"Срок действия: 7 дней\n\n"
         f"Ссылка:\n{created.link}",
-        reply_markup=companies_admin_root_menu(),
     )
+
+    await answer_admin_panel(message, state)

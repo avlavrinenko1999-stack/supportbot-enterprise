@@ -7,6 +7,7 @@ from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import UserRole
 from app.models.ticket import Ticket
+from app.integrations.dadata import DadataCompany
 
 
 @dataclass(frozen=True)
@@ -119,6 +120,42 @@ class CompanyService:
             raise ValueError("Компания с таким названием уже существует.")
 
         company.name = clean_name
+
+        await self.session.commit()
+        await self.session.refresh(company)
+
+        return company
+
+    async def update_legal_data(
+        self,
+        company_id: int,
+        data: DadataCompany,
+    ) -> Company:
+        company = await self.get_company(company_id)
+
+        if company is None:
+            raise ValueError("Компания не найдена.")
+
+        duplicate = await self.session.scalar(
+            select(Company).where(
+                Company.inn == data.inn,
+                Company.id != company_id,
+            )
+        )
+
+        if duplicate is not None:
+            raise ValueError("Компания с таким ИНН уже существует.")
+
+        company.name = data.name
+        company.inn = data.inn
+        company.kpp = data.kpp
+        company.ogrn = data.ogrn
+        company.legal_name = data.legal_name
+        company.legal_address = data.legal_address
+        company.legal_status = data.legal_status
+        company.legal_status_code = data.legal_status_code
+        company.registration_date = data.registration_date
+        company.liquidation_date = data.liquidation_date
 
         await self.session.commit()
         await self.session.refresh(company)

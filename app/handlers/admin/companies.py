@@ -585,6 +585,73 @@ async def company_enable_from_reply(message: Message, state: FSMContext) -> None
     await render_company_card(message, state, company.id)
 
 
+
+@router.message(F.text == "🔗 Создать приглашение")
+async def company_invite_from_card(message: Message, state: FSMContext) -> None:
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    await state.update_data(company_id=company_id)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Создание приглашения для выбранной компании будет подключено следующим этапом.",
+        reply_markup=company_card_reply_menu(),
+    )
+
+
+@router.message(F.text == "👤 Координаторы компании")
+async def company_coordinators_from_card(message: Message, state: FSMContext) -> None:
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Координаторы компании #{company_id}\n\nРаздел будет подключен следующим этапом.",
+        reply_markup=company_card_reply_menu(),
+    )
+
+
+@router.message(F.text == "👷 Операторы компании")
+async def company_operators_from_card(message: Message, state: FSMContext) -> None:
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Операторы компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
+        reply_markup=company_card_reply_menu(),
+    )
+
+
+@router.message(F.text == "👥 Пользователи компании")
+async def company_users_from_card(message: Message, state: FSMContext) -> None:
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Пользователи компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
+        reply_markup=company_card_reply_menu(),
+    )
+
+
 @router.message(F.text == "👥 Сотрудники компании")
 async def company_employees_stub(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)

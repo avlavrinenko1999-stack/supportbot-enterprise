@@ -24,6 +24,57 @@ class Company(Base, IDMixin, TimestampMixin):
         nullable=False
     )
 
+    inn: Mapped[str | None] = mapped_column(
+        String(12),
+        unique=True,
+        nullable=True,
+    )
+
+    kpp: Mapped[str | None] = mapped_column(
+        String(9),
+        nullable=True,
+    )
+
+    ogrn: Mapped[str | None] = mapped_column(
+        String(15),
+        nullable=True,
+    )
+
+    legal_name: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+    )
+
+    legal_address: Mapped[str | None] = mapped_column(
+        String(1024),
+        nullable=True,
+    )
+
+    legal_status: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    legal_status_code: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    registration_date: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    liquidation_date: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    phone: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
     accounts = relationship(
         "Account",
         back_populates="company",
