@@ -5,6 +5,7 @@ from aiogram.types import Message
 from app.database.db import AsyncSessionLocal
 from app.keyboards.user_menu import user_main_menu
 from app.services.invite_service import InviteService
+from app.services.message_service import MessageService
 
 router = Router()
 
@@ -30,8 +31,9 @@ async def start(message: Message) -> None:
     command_parts = (message.text or "").split(maxsplit=1)
 
     if len(command_parts) != 2:
-        await message.answer(
-            "Для регистрации используйте персональную ссылку-приглашение."
+        await MessageService.replace_with_answer(
+            message,
+            "Для регистрации используйте персональную ссылку-приглашение.",
         )
         return
 
@@ -47,10 +49,11 @@ async def start(message: Message) -> None:
                 telegram_full_name=build_full_name(message),
             )
         except ValueError as error:
-            await message.answer(str(error))
+            await MessageService.replace_with_answer(message, str(error))
             return
 
-    await message.answer(
-        f"Регистрация завершена.\n\nДобро пожаловать, {account.full_name}.",
+    await MessageService.replace_with_answer(
+        message,
+        f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
         reply_markup=user_main_menu(),
     )
