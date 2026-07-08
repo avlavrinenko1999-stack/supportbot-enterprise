@@ -9,12 +9,15 @@ from app.handlers.coordinator import router as coordinator_router
 from app.handlers.operator import router as operator_router
 from app.handlers.start import router as start_router
 from app.handlers.user import router as user_router
+from app.services.menu_service import MenuService
 
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
     bot = Bot(token=settings.BOT_TOKEN)
+    await MenuService.setup_bot_commands(bot)
+
     dp = Dispatcher()
 
     dp.include_router(start_router)
