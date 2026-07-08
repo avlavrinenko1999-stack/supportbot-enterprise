@@ -71,13 +71,6 @@ class Ticket(Base, IDMixin, TimestampMixin):
         back_populates="ticket",
         cascade="all, delete-orphan"
     )
-
-    attachments = relationship(
-        "Attachment",
-        back_populates="ticket",
-        cascade="all, delete-orphan"
-    )
-
     events = relationship(
         "TicketEvent",
         back_populates="ticket",
