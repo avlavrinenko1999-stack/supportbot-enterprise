@@ -55,9 +55,9 @@ def companies_catalog_reply_menu() -> ReplyKeyboardMarkup:
     return reply_keyboard(
         [
             "🔎 Найти компанию",
+            "⭐ Избранные компании",
             "🕘 Последние компании",
             "⛔ Отключенные компании",
-            "📋 Все компании",
             "➕ Создать компанию",
             "🏠 Админ меню",
         ],
@@ -90,9 +90,12 @@ def companies_reply_menu(
     )
 
 
-def company_card_reply_menu() -> ReplyKeyboardMarkup:
+def company_card_reply_menu(*, is_favorite: bool = False) -> ReplyKeyboardMarkup:
+    favorite_text = "⭐ Убрать из избранного" if is_favorite else "⭐ В избранное"
+
     return reply_keyboard(
         [
+            favorite_text,
             "✏️ Переименовать",
             "⛔ Отключить",
             "✅ Включить",

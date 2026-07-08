@@ -19,6 +19,7 @@ from app.services.category_service import CategoryDeleteResult, CategoryService
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.navigation import PageService
+from app.ui.context import UIContext
 
 router = Router()
 
@@ -39,7 +40,8 @@ async def load_active_categories(company_id: int):
 @router.message(F.text == "📂 Категории компании")
 async def company_categories_from_reply(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-    company_id = data.get("selected_company_id")
+    company_id = await UIContext.get_company_id(state)
+    company_id = company_id or data.get("selected_company_id") or data.get("category_company_id")
 
     if company_id is None:
         await MessageService.replace_service_message(
@@ -287,7 +289,8 @@ async def company_category_view_from_reply(message: Message, state: FSMContext) 
 @router.message(F.text == "➕ Создать категорию")
 async def company_category_create_start_from_reply(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-    company_id = data.get("category_company_id") or data.get("selected_company_id")
+    company_id = await UIContext.get_company_id(state)
+    company_id = company_id or data.get("category_company_id") or data.get("selected_company_id")
 
     if company_id is None:
         await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
@@ -306,7 +309,8 @@ async def company_category_create_start_from_reply(message: Message, state: FSMC
 @router.message(F.text == "⬅️ К карточке компании")
 async def categories_back_to_company_card(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
-    company_id = data.get("selected_company_id") or data.get("category_company_id")
+    company_id = await UIContext.get_company_id(state)
+    company_id = company_id or data.get("selected_company_id") or data.get("category_company_id")
 
     if company_id is None:
         await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")

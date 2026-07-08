@@ -9,9 +9,9 @@ from app.keyboards.company import (
     companies_catalog_reply_menu,
     companies_menu,
     companies_reply_menu,
-    company_card_menu,
     company_card_reply_menu,
 )
+from app.services.company_preference_service import CompanyPreferenceService
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
@@ -32,10 +32,27 @@ async def load_companies() -> list:
         return await service.list_companies()
 
 
+async def get_current_account_or_answer(message: Message, state: FSMContext):
+    account = await get_current_admin(message.from_user.id)
+
+    if account is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "У вас нет доступа к этому действию.",
+            delete_user_message=False,
+        )
+        return None
+
+    return account
+
+
 async def render_company_catalog(message: Message, state: FSMContext) -> None:
     companies = await load_companies()
     active_count = len([company for company in companies if company.is_active])
     disabled_count = len(companies) - active_count
+
+    await UIContext.set_section(state, "companies_catalog")
 
     await MessageService.replace_service_message(
         message,
@@ -44,7 +61,7 @@ async def render_company_catalog(message: Message, state: FSMContext) -> None:
         f"Всего: {len(companies)}\n"
         f"Активных: {active_count}\n"
         f"Отключенных: {disabled_count}\n\n"
-        "Используйте поиск, если компаний много.",
+        "Для больших списков используйте поиск, избранное или последние компании.",
         reply_markup=companies_catalog_reply_menu(),
     )
 
@@ -55,8 +72,8 @@ async def render_company_list(
     companies: list,
     *,
     page: int = 1,
-    section: str = "companies",
-    title: str = "Компании",
+    section: str,
+    title: str,
 ) -> None:
     per_page = 8
     total = len(companies)
@@ -77,7 +94,7 @@ async def render_company_list(
 
         text = "\n".join(lines)
     else:
-        text = f"{title}\n\nНичего не найдено."
+        text = f"{title}\n\nСписок пуст."
 
     await MessageService.replace_service_message(
         message,
@@ -116,24 +133,43 @@ async def render_disabled_companies(message: Message, state: FSMContext, page: i
     )
 
 
-async def render_recent_companies(message: Message, state: FSMContext, page: int = 1) -> None:
-    recent_ids = await UIContext.get_recent_company_ids(state)
-    companies = await load_companies()
-    company_by_id = {company.id: company for company in companies}
-
-    recent_companies = [
-        company_by_id[company_id]
-        for company_id in recent_ids
-        if company_id in company_by_id
-    ]
+async def render_recent_companies(
+    message: Message,
+    state: FSMContext,
+    account_id: int,
+    page: int = 1,
+) -> None:
+    async with AsyncSessionLocal() as session:
+        service = CompanyPreferenceService(session)
+        companies = await service.list_recent_companies(account_id=account_id)
 
     await render_company_list(
         message,
         state,
-        recent_companies,
+        companies,
         page=page,
         section="companies_recent",
         title="Последние компании",
+    )
+
+
+async def render_favorite_companies(
+    message: Message,
+    state: FSMContext,
+    account_id: int,
+    page: int = 1,
+) -> None:
+    async with AsyncSessionLocal() as session:
+        service = CompanyPreferenceService(session)
+        companies = await service.list_favorite_companies(account_id=account_id)
+
+    await render_company_list(
+        message,
+        state,
+        companies,
+        page=page,
+        section="companies_favorites",
+        title="Избранные компании",
     )
 
 
@@ -176,11 +212,16 @@ async def render_company_card(
     state: FSMContext,
     company_id: int,
 ) -> None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
+        company_service = CompanyService(session)
+        preference_service = CompanyPreferenceService(session)
 
         try:
-            summary = await service.get_company_summary(company_id)
+            summary = await company_service.get_company_summary(company_id)
         except ValueError:
             await MessageService.replace_service_message(
                 message,
@@ -190,12 +231,20 @@ async def render_company_card(
             )
             return
 
+        await preference_service.touch_company(
+            account_id=account.id,
+            company_id=company_id,
+        )
+        is_favorite = await preference_service.is_favorite(
+            account_id=account.id,
+            company_id=company_id,
+        )
+
     company = summary.company
     status = "активна" if company.is_active else "отключена"
 
     await UIContext.set_company_id(state, company.id)
     await UIContext.set_section(state, "company")
-    await UIContext.add_recent_company_id(state, company.id)
 
     await MessageService.replace_service_message(
         message,
@@ -207,21 +256,14 @@ async def render_company_card(
         f"Координаторов: {summary.coordinators_count}\n"
         f"Сотрудников: {summary.employees_count}\n"
         f"Тикетов: {summary.tickets_count}",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=company_card_reply_menu(is_favorite=is_favorite),
     )
 
 
 @router.message(F.text == "Компании")
 async def companies_entry(message: Message, state: FSMContext) -> None:
-    admin = await get_current_admin(message.from_user.id)
-
-    if admin is None:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "У вас нет доступа к этому действию.",
-            delete_user_message=False,
-        )
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
         return
 
     await render_company_catalog(message, state)
@@ -245,7 +287,20 @@ async def companies_disabled(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "🕘 Последние компании")
 async def companies_recent(message: Message, state: FSMContext) -> None:
-    await render_recent_companies(message, state, page=1)
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    await render_recent_companies(message, state, account.id, page=1)
+
+
+@router.message(F.text == "⭐ Избранные компании")
+async def companies_favorites(message: Message, state: FSMContext) -> None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    await render_favorite_companies(message, state, account.id, page=1)
 
 
 @router.message(F.text == "🔎 Найти компанию")
@@ -279,6 +334,10 @@ async def company_search_finish(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "➡️ Далее")
 async def companies_next_page(message: Message, state: FSMContext) -> None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
     section = await UIContext.get_section(state) or "companies_all"
     page = await PageService.next_page(state, section)
 
@@ -286,6 +345,14 @@ async def companies_next_page(message: Message, state: FSMContext) -> None:
         await render_disabled_companies(message, state, page=page)
         return
 
+    if section == "companies_recent":
+        await render_recent_companies(message, state, account.id, page=page)
+        return
+
+    if section == "companies_favorites":
+        await render_favorite_companies(message, state, account.id, page=page)
+        return
+
     if section == "companies_search":
         data = await state.get_data()
         await render_search_results(
@@ -294,10 +361,6 @@ async def companies_next_page(message: Message, state: FSMContext) -> None:
             str(data.get("company_search_query", "")),
             page=page,
         )
-        return
-
-    if section == "companies_recent":
-        await render_recent_companies(message, state, page=page)
         return
 
     await render_all_companies(message, state, page=page)
@@ -305,11 +368,23 @@ async def companies_next_page(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "⬅️ Назад")
 async def companies_prev_page(message: Message, state: FSMContext) -> None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
     section = await UIContext.get_section(state) or "companies_all"
     page = await PageService.prev_page(state, section)
 
     if section == "companies_disabled":
         await render_disabled_companies(message, state, page=page)
+        return
+
+    if section == "companies_recent":
+        await render_recent_companies(message, state, account.id, page=page)
+        return
+
+    if section == "companies_favorites":
+        await render_favorite_companies(message, state, account.id, page=page)
         return
 
     if section == "companies_search":
@@ -320,10 +395,6 @@ async def companies_prev_page(message: Message, state: FSMContext) -> None:
             str(data.get("company_search_query", "")),
             page=page,
         )
-        return
-
-    if section == "companies_recent":
-        await render_recent_companies(message, state, page=page)
         return
 
     await render_all_companies(message, state, page=page)
@@ -373,16 +444,9 @@ async def company_create_start_from_inline(callback: CallbackQuery, state: FSMCo
 
 @router.message(CompanyState.create_name)
 async def company_create_finish(message: Message, state: FSMContext) -> None:
-    admin = await get_current_admin(message.from_user.id)
-
-    if admin is None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
         await state.clear()
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "У вас нет доступа к этому действию.",
-            delete_user_message=False,
-        )
         return
 
     async with AsyncSessionLocal() as session:
@@ -396,6 +460,52 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
     await state.clear()
     await render_company_card(message, state, company.id)
+
+
+@router.message(F.text == "⭐ В избранное")
+async def company_add_to_favorites(message: Message, state: FSMContext) -> None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    async with AsyncSessionLocal() as session:
+        service = CompanyPreferenceService(session)
+        await service.set_favorite(
+            account_id=account.id,
+            company_id=company_id,
+            is_favorite=True,
+        )
+
+    await render_company_card(message, state, company_id)
+
+
+@router.message(F.text == "⭐ Убрать из избранного")
+async def company_remove_from_favorites(message: Message, state: FSMContext) -> None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    async with AsyncSessionLocal() as session:
+        service = CompanyPreferenceService(session)
+        await service.set_favorite(
+            account_id=account.id,
+            company_id=company_id,
+            is_favorite=False,
+        )
+
+    await render_company_card(message, state, company_id)
 
 
 @router.message(F.text == "✏️ Переименовать")
@@ -424,16 +534,9 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
 
 @router.message(CompanyState.rename_name)
 async def company_rename_finish(message: Message, state: FSMContext) -> None:
-    admin = await get_current_admin(message.from_user.id)
-
-    if admin is None:
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
         await state.clear()
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "У вас нет доступа к этому действию.",
-            delete_user_message=False,
-        )
         return
 
     data = await state.get_data()

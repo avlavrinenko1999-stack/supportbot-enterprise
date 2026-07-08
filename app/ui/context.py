@@ -54,6 +54,41 @@ class UIContext:
         return [int(item) for item in value]
 
     @staticmethod
+    async def add_favorite_company_id(state: FSMContext, company_id: int) -> None:
+        context = await UIContext.get_all(state)
+        favorites = list(context.get("favorite_company_ids", []))
+
+        company_id = int(company_id)
+        if company_id not in [int(item) for item in favorites]:
+            favorites.append(company_id)
+
+        context["favorite_company_ids"] = favorites
+        await state.update_data(**{UIContext.KEY: context})
+
+    @staticmethod
+    async def remove_favorite_company_id(state: FSMContext, company_id: int) -> None:
+        context = await UIContext.get_all(state)
+        company_id = int(company_id)
+
+        favorites = [
+            int(item)
+            for item in context.get("favorite_company_ids", [])
+            if int(item) != company_id
+        ]
+
+        context["favorite_company_ids"] = favorites
+        await state.update_data(**{UIContext.KEY: context})
+
+    @staticmethod
+    async def get_favorite_company_ids(state: FSMContext) -> list[int]:
+        value = await UIContext.get_value(state, "favorite_company_ids", [])
+        return [int(item) for item in value]
+
+    @staticmethod
+    async def is_favorite_company_id(state: FSMContext, company_id: int) -> bool:
+        return int(company_id) in await UIContext.get_favorite_company_ids(state)
+
+    @staticmethod
     async def set_category_id(state: FSMContext, category_id: int) -> None:
         await UIContext.set_value(state, "category_id", int(category_id))
 

@@ -55,6 +55,12 @@ class Company(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan"
     )
 
+    account_preferences = relationship(
+        "AccountCompanyPreference",
+        back_populates="company",
+        cascade="all, delete-orphan",
+    )
+
     repr_cols = (
         "id",
         "name",

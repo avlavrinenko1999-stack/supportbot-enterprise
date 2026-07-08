@@ -1,4 +1,5 @@
 from .account import Account
+from .account_company_preference import AccountCompanyPreference
 from .attachment import Attachment
 from .base import Base
 from .category import Category
@@ -15,6 +16,7 @@ __all__ = [
     "Company",
     "CompanySetting",
     "Account",
+    "AccountCompanyPreference",
     "Invite",
     "Category",
     "Ticket",

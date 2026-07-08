@@ -7,6 +7,7 @@ Create Date: 2026-07-08
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 revision = "20260708_04"
@@ -15,24 +16,23 @@ branch_labels = None
 depends_on = None
 
 
+userrole_enum = postgresql.ENUM(
+    "ADMIN",
+    "COORDINATOR",
+    "OPERATOR",
+    "OBSERVER",
+    "USER",
+    name="userrole",
+    create_type=False,
+)
+
+
 def upgrade() -> None:
     op.create_table(
         "category_members",
         sa.Column("category_id", sa.Integer(), nullable=False),
         sa.Column("account_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "role",
-            sa.Enum(
-                "ADMIN",
-                "COORDINATOR",
-                "OPERATOR",
-                "OBSERVER",
-                "USER",
-                name="userrole",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
+        sa.Column("role", userrole_enum, nullable=False),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column(
             "created_at",
@@ -46,16 +46,8 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(
-            ["account_id"],
-            ["accounts.id"],
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["category_id"],
-            ["categories.id"],
-            ondelete="CASCADE",
-        ),
+        sa.ForeignKeyConstraint(["account_id"], ["accounts.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "category_id",

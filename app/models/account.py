@@ -92,6 +92,12 @@ class Account(Base, IDMixin, TimestampMixin):
         back_populates="used_by"
     )
 
+    company_preferences = relationship(
+        "AccountCompanyPreference",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+
     repr_cols = (
         "id",
         "full_name",
