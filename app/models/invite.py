@@ -78,6 +78,7 @@ class Invite(Base, IDMixin, TimestampMixin):
     used_by = relationship(
         "Account",
         foreign_keys=[used_by_account_id],
+        back_populates="used_invites",
     )
 
     repr_cols = (

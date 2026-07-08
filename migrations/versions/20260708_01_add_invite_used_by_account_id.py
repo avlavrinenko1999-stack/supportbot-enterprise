@@ -1,7 +1,7 @@
 """add invite used_by_account_id
 
 Revision ID: 20260708_01
-Revises: 0001
+Revises: ac85daa3abe4
 Create Date: 2026-07-08
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "20260708_01"
-down_revision = "0001"
+down_revision = "ac85daa3abe4"
 branch_labels = None
 depends_on = None
 
