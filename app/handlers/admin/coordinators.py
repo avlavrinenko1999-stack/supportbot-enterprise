@@ -10,7 +10,7 @@ from app.keyboards.coordinator_admin import coordinators_menu
 from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import UserRole
-from app.services.coordinator_service import CoordinatorService
+from app.services.account_admin_service import AccountAdminService
 from app.services.message_service import MessageService
 
 router = Router()
@@ -39,8 +39,14 @@ def coordinators_text(coordinators: list[Account]) -> str:
 
 async def load_coordinators():
     async with AsyncSessionLocal() as session:
-        service = CoordinatorService(session)
-        coordinators = await service.list_coordinators()
+        service = AccountAdminService(session)
+        coordinators = list(
+            await session.scalars(
+                select(Account)
+                .where(Account.role == UserRole.COORDINATOR)
+                .order_by(Account.id)
+            )
+        )
 
     return coordinators
 
@@ -192,13 +198,14 @@ async def coordinator_create_finish(message: Message, state: FSMContext) -> None
             select(Account).where(Account.id == admin.id)
         )
 
-        service = CoordinatorService(session)
+        service = AccountAdminService(session)
 
         try:
-            result = await service.create_coordinator_invite(
+            result = await service.create_invite(
                 admin=admin_in_session,
                 company_id=int(data["company_id"]),
                 full_name=full_name,
+                role=UserRole.COORDINATOR,
                 bot_username=bot_info.username,
             )
         except ValueError as error:
@@ -210,7 +217,13 @@ async def coordinator_create_finish(message: Message, state: FSMContext) -> None
             )
             return
 
-        coordinators = await service.list_coordinators()
+        coordinators = list(
+            await session.scalars(
+                select(Account)
+                .where(Account.role == UserRole.COORDINATOR)
+                .order_by(Account.id)
+            )
+        )
 
     await state.clear()
 

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -12,8 +14,9 @@ from app.keyboards.company_coordinators import (
     company_coordinators_menu,
 )
 from app.models.account import Account
+from app.models.enums import UserRole
+from app.services.account_admin_service import AccountAdminService
 from app.services.company_service import CompanyService
-from app.services.coordinator_service import CoordinatorService
 from app.services.message_service import MessageService
 
 router = Router()
@@ -29,10 +32,13 @@ async def company_coordinators(callback: CallbackQuery) -> None:
 
     async with AsyncSessionLocal() as session:
         company_service = CompanyService(session)
-        coordinator_service = CoordinatorService(session)
+        account_admin_service = AccountAdminService(session)
 
         company = await company_service.get_company(company_id)
-        coordinators = await coordinator_service.list_company_coordinators(company_id)
+        coordinators = await account_admin_service.list_company_accounts(
+            company_id=company_id,
+            role=UserRole.COORDINATOR,
+        )
 
     if company is None:
         await edit_callback_message(callback, "Компания не найдена.")
@@ -117,13 +123,14 @@ async def company_coordinator_create_finish(
             select(Account).where(Account.id == admin.id)
         )
 
-        coordinator_service = CoordinatorService(session)
+        account_admin_service = AccountAdminService(session)
 
         try:
-            result = await coordinator_service.create_coordinator_invite(
+            result = await account_admin_service.create_invite(
                 admin=admin_in_session,
                 company_id=company_id,
                 full_name=full_name,
+                role=UserRole.COORDINATOR,
                 bot_username=bot_info.username,
             )
         except ValueError as error:
@@ -155,8 +162,11 @@ async def company_coordinator_view(callback: CallbackQuery) -> None:
     coordinator_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
-        coordinator_service = CoordinatorService(session)
-        coordinator = await coordinator_service.get_coordinator(coordinator_id)
+        account_admin_service = AccountAdminService(session)
+        coordinator = await account_admin_service.get_account(
+            account_id=coordinator_id,
+            role=UserRole.COORDINATOR,
+        )
 
     if coordinator is None:
         await edit_callback_message(callback, "Координатор не найден.")
@@ -173,6 +183,33 @@ async def company_coordinator_view(callback: CallbackQuery) -> None:
         else "нет данных"
     )
 
+    invite_text = ""
+
+    if not coordinator.registered:
+        async with AsyncSessionLocal() as session:
+            account_admin_service = AccountAdminService(session)
+            pending_invite = await account_admin_service.get_pending_invite(
+                company_id=coordinator.company_id,
+                full_name=coordinator.full_name,
+                role=UserRole.COORDINATOR,
+            )
+
+        if pending_invite is None:
+            invite_text = "\n\nПриглашение:\nотсутствует"
+        else:
+            now = datetime.now(timezone.utc)
+
+            if pending_invite.expires_at <= now:
+                invite_text = (
+                    "\n\nПриглашение:\nпросрочено\n"
+                    f"Действовало до: {pending_invite.expires_at.strftime('%d.%m.%Y %H:%M')}"
+                )
+            else:
+                invite_text = (
+                    "\n\nПриглашение:\nактивно\n"
+                    f"Действует до: {pending_invite.expires_at.strftime('%d.%m.%Y %H:%M')}"
+                )
+
     await edit_callback_message(
         callback,
         "Координатор\n\n"
@@ -182,11 +219,13 @@ async def company_coordinator_view(callback: CallbackQuery) -> None:
         f"Статус: {status}\n\n"
         f"Регистрация: {registration_status}\n"
         f"Telegram ID: {telegram_id}\n"
-        f"Последний вход: {last_login}",
+        f"Последний вход: {last_login}"
+        f"{invite_text}",
         reply_markup=company_coordinator_card_menu(
             coordinator.company_id,
             coordinator.id,
             coordinator.is_active,
+            coordinator.registered,
         ),
     )
 
@@ -196,10 +235,11 @@ async def company_coordinator_disable(callback: CallbackQuery) -> None:
     coordinator_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
-        coordinator_service = CoordinatorService(session)
-        coordinator = await coordinator_service.set_coordinator_active(
-            coordinator_id,
-            False,
+        account_admin_service = AccountAdminService(session)
+        coordinator = await account_admin_service.set_account_active(
+            account_id=coordinator_id,
+            is_active=False,
+            role=UserRole.COORDINATOR,
         )
 
     await edit_callback_message(
@@ -211,6 +251,7 @@ async def company_coordinator_disable(callback: CallbackQuery) -> None:
             coordinator.company_id,
             coordinator.id,
             coordinator.is_active,
+            coordinator.registered,
         ),
     )
 
@@ -220,10 +261,11 @@ async def company_coordinator_enable(callback: CallbackQuery) -> None:
     coordinator_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
-        coordinator_service = CoordinatorService(session)
-        coordinator = await coordinator_service.set_coordinator_active(
-            coordinator_id,
-            True,
+        account_admin_service = AccountAdminService(session)
+        coordinator = await account_admin_service.set_account_active(
+            account_id=coordinator_id,
+            is_active=True,
+            role=UserRole.COORDINATOR,
         )
 
     await edit_callback_message(
@@ -235,5 +277,94 @@ async def company_coordinator_enable(callback: CallbackQuery) -> None:
             coordinator.company_id,
             coordinator.id,
             coordinator.is_active,
+            coordinator.registered,
         ),
     )
+
+@router.callback_query(F.data.startswith("company_coordinator:revoke_invite:"))
+async def company_coordinator_revoke_invite(callback: CallbackQuery) -> None:
+    coordinator_id = int(callback.data.split(":")[-1])
+
+    async with AsyncSessionLocal() as session:
+        account_admin_service = AccountAdminService(session)
+        coordinator = await account_admin_service.get_account(
+            account_id=coordinator_id,
+            role=UserRole.COORDINATOR,
+        )
+
+        if coordinator is None:
+            await edit_callback_message(callback, "Координатор не найден.")
+            return
+
+        try:
+            await account_admin_service.revoke_pending_invite(
+                company_id=coordinator.company_id,
+                full_name=coordinator.full_name,
+                role=UserRole.COORDINATOR,
+            )
+        except ValueError as error:
+            await edit_callback_message(
+                callback,
+                str(error),
+                reply_markup=back_to_company_coordinators_menu(coordinator.company_id),
+            )
+            return
+
+    await edit_callback_message(
+        callback,
+        "Приглашение отозвано.\n\n"
+        f"Координатор: {coordinator.full_name}",
+        reply_markup=back_to_company_coordinators_menu(coordinator.company_id),
+    )
+
+
+@router.callback_query(F.data.startswith("company_coordinator:reissue_invite:"))
+async def company_coordinator_reissue_invite(callback: CallbackQuery) -> None:
+    coordinator_id = int(callback.data.split(":")[-1])
+    bot_info = await callback.bot.get_me()
+
+    async with AsyncSessionLocal() as session:
+        account_admin_service = AccountAdminService(session)
+        coordinator = await account_admin_service.get_account(
+            account_id=coordinator_id,
+            role=UserRole.COORDINATOR,
+        )
+
+        if coordinator is None:
+            await edit_callback_message(callback, "Координатор не найден.")
+            return
+
+        admin = await get_current_admin(callback.from_user.id)
+
+        if admin is None:
+            await edit_callback_message(callback, "У вас нет доступа к этому действию.")
+            return
+
+        admin_in_session = await session.scalar(
+            select(Account).where(Account.id == admin.id)
+        )
+
+        try:
+            result = await account_admin_service.reissue_invite(
+                admin=admin_in_session,
+                account=coordinator,
+                bot_username=bot_info.username,
+            )
+        except ValueError as error:
+            await edit_callback_message(
+                callback,
+                str(error),
+                reply_markup=back_to_company_coordinators_menu(coordinator.company_id),
+            )
+            return
+
+    await edit_callback_message(
+        callback,
+        "Новое приглашение координатора создано.\n\n"
+        f"Компания: {result.company.name}\n"
+        f"ФИО: {coordinator.full_name}\n"
+        "Срок действия: 7 дней\n\n"
+        f"Ссылка:\n{result.created_invite.link}",
+        reply_markup=back_to_company_coordinators_menu(coordinator.company_id),
+    )
+
