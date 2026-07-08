@@ -1,6 +1,8 @@
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from app.keyboards.common import button, inline_menu
+from app.keyboards.reply import reply_keyboard
+from app.keyboards.reply_list import list_reply_menu
 from app.models.company import Company
 
 
@@ -49,9 +51,18 @@ def company_card_menu(company: Company) -> InlineKeyboardMarkup:
     )
 
 
-from aiogram.types import ReplyKeyboardMarkup
-from app.keyboards.reply import reply_keyboard
-from app.keyboards.reply_list import list_reply_menu
+def companies_catalog_reply_menu() -> ReplyKeyboardMarkup:
+    return reply_keyboard(
+        [
+            "🔎 Найти компанию",
+            "🕘 Последние компании",
+            "⛔ Отключенные компании",
+            "📋 Все компании",
+            "➕ Создать компанию",
+            "🏠 Админ меню",
+        ],
+        input_field_placeholder="Выберите действие",
+    )
 
 
 def companies_reply_menu(
@@ -59,6 +70,7 @@ def companies_reply_menu(
     *,
     page: int = 1,
     per_page: int = 8,
+    placeholder_prefix: str = "Компании",
 ) -> ReplyKeyboardMarkup:
     company_buttons = []
 
@@ -70,10 +82,11 @@ def companies_reply_menu(
         company_buttons,
         page=page,
         per_page=per_page,
-        search_text="🔎 Поиск компании",
+        search_text="🔎 Найти компанию",
         create_text="➕ Создать компанию",
+        back_text="⬅️ Каталог компаний",
         home_text="🏠 Админ меню",
-        placeholder_prefix="Компании",
+        placeholder_prefix=placeholder_prefix,
     )
 
 
@@ -88,8 +101,8 @@ def company_card_reply_menu() -> ReplyKeyboardMarkup:
             "📂 Категории компании",
             "🎫 Тикеты компании",
             "⚙️ Настройки компании",
-            "⬅️ К списку компаний",
-            "⬅️ Назад",
+            "⬅️ Каталог компаний",
+            "🏠 Админ меню",
         ],
         input_field_placeholder="Выберите действие",
     )

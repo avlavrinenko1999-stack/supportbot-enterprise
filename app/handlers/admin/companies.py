@@ -5,7 +5,13 @@ from aiogram.types import CallbackQuery, Message
 
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import answer_admin_panel, get_current_admin
-from app.keyboards.company import companies_reply_menu, company_card_reply_menu
+from app.keyboards.company import (
+    companies_catalog_reply_menu,
+    companies_menu,
+    companies_reply_menu,
+    company_card_menu,
+    company_card_reply_menu,
+)
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
@@ -17,24 +23,53 @@ router = Router()
 class CompanyState(StatesGroup):
     create_name = State()
     rename_name = State()
+    search_query = State()
 
 
-async def render_companies(message: Message, state: FSMContext, page: int = 1) -> None:
+async def load_companies() -> list:
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
-        companies = await service.list_companies()
+        return await service.list_companies()
 
+
+async def render_company_catalog(message: Message, state: FSMContext) -> None:
+    companies = await load_companies()
+    active_count = len([company for company in companies if company.is_active])
+    disabled_count = len(companies) - active_count
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Компании\n\n"
+        f"Всего: {len(companies)}\n"
+        f"Активных: {active_count}\n"
+        f"Отключенных: {disabled_count}\n\n"
+        "Используйте поиск, если компаний много.",
+        reply_markup=companies_catalog_reply_menu(),
+    )
+
+
+async def render_company_list(
+    message: Message,
+    state: FSMContext,
+    companies: list,
+    *,
+    page: int = 1,
+    section: str = "companies",
+    title: str = "Компании",
+) -> None:
     per_page = 8
     total = len(companies)
     total_pages = max(1, (total + per_page - 1) // per_page)
     page = max(1, min(page, total_pages))
 
-    await PageService.set_page(state, "companies", page)
+    await PageService.set_page(state, section, page)
+    await UIContext.set_section(state, section)
 
     if companies:
         start = (page - 1) * per_page
         end = start + per_page
-        lines = [f"Компании — страница {page}/{total_pages}:\n"]
+        lines = [f"{title} — страница {page}/{total_pages}:\n"]
 
         for company in companies[start:end]:
             status = "активна" if company.is_active else "отключена"
@@ -42,13 +77,76 @@ async def render_companies(message: Message, state: FSMContext, page: int = 1) -
 
         text = "\n".join(lines)
     else:
-        text = "Компании пока не созданы."
+        text = f"{title}\n\nНичего не найдено."
 
     await MessageService.replace_service_message(
         message,
         state,
         text,
-        reply_markup=companies_reply_menu(companies, page=page, per_page=per_page),
+        reply_markup=companies_reply_menu(
+            companies,
+            page=page,
+            per_page=per_page,
+            placeholder_prefix=title,
+        ),
+    )
+
+
+async def render_all_companies(message: Message, state: FSMContext, page: int = 1) -> None:
+    companies = await load_companies()
+    await render_company_list(
+        message,
+        state,
+        companies,
+        page=page,
+        section="companies_all",
+        title="Все компании",
+    )
+
+
+async def render_disabled_companies(message: Message, state: FSMContext, page: int = 1) -> None:
+    companies = [company for company in await load_companies() if not company.is_active]
+    await render_company_list(
+        message,
+        state,
+        companies,
+        page=page,
+        section="companies_disabled",
+        title="Отключенные компании",
+    )
+
+
+async def render_search_results(
+    message: Message,
+    state: FSMContext,
+    query: str,
+    page: int = 1,
+) -> None:
+    query = query.strip().lower()
+    companies = await load_companies()
+
+    if query.isdigit():
+        filtered = [
+            company
+            for company in companies
+            if company.id == int(query) or query in company.name.lower()
+        ]
+    else:
+        filtered = [
+            company
+            for company in companies
+            if query in company.name.lower()
+        ]
+
+    await state.update_data(company_search_query=query)
+
+    await render_company_list(
+        message,
+        state,
+        filtered,
+        page=page,
+        section="companies_search",
+        title=f"Поиск: {query}",
     )
 
 
@@ -67,6 +165,7 @@ async def render_company_card(
                 message,
                 state,
                 "Компания не найдена.",
+                reply_markup=companies_catalog_reply_menu(),
             )
             return
 
@@ -103,28 +202,112 @@ async def companies_entry(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await render_companies(message, state, page=1)
+    await render_company_catalog(message, state)
 
 
 @router.callback_query(F.data == "company:list")
-async def companies_entry_from_inline(
-    callback: CallbackQuery,
-    state: FSMContext,
-) -> None:
-    await render_companies(callback.message, state, page=1)
+async def companies_entry_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
+    await render_company_catalog(callback.message, state)
     await callback.answer()
+
+
+@router.message(F.text == "📋 Все компании")
+async def companies_all(message: Message, state: FSMContext) -> None:
+    await render_all_companies(message, state, page=1)
+
+
+@router.message(F.text == "⛔ Отключенные компании")
+async def companies_disabled(message: Message, state: FSMContext) -> None:
+    await render_disabled_companies(message, state, page=1)
+
+
+@router.message(F.text == "🕘 Последние компании")
+async def companies_recent(message: Message, state: FSMContext) -> None:
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Последние компании появятся здесь после следующего этапа.\n\n"
+        "Сейчас используйте поиск.",
+        reply_markup=companies_catalog_reply_menu(),
+    )
+
+
+@router.message(F.text == "🔎 Найти компанию")
+async def company_search_start(message: Message, state: FSMContext) -> None:
+    await state.set_state(CompanyState.search_query)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Введите ID или часть названия компании.",
+        reply_markup=companies_catalog_reply_menu(),
+    )
+
+
+@router.message(CompanyState.search_query)
+async def company_search_finish(message: Message, state: FSMContext) -> None:
+    query = (message.text or "").strip()
+
+    if len(query) < 1:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Введите ID или часть названия компании.",
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
+
+    await state.clear()
+    await render_search_results(message, state, query, page=1)
 
 
 @router.message(F.text == "➡️ Далее")
 async def companies_next_page(message: Message, state: FSMContext) -> None:
-    page = await PageService.next_page(state, "companies")
-    await render_companies(message, state, page=page)
+    section = await UIContext.get_section(state) or "companies_all"
+    page = await PageService.next_page(state, section)
+
+    if section == "companies_disabled":
+        await render_disabled_companies(message, state, page=page)
+        return
+
+    if section == "companies_search":
+        data = await state.get_data()
+        await render_search_results(
+            message,
+            state,
+            str(data.get("company_search_query", "")),
+            page=page,
+        )
+        return
+
+    await render_all_companies(message, state, page=page)
 
 
 @router.message(F.text == "⬅️ Назад")
 async def companies_prev_page(message: Message, state: FSMContext) -> None:
-    page = await PageService.prev_page(state, "companies")
-    await render_companies(message, state, page=page)
+    section = await UIContext.get_section(state) or "companies_all"
+    page = await PageService.prev_page(state, section)
+
+    if section == "companies_disabled":
+        await render_disabled_companies(message, state, page=page)
+        return
+
+    if section == "companies_search":
+        data = await state.get_data()
+        await render_search_results(
+            message,
+            state,
+            str(data.get("company_search_query", "")),
+            page=page,
+        )
+        return
+
+    await render_all_companies(message, state, page=page)
+
+
+@router.message(F.text == "⬅️ Каталог компаний")
+async def companies_back_to_catalog(message: Message, state: FSMContext) -> None:
+    await render_company_catalog(message, state)
 
 
 @router.message(F.text == "🏠 Админ меню")
@@ -132,16 +315,17 @@ async def companies_back_to_admin_menu(message: Message, state: FSMContext) -> N
     await answer_admin_panel(message, state)
 
 
-@router.message(F.text == "⬅️ К списку компаний")
-async def company_back_to_list(message: Message, state: FSMContext) -> None:
-    page = await PageService.get_page(state, "companies")
-    await render_companies(message, state, page=page)
-
-
 @router.message(F.text.regexp(r"^[✅⛔] \d+\. "))
 async def company_view_from_reply(message: Message, state: FSMContext) -> None:
     company_id = int((message.text or "").split(".", 1)[0].split()[-1])
     await render_company_card(message, state, company_id)
+
+
+@router.callback_query(F.data.startswith("company:view:"))
+async def company_view_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
+    company_id = int(callback.data.split(":")[-1])
+    await render_company_card(callback.message, state, company_id)
+    await callback.answer()
 
 
 @router.message(F.text == "➕ Создать компанию")
@@ -152,16 +336,13 @@ async def company_create_start(message: Message, state: FSMContext) -> None:
         message,
         state,
         "Введите название новой компании.",
+        reply_markup=companies_catalog_reply_menu(),
     )
 
 
 @router.callback_query(F.data == "company:create")
-async def company_create_start_from_inline(
-    callback: CallbackQuery,
-    state: FSMContext,
-) -> None:
+async def company_create_start_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(CompanyState.create_name)
-
     await callback.message.answer("Введите название новой компании.")
     await callback.answer()
 
@@ -190,9 +371,6 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
             return
 
     await state.clear()
-    await UIContext.set_company_id(state, company.id)
-    await UIContext.set_section(state, "company")
-
     await render_company_card(message, state, company.id)
 
 
@@ -205,6 +383,7 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
             message,
             state,
             "Сначала выберите компанию.",
+            reply_markup=companies_catalog_reply_menu(),
         )
         return
 
@@ -215,6 +394,7 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
         message,
         state,
         "Введите новое название компании.",
+        reply_markup=company_card_reply_menu(),
     )
 
 
@@ -253,11 +433,7 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
     company_id = await UIContext.get_company_id(state)
 
     if company_id is None:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Сначала выберите компанию.",
-        )
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
         return
 
     async with AsyncSessionLocal() as session:
@@ -272,11 +448,7 @@ async def company_enable_from_reply(message: Message, state: FSMContext) -> None
     company_id = await UIContext.get_company_id(state)
 
     if company_id is None:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Сначала выберите компанию.",
-        )
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
         return
 
     async with AsyncSessionLocal() as session:
