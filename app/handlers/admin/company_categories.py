@@ -283,6 +283,102 @@ async def company_category_view_from_reply(message: Message, state: FSMContext) 
     )
 
 
+
+@router.message(F.text == "➕ Создать категорию")
+async def company_category_create_start_from_reply(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = data.get("category_company_id") or data.get("selected_company_id")
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    await state.update_data(category_company_id=int(company_id))
+    await state.set_state(CompanyCategoryState.create_name)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Создание категории\n\nВведите название категории.",
+    )
+
+
+@router.message(F.text == "⬅️ К карточке компании")
+async def categories_back_to_company_card(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = data.get("selected_company_id") or data.get("category_company_id")
+
+    if company_id is None:
+        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        return
+
+    async with AsyncSessionLocal() as session:
+        company_service = CompanyService(session)
+        summary = await company_service.get_company_summary(int(company_id))
+
+    company = summary.company
+    status = "активна" if company.is_active else "отключена"
+
+    from app.keyboards.company import company_card_reply_menu
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Компания\n\n"
+        f"ID: {company.id}\n"
+        f"Название: {company.name}\n"
+        f"Статус: {status}\n\n"
+        f"Координаторов: {summary.coordinators_count}\n"
+        f"Сотрудников: {summary.employees_count}\n"
+        f"Тикетов: {summary.tickets_count}",
+        reply_markup=company_card_reply_menu(),
+    )
+
+
+@router.message(F.text == "➡️ Далее")
+async def categories_next_page(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = data.get("category_company_id")
+
+    if company_id is None:
+        return
+
+    page = await PageService.next_page(state, "company_categories")
+
+    async with AsyncSessionLocal() as session:
+        category_service = CategoryService(session)
+        categories = await category_service.list_active_categories(int(company_id))
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Категории компании — страница {page}",
+        reply_markup=company_categories_reply_menu(categories, page=page),
+    )
+
+
+@router.message(F.text == "⬅️ Назад")
+async def categories_prev_page(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    company_id = data.get("category_company_id")
+
+    if company_id is None:
+        return
+
+    page = await PageService.prev_page(state, "company_categories")
+
+    async with AsyncSessionLocal() as session:
+        category_service = CategoryService(session)
+        categories = await category_service.list_active_categories(int(company_id))
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"Категории компании — страница {page}",
+        reply_markup=company_categories_reply_menu(categories, page=page),
+    )
+
+
 @router.callback_query(F.data.startswith("company_category:create:"))
 async def company_category_create_start(callback: CallbackQuery, state: FSMContext) -> None:
     company_id = int(callback.data.split(":")[-1])
