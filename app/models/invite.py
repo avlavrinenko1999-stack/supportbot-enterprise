@@ -1,0 +1,77 @@
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base
+from app.models.enums import InviteRole
+from app.models.mixins import IDMixin, TimestampMixin
+
+
+class Invite(Base, IDMixin, TimestampMixin):
+    """
+    Одноразовое приглашение.
+    В базе хранится только SHA-256 хэш токена.
+    Сам токен попадает только в ссылку.
+    """
+
+    __tablename__ = "invites"
+
+    token_hash: Mapped[str] = mapped_column(
+        String(128),
+        unique=True,
+        nullable=False,
+    )
+
+    full_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    role: Mapped[InviteRole] = mapped_column(
+        Enum(InviteRole),
+        nullable=False,
+    )
+
+    company_id: Mapped[int] = mapped_column(
+        ForeignKey("companies.id"),
+        nullable=False,
+    )
+
+    created_by_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id"),
+        nullable=False,
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    company = relationship(
+        "Company",
+        back_populates="invites",
+    )
+
+    created_by = relationship(
+        "Account",
+        back_populates="invites",
+    )
+
+    repr_cols = (
+        "id",
+        "full_name",
+        "role",
+        "is_active",
+    )

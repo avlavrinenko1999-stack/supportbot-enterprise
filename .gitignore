@@ -1,0 +1,10 @@
+.env
+venv/
+venv_py38_backup/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.DS_Store
+.idea/
+.vscode/
