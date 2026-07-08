@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import edit_callback_message, get_current_admin
-from app.keyboards.company import companies_menu, company_card_menu
+from app.keyboards.company import companies_menu, company_card_menu, companies_reply_menu, company_card_reply_menu
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 
@@ -37,21 +37,28 @@ class CompanyState(StatesGroup):
     rename_name = State()
 
 
-async def build_companies_text_and_keyboard():
+async def build_companies_text_and_keyboard(page: int = 1):
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
         companies = await service.list_companies()
 
+    per_page = 8
+    total = len(companies)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = max(1, min(page, total_pages))
+
     if companies:
-        lines = ["Компании:\n"]
-        for company in companies:
+        lines = [f"Компании — страница {page}/{total_pages}:\n"]
+        start = (page - 1) * per_page
+        end = start + per_page
+        for company in companies[start:end]:
             status = "активна" if company.is_active else "отключена"
             lines.append(f"{company.id}. {company.name} — {status}")
         text = "\n".join(lines)
     else:
         text = "Компании пока не созданы."
 
-    return text, companies_menu(companies)
+    return text, companies_reply_menu(companies, page=page, per_page=per_page)
 
 
 @router.message(F.text == "Компании")
@@ -67,7 +74,8 @@ async def companies_entry_from_reply_menu(message: Message, state: FSMContext) -
         )
         return
 
-    text, keyboard = await build_companies_text_and_keyboard()
+    await state.update_data(companies_page=1)
+    text, keyboard = await build_companies_text_and_keyboard(page=1)
 
     await MessageService.replace_service_message(
         message,
@@ -75,6 +83,46 @@ async def companies_entry_from_reply_menu(message: Message, state: FSMContext) -
         text,
         reply_markup=keyboard,
     )
+
+
+
+@router.message(F.text == "➡️ Далее")
+async def companies_next_page(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    page = int(data.get("companies_page", 1)) + 1
+    await state.update_data(companies_page=page)
+
+    text, keyboard = await build_companies_text_and_keyboard(page=page)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        text,
+        reply_markup=keyboard,
+    )
+
+
+@router.message(F.text == "⬅️ Назад")
+async def companies_prev_page(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    page = max(1, int(data.get("companies_page", 1)) - 1)
+    await state.update_data(companies_page=page)
+
+    text, keyboard = await build_companies_text_and_keyboard(page=page)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        text,
+        reply_markup=keyboard,
+    )
+
+
+@router.message(F.text == "🏠 Админ меню")
+async def companies_back_to_admin_menu(message: Message, state: FSMContext) -> None:
+    from app.handlers.admin.common import answer_admin_panel
+
+    await answer_admin_panel(message, state)
 
 
 @router.callback_query(F.data == "company:list")
@@ -94,6 +142,17 @@ async def company_create_start(callback: CallbackQuery, state: FSMContext) -> No
 
     await edit_callback_message(
         callback,
+        "Введите название новой компании.",
+    )
+
+
+@router.message(F.text == "➕ Создать компанию")
+async def company_create_start_from_reply(message: Message, state: FSMContext) -> None:
+    await state.set_state(CompanyState.create_name)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
         "Введите название новой компании.",
     )
 
@@ -129,11 +188,14 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
     await state.clear()
 
+    data = await state.get_data()
+    page = int(data.get("companies_page", 1))
+
     await MessageService.replace_service_message(
         message,
         state,
         f"Компания создана: {company.name}\n\nКомпании:",
-        reply_markup=companies_menu(companies),
+        reply_markup=companies_reply_menu(companies, page=page),
     )
 
 
@@ -167,6 +229,45 @@ async def company_view(callback: CallbackQuery) -> None:
         f"Сотрудников: {summary.employees_count}\n"
         f"Тикетов: {summary.tickets_count}",
         reply_markup=company_card_menu(company),
+    )
+
+
+
+@router.message(F.text.regexp(r"^[✅⛔] \\d+\\. "))
+async def company_view_from_reply(message: Message, state: FSMContext) -> None:
+    company_id = int((message.text or "").split(".", 1)[0].split()[-1])
+
+    async with AsyncSessionLocal() as session:
+        service = CompanyService(session)
+
+        try:
+            summary = await service.get_company_summary(company_id)
+        except ValueError:
+            text, keyboard = await build_companies_text_and_keyboard()
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Компания не найдена.\n\n" + text,
+                reply_markup=keyboard,
+            )
+            return
+
+    company = summary.company
+    status = "активна" if company.is_active else "отключена"
+
+    await state.update_data(selected_company_id=company.id)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Компания\n\n"
+        f"ID: {company.id}\n"
+        f"Название: {company.name}\n"
+        f"Статус: {status}\n\n"
+        f"Координаторов: {summary.coordinators_count}\n"
+        f"Сотрудников: {summary.employees_count}\n"
+        f"Тикетов: {summary.tickets_count}",
+        reply_markup=company_card_reply_menu(),
     )
 
 
