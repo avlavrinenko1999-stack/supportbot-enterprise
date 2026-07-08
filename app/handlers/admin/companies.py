@@ -14,6 +14,7 @@ from app.keyboards.company import (
     companies_reply_menu,
     company_card_reply_menu,
 )
+from app.services.company_audit_service import CompanyAuditService, company_legal_snapshot, diff_snapshots
 from app.services.company_preference_service import CompanyPreferenceService
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
@@ -27,6 +28,7 @@ COMPANY_CONTROL_TEXTS = {
     "🏢 Заполнить по ИНН",
     "🔄 Обновить из реестра",
     "☎️ Изменить телефон",
+    "📜 История изменений",
     "⭐ В избранное",
     "⭐ Убрать из избранного",
     "✏️ Переименовать",
@@ -513,8 +515,25 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
         if duplicate is not None:
             if service.is_legal_data_empty(duplicate):
+                before = company_legal_snapshot(duplicate)
+
                 company = await service.update_legal_data(duplicate.id, legal_data)
                 company.last_registry_sync_at = datetime.now(timezone.utc)
+
+                after = company_legal_snapshot(company)
+                changes = diff_snapshots(before, after)
+
+                audit = CompanyAuditService(session)
+                await audit.create_event(
+                    company_id=company.id,
+                    actor_account_id=account.id,
+                    source="dadata",
+                    event_type="registry_enrichment",
+                    title="Пустая карточка заполнена из DaData",
+                    payload=changes,
+                    commit=False,
+                )
+
                 await session.commit()
 
                 await state.clear()
@@ -545,6 +564,19 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
         company = await service.create_company_from_legal_data(legal_data)
         company.last_registry_sync_at = datetime.now(timezone.utc)
+
+        audit = CompanyAuditService(session)
+        await audit.create_event(
+            company_id=company.id,
+            actor_account_id=account.id,
+            source="admin",
+            event_type="company_created",
+            title="Создана компания",
+            details=f"Компания создана по ИНН {company.inn}",
+            payload={"company": company_legal_snapshot(company)},
+            commit=False,
+        )
+
         await session.commit()
 
     await state.clear()
@@ -775,3 +807,121 @@ async def company_settings_stub(message: Message, state: FSMContext) -> None:
         f"Настройки компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
         reply_markup=company_card_reply_menu(),
     )
+
+
+COMPANY_AUDIT_FIELD_LABELS = {
+    "name": "Название",
+    "inn": "ИНН",
+    "kpp": "КПП",
+    "ogrn": "ОГРН",
+    "legal_name": "Юр. наименование",
+    "legal_address": "Юр. адрес",
+    "legal_status": "Юр. статус",
+    "legal_status_code": "Код юр. статуса",
+    "registration_date": "Дата регистрации",
+    "liquidation_date": "Дата ликвидации",
+    "phone": "Телефон",
+}
+
+
+COMPANY_AUDIT_ICONS = {
+    "company_created": "🟢",
+    "registry_enrichment": "🏛",
+    "registry_update": "🔄",
+    "phone_changed": "☎️",
+    "company_renamed": "✏️",
+    "company_disabled": "⛔",
+    "company_enabled": "✅",
+}
+
+
+def format_audit_value(value) -> str:
+    if value in (None, "", [], {}):
+        return "—"
+    return str(value)
+
+
+def format_audit_payload_pretty(payload: dict | None) -> list[str]:
+    if not payload:
+        return []
+
+    lines = []
+
+    if "company" in payload and isinstance(payload["company"], dict):
+        company = payload["company"]
+        for key, value in company.items():
+            label = COMPANY_AUDIT_FIELD_LABELS.get(key, key)
+            lines.append(f"{label}: {format_audit_value(value)}")
+        return lines
+
+    for key, value in payload.items():
+        label = COMPANY_AUDIT_FIELD_LABELS.get(key, key)
+
+        if isinstance(value, dict) and "old" in value and "new" in value:
+            old_value = format_audit_value(value.get("old"))
+            new_value = format_audit_value(value.get("new"))
+
+            lines.append(f"{label}:")
+            lines.append(f"{old_value}")
+            lines.append("↓")
+            lines.append(f"{new_value}")
+            lines.append("")
+        else:
+            lines.append(f"{label}: {format_audit_value(value)}")
+
+    return lines
+
+
+@router.message(F.text.contains("История изменений"))
+async def company_audit_history_fallback(message: Message, state: FSMContext) -> None:
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите компанию.",
+            reply_markup=company_card_reply_menu(),
+        )
+        return
+
+    async with AsyncSessionLocal() as session:
+        audit_service = CompanyAuditService(session)
+        events = await audit_service.list_company_events(company_id, limit=20)
+
+    if not events:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "📜 История изменений компании\n\nИзменений с момента создания карточки компании не было.",
+            reply_markup=company_card_reply_menu(),
+        )
+        return
+
+    lines = ["📜 История изменений компании"]
+
+    for event in events:
+        icon = COMPANY_AUDIT_ICONS.get(event.event_type, "•")
+        created_at = event.created_at.strftime("%Y-%m-%d %H:%M")
+
+        lines.append("")
+        lines.append("────────────────────")
+        lines.append(f"{icon} {created_at}")
+        lines.append(event.title)
+
+        if event.details:
+            lines.append("")
+            lines.append(event.details)
+
+        payload_lines = format_audit_payload_pretty(event.payload)
+        if payload_lines:
+            lines.append("")
+            lines.extend(payload_lines)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "\n".join(lines).strip(),
+        reply_markup=company_card_reply_menu(),
+    )
+
