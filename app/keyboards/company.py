@@ -58,6 +58,30 @@ def company_card_menu(company: Company) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text="👤 Координаторы компании",
+                    callback_data=f"company:coordinators:{company.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👥 Сотрудники компании",
+                    callback_data=f"company:employees:{company.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🎫 Тикеты компании",
+                    callback_data=f"company:tickets:{company.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⚙️ Настройки компании",
+                    callback_data=f"company:settings:{company.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="⬅️ К списку компаний",
                     callback_data="company:list",
                 )

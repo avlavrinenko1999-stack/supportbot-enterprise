@@ -1,7 +1,7 @@
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import edit_callback_message, get_current_admin
@@ -10,6 +10,26 @@ from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 
 router = Router()
+
+
+def InlineBackToCompany(company_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ К карточке компании",
+                    callback_data=f"company:view:{company_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ К списку компаний",
+                    callback_data="company:list",
+                )
+            ],
+        ]
+    )
+
 
 
 class CompanyState(StatesGroup):
@@ -123,21 +143,29 @@ async def company_view(callback: CallbackQuery) -> None:
 
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
-        company = await service.get_company(company_id)
 
-    if company is None:
-        await edit_callback_message(
-            callback,
-            "Компания не найдена.",
-            reply_markup=companies_menu([]),
-        )
-        return
+        try:
+            summary = await service.get_company_summary(company_id)
+        except ValueError:
+            await edit_callback_message(
+                callback,
+                "Компания не найдена.",
+                reply_markup=companies_menu([]),
+            )
+            return
 
+    company = summary.company
     status = "активна" if company.is_active else "отключена"
 
     await edit_callback_message(
         callback,
-        f"Компания\n\nID: {company.id}\nНазвание: {company.name}\nСтатус: {status}",
+        "Компания\n\n"
+        f"ID: {company.id}\n"
+        f"Название: {company.name}\n"
+        f"Статус: {status}\n\n"
+        f"Координаторов: {summary.coordinators_count}\n"
+        f"Сотрудников: {summary.employees_count}\n"
+        f"Тикетов: {summary.tickets_count}",
         reply_markup=company_card_menu(company),
     )
 
@@ -224,4 +252,52 @@ async def company_enable(callback: CallbackQuery) -> None:
         callback,
         f"Компания включена.\n\nID: {company.id}\nНазвание: {company.name}\nСтатус: активна",
         reply_markup=company_card_menu(company),
+    )
+
+
+@router.callback_query(F.data.startswith("company:coordinators:"))
+async def company_coordinators_stub(callback: CallbackQuery) -> None:
+    company_id = int(callback.data.split(":")[-1])
+
+    await edit_callback_message(
+        callback,
+        "Координаторы компании\n\n"
+        "Этот раздел будет реализован на следующем этапе.",
+        reply_markup=InlineBackToCompany(company_id),
+    )
+
+
+@router.callback_query(F.data.startswith("company:employees:"))
+async def company_employees_stub(callback: CallbackQuery) -> None:
+    company_id = int(callback.data.split(":")[-1])
+
+    await edit_callback_message(
+        callback,
+        "Сотрудники компании\n\n"
+        "Этот раздел будет реализован на следующем этапе.",
+        reply_markup=InlineBackToCompany(company_id),
+    )
+
+
+@router.callback_query(F.data.startswith("company:tickets:"))
+async def company_tickets_stub(callback: CallbackQuery) -> None:
+    company_id = int(callback.data.split(":")[-1])
+
+    await edit_callback_message(
+        callback,
+        "Тикеты компании\n\n"
+        "Этот раздел будет реализован после модуля сотрудников.",
+        reply_markup=InlineBackToCompany(company_id),
+    )
+
+
+@router.callback_query(F.data.startswith("company:settings:"))
+async def company_settings_stub(callback: CallbackQuery) -> None:
+    company_id = int(callback.data.split(":")[-1])
+
+    await edit_callback_message(
+        callback,
+        "Настройки компании\n\n"
+        "Этот раздел будет реализован после базового управления сотрудниками.",
+        reply_markup=InlineBackToCompany(company_id),
     )

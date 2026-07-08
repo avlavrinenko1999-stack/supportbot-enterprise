@@ -1,7 +1,20 @@
+from dataclasses import dataclass
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
 from app.models.company import Company
+from app.models.enums import UserRole
+from app.models.ticket import Ticket
+
+
+@dataclass(frozen=True)
+class CompanySummary:
+    company: Company
+    coordinators_count: int
+    employees_count: int
+    tickets_count: int
 
 
 class CompanyService:
@@ -42,6 +55,46 @@ class CompanyService:
     async def get_company(self, company_id: int) -> Company | None:
         return await self.session.scalar(
             select(Company).where(Company.id == company_id)
+        )
+
+    async def get_company_summary(self, company_id: int) -> CompanySummary:
+        company = await self.get_company(company_id)
+
+        if company is None:
+            raise ValueError("Компания не найдена.")
+
+        coordinators_count = await self.session.scalar(
+            select(func.count(Account.id)).where(
+                Account.company_id == company_id,
+                Account.role == UserRole.COORDINATOR,
+            )
+        )
+
+        employees_count = await self.session.scalar(
+            select(func.count(Account.id)).where(
+                Account.company_id == company_id,
+                Account.role.in_(
+                    [
+                        UserRole.COORDINATOR,
+                        UserRole.OPERATOR,
+                        UserRole.OBSERVER,
+                        UserRole.USER,
+                    ]
+                ),
+            )
+        )
+
+        tickets_count = await self.session.scalar(
+            select(func.count(Ticket.id)).where(
+                Ticket.company_id == company_id,
+            )
+        )
+
+        return CompanySummary(
+            company=company,
+            coordinators_count=coordinators_count or 0,
+            employees_count=employees_count or 0,
+            tickets_count=tickets_count or 0,
         )
 
     async def rename_company(self, company_id: int, new_name: str) -> Company:
