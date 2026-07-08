@@ -53,6 +53,11 @@ class Invite(Base, IDMixin, TimestampMixin):
         nullable=True,
     )
 
+    used_by_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id"),
+        nullable=True,
+    )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -66,7 +71,13 @@ class Invite(Base, IDMixin, TimestampMixin):
 
     created_by = relationship(
         "Account",
+        foreign_keys=[created_by_id],
         back_populates="invites",
+    )
+
+    used_by = relationship(
+        "Account",
+        foreign_keys=[used_by_account_id],
     )
 
     repr_cols = (

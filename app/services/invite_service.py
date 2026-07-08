@@ -1,60 +1,76 @@
+import hashlib
 from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
+from app.models.enums import UserRole
 from app.models.invite import Invite
-from app.models.user import User
 
 
 class InviteService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    @staticmethod
+    def make_token_hash(token: str) -> str:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
     async def register_by_token(
         self,
         token: str,
         telegram_id: int,
-        username: str | None,
-        first_name: str | None,
-        last_name: str | None,
-    ) -> User:
+        telegram_full_name: str,
+    ) -> Account:
+        now = datetime.now(timezone.utc)
+        token_hash = self.make_token_hash(token)
+
+        existing_account = await self.session.scalar(
+            select(Account).where(Account.telegram_id == telegram_id)
+        )
+
+        if existing_account and existing_account.registered:
+            existing_account.last_login = now
+            await self.session.commit()
+            await self.session.refresh(existing_account)
+            return existing_account
+
         invite = await self.session.scalar(
             select(Invite)
-            .where(Invite.token == token)
+            .where(Invite.token_hash == token_hash)
             .with_for_update()
         )
 
         if invite is None:
-            raise ValueError("Приглашение не найдено")
+            raise ValueError("Приглашение не найдено.")
+
+        if not invite.is_active:
+            raise ValueError("Приглашение отключено.")
 
         if invite.used_at is not None:
-            raise ValueError("Приглашение уже использовано")
+            raise ValueError("Приглашение уже использовано.")
 
-        if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
-            raise ValueError("Срок действия приглашения истёк")
+        if invite.expires_at <= now:
+            raise ValueError("Срок действия приглашения истёк.")
 
-        existing_user = await self.session.scalar(
-            select(User).where(User.telegram_id == telegram_id)
-        )
-
-        if existing_user:
-            return existing_user
-
-        user = User(
+        account = Account(
             telegram_id=telegram_id,
-            username=username,
-            first_name=first_name,
-            last_name=last_name,
+            full_name=invite.full_name or telegram_full_name,
+            role=UserRole(invite.role.value),
             company_id=invite.company_id,
-            role=invite.role,
             is_active=True,
+            registered=True,
+            last_login=now,
         )
 
-        invite.used_at = datetime.now(timezone.utc)
-        invite.used_by_telegram_id = telegram_id
+        self.session.add(account)
+        await self.session.flush()
 
-        self.session.add(user)
+        invite.used_at = now
+        invite.used_by_account_id = account.id
+
         await self.session.commit()
-        await self.session.refresh(user)
+        await self.session.refresh(account)
 
-        return user
+        return account
