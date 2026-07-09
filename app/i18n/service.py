@@ -3,11 +3,20 @@ from functools import lru_cache
 from pathlib import Path
 
 SUPPORTED_LANGUAGES = {
-    "ru": "Русский",
-    "en": "English",
+    "ru": {
+        "native": "Русский",
+        "english": "Russian",
+        "aliases": ["русский", "russian", "ru"],
+    },
+    "en": {
+        "native": "English",
+        "english": "English",
+        "aliases": ["english", "английский", "en"],
+    },
 }
 
 DEFAULT_LANGUAGE = "ru"
+
 BASE_PATH = Path(__file__).resolve().parent.parent / "locales"
 
 
@@ -27,19 +36,38 @@ def normalize_language(language: str | None) -> str:
     return DEFAULT_LANGUAGE
 
 
+def language_label(language: str) -> str:
+    item = SUPPORTED_LANGUAGES[language]
+    return f"{item['native']} / {item['english']}"
+
+
+def search_languages(query: str):
+    query = query.strip().lower()
+
+    result = []
+
+    for code, item in SUPPORTED_LANGUAGES.items():
+        values = [
+            code,
+            item["native"].lower(),
+            item["english"].lower(),
+            *[x.lower() for x in item["aliases"]],
+        ]
+
+        if any(query in value or value in query for value in values):
+            result.append((code, item))
+
+    return result
+
+
 def tr(language: str | None, key: str, **kwargs) -> str:
     language = normalize_language(language)
+
     data = _load_locale(language)
 
     value = data.get(key)
 
-    if value is None and language != DEFAULT_LANGUAGE:
-        value = _load_locale(DEFAULT_LANGUAGE).get(key)
-
     if value is None:
-        value = key
+        value = _load_locale(DEFAULT_LANGUAGE).get(key, key)
 
-    if kwargs:
-        return value.format(**kwargs)
-
-    return value
+    return value.format(**kwargs) if kwargs else value

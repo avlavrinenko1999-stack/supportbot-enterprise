@@ -11,6 +11,7 @@ from app.handlers.operator import router as operator_router
 from app.handlers.profile import router as profile_router
 from app.handlers.start import router as start_router
 from app.handlers.user import router as user_router
+from app.i18n.language_guard import LanguageGuardMiddleware
 from app.services.menu_service import MenuService
 
 
@@ -21,6 +22,7 @@ async def main() -> None:
     await MenuService.setup_bot_commands(bot)
 
     dp = Dispatcher()
+    dp.message.middleware(LanguageGuardMiddleware())
 
     dp.include_router(start_router)
     dp.include_router(user_router)
