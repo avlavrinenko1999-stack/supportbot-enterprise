@@ -7,6 +7,8 @@ from aiogram.types import CallbackQuery, Message
 
 from app.database.db import AsyncSessionLocal
 from app.integrations.dadata import DadataClient
+from app.security.decorators import require_permission
+from app.security.permissions import Permission
 from app.handlers.admin.common import answer_admin_panel, get_current_admin
 from app.keyboards.company import (
     companies_catalog_reply_menu,
@@ -297,11 +299,8 @@ async def render_company_card(
 
 
 @router.message(F.text == "Компании")
-async def companies_entry(message: Message, state: FSMContext) -> None:
-    account = await get_current_account_or_answer(message, state)
-    if account is None:
-        return
-
+@require_permission(Permission.COMPANY_VIEW)
+async def companies_entry(message: Message, state: FSMContext, account=None) -> None:
     await render_company_catalog(message, state)
 
 
