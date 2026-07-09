@@ -8,6 +8,7 @@ from app.models.account import Account
 from app.services.menu_service import MenuService
 from app.services.message_service import MessageService
 from app.ui.navigation_service import NavigationService
+from app.ui.actions import MenuAction, MenuActionFilter
 from app.ui.screens import Screen
 
 router = Router()
@@ -42,7 +43,7 @@ async def render_main_menu(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text.in_({"⬅️ Назад", "Back"}))
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def back(message: Message, state: FSMContext) -> None:
     target = await NavigationService.back_target(state)
 
