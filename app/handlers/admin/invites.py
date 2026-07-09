@@ -1,15 +1,17 @@
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.common import answer_admin_panel, edit_callback_message, get_current_admin
-from app.keyboards.admin import invite_role_menu
+from app.handlers.admin.common import answer_admin_panel, get_current_account
+from app.keyboards.employees import employees_root_menu
 from app.models.account import Account
 from app.models.company import Company
-from app.models.enums import InviteRole
+from app.models.enums import InviteRole, UserRole
+from app.security.authorization import AuthorizationService
+from app.security.permissions import Permission
 from app.services.invite_service import InviteService
 from app.services.message_service import MessageService
 
@@ -18,191 +20,186 @@ router = Router()
 
 class CreateInviteState(StatesGroup):
     company_id = State()
-    role = State()
     full_name = State()
 
 
-async def start_invite_creation(message_or_callback, state: FSMContext) -> None:
+async def _available_companies_for_invite(account: Account) -> list[Company]:
     async with AsyncSessionLocal() as session:
-        companies = (
-            await session.scalars(
-                select(Company)
-                .where(Company.is_active.is_(True))
-                .order_by(Company.id)
+        if account.role == UserRole.ADMIN:
+            return list(
+                await session.scalars(
+                    select(Company)
+                    .where(Company.is_active.is_(True))
+                    .order_by(Company.name)
+                )
             )
-        ).all()
 
-    if not companies:
-        text = "Активных компаний пока нет."
-
-        if isinstance(message_or_callback, CallbackQuery):
-            await edit_callback_message(message_or_callback, text)
-        else:
-            await MessageService.replace_service_message(
-                message_or_callback,
-                state,
-                text,
+        if account.role == UserRole.COORDINATOR and account.company_id:
+            company = await session.scalar(
+                select(Company).where(
+                    Company.id == account.company_id,
+                    Company.is_active.is_(True),
+                )
             )
-        return
+            return [company] if company else []
 
-    companies_text = "\n".join(
-        f"{company.id}. {company.name}" for company in companies
-    )
-
-    await state.set_state(CreateInviteState.company_id)
-
-    text = (
-        "Введите ID компании для приглашения:\n\n"
-        f"{companies_text}\n\n"
-        "Для отмены отправьте: Отмена"
-    )
-
-    if isinstance(message_or_callback, CallbackQuery):
-        await edit_callback_message(message_or_callback, text)
-    else:
-        await MessageService.replace_service_message(
-            message_or_callback,
-            state,
-            text,
-        )
+    return []
 
 
-@router.message(F.text == "Создать приглашение")
-async def create_invite_start_from_reply(message: Message, state: FSMContext) -> None:
-    admin = await get_current_admin(message.from_user.id)
+@router.message(F.text == "➕ Создать приглашение")
+async def create_invite_start(message: Message, state: FSMContext) -> None:
+    account = await get_current_account(message.from_user.id)
 
-    if admin is None:
+    if not AuthorizationService.can(account, Permission.EMPLOYEE_INVITE):
         await MessageService.replace_service_message(
             message,
             state,
-            "У вас нет доступа к этому действию.",
+            "Недостаточно прав для создания приглашений.",
             delete_user_message=False,
         )
         return
 
-    await start_invite_creation(message, state)
+    companies = await _available_companies_for_invite(account)
 
+    if not companies:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Нет доступных активных компаний для приглашения сотрудника.",
+            reply_markup=employees_root_menu(),
+        )
+        return
 
-@router.callback_query(F.data == "invite:create")
-async def create_invite_start_from_callback(
-    callback: CallbackQuery,
-    state: FSMContext,
-) -> None:
-    await start_invite_creation(callback, state)
+    if len(companies) == 1:
+        await state.update_data(company_id=companies[0].id)
+        await state.set_state(CreateInviteState.full_name)
+
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Введите ФИО сотрудника.\n\n"
+            f"Компания: {companies[0].name}\n"
+            "Базовая роль после регистрации: Пользователь",
+            reply_markup=employees_root_menu(),
+        )
+        return
+
+    companies_text = "\n".join(f"{company.id}. {company.name}" for company in companies)
+
+    await state.set_state(CreateInviteState.company_id)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Введите ID компании для приглашения сотрудника:\n\n"
+        f"{companies_text}\n\n"
+        "Базовая роль после регистрации: Пользователь",
+        reply_markup=employees_root_menu(),
+    )
 
 
 @router.message(CreateInviteState.company_id)
 async def create_invite_company(message: Message, state: FSMContext) -> None:
+    account = await get_current_account(message.from_user.id)
+
+    if not AuthorizationService.can(account, Permission.EMPLOYEE_INVITE):
+        await state.clear()
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Недостаточно прав для создания приглашений.",
+            delete_user_message=False,
+        )
+        return
+
     if not message.text or not message.text.strip().isdigit():
         await MessageService.replace_service_message(
             message,
             state,
             "Введите числовой ID компании.",
+            reply_markup=employees_root_menu(),
         )
         return
 
     company_id = int(message.text.strip())
+    companies = await _available_companies_for_invite(account)
+    allowed_company_ids = {company.id for company in companies}
 
-    async with AsyncSessionLocal() as session:
-        company = await session.scalar(
-            select(Company).where(
-                Company.id == company_id,
-                Company.is_active.is_(True),
-            )
-        )
-
-    if company is None:
+    if company_id not in allowed_company_ids:
         await MessageService.replace_service_message(
             message,
             state,
-            "Компания не найдена или отключена. Введите другой ID.",
+            "Эта компания недоступна для создания приглашения.",
+            reply_markup=employees_root_menu(),
         )
         return
 
     await state.update_data(company_id=company_id)
-    await state.set_state(CreateInviteState.role)
-
-    await MessageService.replace_service_message(
-        message,
-        state,
-        "Выберите роль для приглашения.",
-        reply_markup=invite_role_menu(),
-    )
-
-
-@router.message(CreateInviteState.role)
-async def create_invite_role(message: Message, state: FSMContext) -> None:
-    role_text = (message.text or "").strip()
-
-    if role_text == "Отмена":
-        await state.clear()
-        await answer_admin_panel(message, state)
-        return
-
-    try:
-        role = InviteRole(role_text)
-    except ValueError:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Некорректная роль. Выберите роль из меню.",
-            reply_markup=invite_role_menu(),
-        )
-        return
-
-    await state.update_data(role=role.value)
     await state.set_state(CreateInviteState.full_name)
 
     await MessageService.replace_service_message(
         message,
         state,
-        "Введите ФИО пользователя, для которого создаётся приглашение.",
+        "Введите ФИО сотрудника.\n\n"
+        "Базовая роль после регистрации: Пользователь",
+        reply_markup=employees_root_menu(),
     )
 
 
 @router.message(CreateInviteState.full_name)
 async def create_invite_finish(message: Message, state: FSMContext) -> None:
-    admin = await get_current_admin(message.from_user.id)
+    account = await get_current_account(message.from_user.id)
 
-    if admin is None:
+    if not AuthorizationService.can(account, Permission.EMPLOYEE_INVITE):
         await state.clear()
         await MessageService.replace_service_message(
             message,
             state,
-            "У вас нет доступа к этому действию.",
+            "Недостаточно прав для создания приглашений.",
+            delete_user_message=False,
         )
         return
 
     full_name = (message.text or "").strip()
 
-    if full_name == "Отмена":
-        await state.clear()
-        await answer_admin_panel(message, state)
-        return
-
     if len(full_name) < 3:
         await MessageService.replace_service_message(
             message,
             state,
-            "Введите корректное ФИО.",
+            "Введите корректное ФИО сотрудника.",
+            reply_markup=employees_root_menu(),
         )
         return
 
     data = await state.get_data()
+    company_id = int(data["company_id"])
+    companies = await _available_companies_for_invite(account)
+    allowed_company_ids = {company.id for company in companies}
+
+    if company_id not in allowed_company_ids:
+        await state.clear()
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Эта компания недоступна для создания приглашения.",
+            reply_markup=employees_root_menu(),
+        )
+        return
+
     bot_info = await message.bot.get_me()
 
     async with AsyncSessionLocal() as session:
-        admin_in_session = await session.scalar(
-            select(Account).where(Account.id == admin.id)
+        created_by = await session.scalar(
+            select(Account).where(Account.id == account.id)
         )
 
         service = InviteService(session)
 
         try:
             created = await service.create_invite(
-                created_by=admin_in_session,
-                company_id=int(data["company_id"]),
-                role=InviteRole(data["role"]),
+                created_by=created_by,
+                company_id=company_id,
+                role=InviteRole.USER,
                 full_name=full_name,
                 bot_username=bot_info.username,
             )
@@ -212,6 +209,7 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
                 message,
                 state,
                 str(error),
+                reply_markup=employees_root_menu(),
             )
             return
 
@@ -220,11 +218,15 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
     await MessageService.replace_service_message(
         message,
         state,
-        "Приглашение создано.\n\n"
+        "Приглашение сотрудника создано.\n\n"
         f"ФИО: {full_name}\n"
-        f"Роль: {data['role']}\n"
-        f"Срок действия: 7 дней\n\n"
+        "Базовая роль: Пользователь\n"
+        "Срок действия: 7 дней\n\n"
         f"Ссылка:\n{created.link}",
+        reply_markup=employees_root_menu(),
     )
 
+
+@router.message(F.text == "🏠 Админ меню")
+async def invites_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)
