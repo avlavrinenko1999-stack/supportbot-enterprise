@@ -12,7 +12,6 @@ from app.security.permissions import Permission
 from app.handlers.admin.common import answer_admin_panel, get_current_admin
 from app.keyboards.company import (
     companies_catalog_reply_menu,
-    companies_menu,
     companies_reply_menu,
     company_card_reply_menu,
 )

@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import edit_callback_message, get_current_admin, answer_admin_panel
-from app.keyboards.coordinator_admin import coordinators_menu, coordinators_reply_menu, coordinator_card_menu
+from app.keyboards.coordinator_admin import coordinators_menu, coordinators_reply_menu
 from app.keyboards.employee import employee_card_menu
 from app.models.account import Account
 from app.models.company import Company

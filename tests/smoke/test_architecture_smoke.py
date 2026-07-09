@@ -1,7 +1,5 @@
 def test_project_imports():
     import bot
-    import app.handlers
-    import app.handlers.admin
 
     assert bot is not None
 

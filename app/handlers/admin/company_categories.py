@@ -9,7 +9,6 @@ from app.keyboards.company_categories import (
     category_delete_confirm_menu,
     category_delete_with_tickets_menu,
     category_parent_select_menu,
-    company_archived_categories_menu,
     company_archived_categories_reply_menu,
     company_categories_menu,
     company_categories_reply_menu,

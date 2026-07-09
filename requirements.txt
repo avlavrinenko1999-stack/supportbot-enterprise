@@ -41,3 +41,5 @@ pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
+black==26.5.1
+ruff==0.15.21

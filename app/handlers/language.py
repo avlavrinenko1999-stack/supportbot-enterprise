@@ -1,11 +1,10 @@
-from aiogram import F, Router
+from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.i18n import tr
 from app.keyboards.language import language_search_menu
 from app.models.account import Account
 from app.services.language_pack_service import LanguagePackService

@@ -1,6 +1,6 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-from app.keyboards.common import back_menu, button, confirm_menu, inline_menu
+from app.keyboards.common import button, confirm_menu, inline_menu
 from app.models.category import Category
 from app.keyboards.reply_list import list_reply_menu
 

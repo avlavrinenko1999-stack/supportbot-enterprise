@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 
 from deep_translator import GoogleTranslator
-from sqlalchemy import select
 from app.services.company_name_service import CompanyNameService
 from app.ui.keyboard_i18n import current_language
 

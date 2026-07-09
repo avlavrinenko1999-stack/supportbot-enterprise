@@ -26,6 +26,7 @@ __all__ = [
     "Attachment",
     "TicketEvent",
     "InternalNote",
+    "CategoryMember",
 ]
 
 from app.models.category_member import CategoryMember

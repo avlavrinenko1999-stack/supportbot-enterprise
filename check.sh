@@ -2,6 +2,10 @@
 set -e
 
 echo
+echo "========== RUFF =========="
+venv/bin/python -m ruff check .
+
+echo
 echo "========== COMPILE =========="
 venv/bin/python -m compileall app bot.py
 
@@ -17,5 +21,6 @@ echo
 echo "========== PYTEST =========="
 venv/bin/python -m pytest tests -q
 
+echo
 echo
 echo "✓ ALL CHECKS PASSED"
