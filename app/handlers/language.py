@@ -5,12 +5,13 @@ from aiogram.types import Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
+from app.handlers.admin.companies import companies_entry
 from app.keyboards.language import language_search_menu
 from app.models.account import Account
 from app.services.language_pack_service import LanguagePackService
 from app.services.menu_service import MenuService
 from app.services.message_service import MessageService
-from app.ui.actions import MenuAction, MenuActionFilter
+from app.ui.actions import MenuAction, MenuActionFilter, resolve_menu_action
 from app.ui.keyboard_i18n import reset_current_language, set_current_language
 from app.ui.navigation_service import NavigationService
 from app.ui.screens import Screen
@@ -67,7 +68,7 @@ async def _apply_language(message: Message, state: FSMContext, language: str) ->
             state,
             f"SupportBot Enterprise\n\n{MenuService.title_for(account)}",
             reply_markup=MenuService.keyboard_for(account),
-            delete_user_message=False,
+            delete_user_message=True,
         )
     finally:
         reset_current_language(token)
@@ -120,7 +121,23 @@ async def language_search_again(message: Message, state: FSMContext) -> None:
 async def language_search(message: Message, state: FSMContext) -> None:
     query = (message.text or "").strip()
 
-    if query in {"⬅️ Назад", "Back"}:
+    action = resolve_menu_action(query)
+    if action == MenuAction.COMPANIES:
+        await state.clear()
+        await companies_entry(message, state)
+        return
+
+    if action in {
+        MenuAction.EMPLOYEES,
+        MenuAction.TICKETS,
+        MenuAction.REPORTS,
+        MenuAction.PROFILE,
+        MenuAction.LANGUAGE,
+    }:
+        await state.clear()
+        return
+
+    if action == MenuAction.BACK:
         await _show_main_menu(message, state)
         return
 
@@ -179,5 +196,5 @@ async def language_search(message: Message, state: FSMContext) -> None:
             f"Причина: {exc}\n\n"
             "Попробуйте другое название языка.",
             reply_markup=language_search_menu(),
-            delete_user_message=False,
+            delete_user_message=True,
         )

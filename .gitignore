@@ -10,3 +10,4 @@ __pycache__/
 .vscode/
 
 data/text_translation_cache.json
+data/chat_message_registry.json

@@ -2,6 +2,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from app.services.chat_registry import ChatRegistry
 from app.services.text_service import TextService
 
 
@@ -36,14 +37,17 @@ class MessageService:
     async def delete_service_messages(message: Message, state: FSMContext) -> None:
         data = await state.get_data()
 
-        message_ids = list(data.get(MessageService.SERVICE_MESSAGE_IDS_KEY) or [])
+        message_ids = set(ChatRegistry.ids_for(message))
+        message_ids.update(data.get(MessageService.SERVICE_MESSAGE_IDS_KEY) or [])
 
         old_last_id = data.get(MessageService.LAST_SERVICE_MESSAGE_KEY)
-        if old_last_id and old_last_id not in message_ids:
-            message_ids.append(old_last_id)
+        if old_last_id:
+            message_ids.add(old_last_id)
 
-        for message_id in message_ids:
+        for message_id in sorted(message_ids):
             await MessageService.delete_message_by_id(message, message_id)
+
+        ChatRegistry.clear(message)
 
         await state.update_data(
             **{
@@ -91,6 +95,7 @@ class MessageService:
             state,
             sent_message.message_id,
         )
+        ChatRegistry.remember(sent_message)
 
         return sent_message
 
@@ -106,11 +111,13 @@ class MessageService:
         if delete_user_message:
             await MessageService.delete_message(message)
 
+        text = await TextService.translate(text)
         sent_message = await message.answer(text, **kwargs)
 
         await MessageService.remember_service_message(
             state,
             sent_message.message_id,
         )
+        ChatRegistry.remember(sent_message)
 
         return sent_message
