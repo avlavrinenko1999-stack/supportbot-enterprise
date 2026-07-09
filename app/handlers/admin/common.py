@@ -5,7 +5,34 @@ from app.database.db import AsyncSessionLocal
 from app.keyboards.admin import admin_main_menu
 from app.models.account import Account
 from app.models.enums import UserRole
+from app.security.authorization import AuthorizationService
+from app.security.permissions import Permission
 from app.services.message_service import MessageService
+
+
+
+async def get_current_account(telegram_id: int) -> Account | None:
+    async with AsyncSessionLocal() as session:
+        account = await session.scalar(
+            select(Account).where(
+                Account.telegram_id == telegram_id,
+                Account.is_active.is_(True),
+                Account.registered.is_(True),
+            )
+        )
+        return account
+
+
+async def get_account_with_permission(
+    telegram_id: int,
+    permission: Permission,
+) -> Account | None:
+    account = await get_current_account(telegram_id)
+
+    if not AuthorizationService.can(account, permission):
+        return None
+
+    return account
 
 
 async def get_current_admin(telegram_id: int) -> Account | None:
