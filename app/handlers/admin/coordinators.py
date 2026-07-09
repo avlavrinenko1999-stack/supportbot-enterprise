@@ -7,9 +7,11 @@ from sqlalchemy import select
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import edit_callback_message, get_current_admin, answer_admin_panel
 from app.keyboards.coordinator_admin import coordinators_menu, coordinators_reply_menu, coordinator_card_menu
+from app.keyboards.employee import employee_card_menu
 from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import UserRole
+from app.security.localization import get_role_name
 from app.services.account_admin_service import AccountAdminService
 from app.services.directory_service import DirectoryService
 from app.services.message_service import MessageService
@@ -190,12 +192,13 @@ async def coordinator_view_from_reply(message: Message, state: FSMContext) -> No
     await MessageService.replace_service_message(
         message,
         state,
-        "Координатор\n\n"
+        "👤 Карточка сотрудника\n\n"
         f"ID: {coordinator.id}\n"
         f"ФИО: {coordinator.full_name}\n"
-        f"Компания ID: {coordinator.company_id}\n"
+        f"Роль: {get_role_name(coordinator.role)}\n"
+        f"Компания ID: {coordinator.company_id or 'не привязана'}\n"
         f"Статус: {status}",
-        reply_markup=coordinator_card_menu(),
+        reply_markup=employee_card_menu(is_active=coordinator.is_active),
     )
 
 
@@ -377,10 +380,11 @@ async def coordinator_view(callback: CallbackQuery) -> None:
 
     await edit_callback_message(
         callback,
-        "Координатор\n\n"
+        "👤 Карточка сотрудника\n\n"
         f"ID: {coordinator.id}\n"
         f"ФИО: {coordinator.full_name}\n"
-        f"Компания ID: {coordinator.company_id}\n"
+        f"Роль: {get_role_name(coordinator.role)}\n"
+        f"Компания ID: {coordinator.company_id or 'не привязана'}\n"
         f"Статус: {status}",
-        reply_markup=coordinator_card_menu(),
+        reply_markup=employee_card_menu(is_active=coordinator.is_active),
     )
