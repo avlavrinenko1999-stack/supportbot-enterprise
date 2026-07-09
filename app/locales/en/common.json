@@ -17,5 +17,15 @@
   "role.coordinator": "Coordinator",
   "role.operator": "Operator",
   "role.observer": "Observer",
-  "role.user": "User"
+  "role.user": "User",
+  "button.cancel": "Cancel",
+  "button.save": "💾 Save",
+  "button.delete": "🗑 Delete",
+  "button.edit": "✏️ Edit",
+  "button.create": "➕ Create",
+  "button.search": "🔎 Search",
+  "button.yes": "✅ Yes",
+  "button.no": "❌ No",
+  "button.next": "➡️ Next",
+  "button.prev": "⬅️ Back"
 }

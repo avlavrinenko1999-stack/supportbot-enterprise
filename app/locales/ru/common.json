@@ -17,5 +17,15 @@
   "role.coordinator": "Координатор",
   "role.operator": "Оператор",
   "role.observer": "Наблюдатель",
-  "role.user": "Пользователь"
+  "role.user": "Пользователь",
+  "button.cancel": "Отмена",
+  "button.save": "💾 Сохранить",
+  "button.delete": "🗑 Удалить",
+  "button.edit": "✏️ Редактировать",
+  "button.create": "➕ Создать",
+  "button.search": "🔎 Поиск",
+  "button.yes": "✅ Да",
+  "button.no": "❌ Нет",
+  "button.next": "➡️ Далее",
+  "button.prev": "⬅️ Назад"
 }
