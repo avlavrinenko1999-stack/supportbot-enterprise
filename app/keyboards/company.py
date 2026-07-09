@@ -59,7 +59,7 @@ def companies_catalog_reply_menu() -> ReplyKeyboardMarkup:
             "🕘 Последние компании",
             "⛔ Отключенные компании",
             "➕ Создать компанию",
-            "🏠 Админ меню",
+            "⬅️ Назад",
         ],
         input_field_placeholder="Выберите действие",
     )
@@ -85,7 +85,7 @@ def companies_reply_menu(
         search_text="🔎 Найти компанию",
         create_text="➕ Создать компанию",
         back_text="⬅️ Каталог компаний",
-        home_text="🏠 Админ меню",
+        home_text="⬅️ Назад",
         placeholder_prefix=placeholder_prefix,
     )
 
@@ -111,7 +111,7 @@ def company_card_reply_menu(*, is_favorite: bool = False) -> ReplyKeyboardMarkup
             "🎫 Тикеты компании",
             "⚙️ Настройки компании",
             "⬅️ Каталог компаний",
-            "🏠 Админ меню",
+            "⬅️ Назад",
         ],
         input_field_placeholder="Выберите действие",
     )

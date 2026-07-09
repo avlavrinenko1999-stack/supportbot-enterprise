@@ -13,7 +13,7 @@ def employees_root_menu() -> ReplyKeyboardMarkup:
             "Пользователи",
             "🔎 Найти сотрудника",
             "➕ Создать приглашение",
-            "🏠 Админ меню",
+            "⬅️ Назад",
         ],
         input_field_placeholder="Выберите раздел",
     )
@@ -25,7 +25,7 @@ def employees_list_menu() -> ReplyKeyboardMarkup:
             "➡️ Далее",
             "⬅️ Назад",
             "⬅️ Сотрудники",
-            "🏠 Админ меню",
+            "⬅️ Назад",
         ],
         input_field_placeholder="Выберите действие",
     )

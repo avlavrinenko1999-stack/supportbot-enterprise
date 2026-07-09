@@ -142,7 +142,7 @@ def company_categories_reply_menu(
         create_text="➕ Создать категорию",
         archive_text="📦 Архив категорий",
         back_text="⬅️ К карточке компании",
-        home_text="🏠 Админ меню",
+        home_text="⬅️ Назад",
         placeholder_prefix="Категории",
     )
 
@@ -164,6 +164,6 @@ def company_archived_categories_reply_menu(
         per_page=per_page,
         search_text="🔎 Поиск в архиве",
         back_text="⬅️ К активным категориям",
-        home_text="🏠 Админ меню",
+        home_text="⬅️ Назад",
         placeholder_prefix="Архив категорий",
     )

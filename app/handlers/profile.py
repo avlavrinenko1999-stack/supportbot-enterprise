@@ -7,15 +7,20 @@ from app.database.db import AsyncSessionLocal
 from app.models.account import Account
 from app.models.company import Company
 from app.security.localization import get_permission_name, get_role_name
+from app.keyboards.profile import profile_menu
 from app.security.permissions import role_permissions
 from app.services.message_service import MessageService
+from app.services.menu_service import MenuService
 from app.ui.actions import MenuAction, MenuActionFilter
+from app.ui.navigation_service import NavigationService
+from app.ui.screens import Screen
 
 router = Router()
 
 
 @router.message(MenuActionFilter(MenuAction.PROFILE))
 async def profile(message: Message, state: FSMContext) -> None:
+    await NavigationService.open(state, Screen.PROFILE)
     async with AsyncSessionLocal() as session:
         account = await session.scalar(
             select(Account).where(
@@ -63,4 +68,34 @@ async def profile(message: Message, state: FSMContext) -> None:
         "Разрешения:\n"
         f"{permissions_text}",
         delete_user_message=True,
+        reply_markup=profile_menu(),
+    )
+
+
+
+@router.message(F.text == "⬅️ Назад")
+async def profile_back(message: Message, state: FSMContext) -> None:
+    async with AsyncSessionLocal() as session:
+        account = await session.scalar(
+            select(Account).where(
+                Account.telegram_id == message.from_user.id,
+                Account.is_active.is_(True),
+                Account.registered.is_(True),
+            )
+        )
+
+    if account is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Профиль не найден.",
+            delete_user_message=False,
+        )
+        return
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        f"SupportBot Enterprise\n\n{MenuService.title_for(account)}",
+        reply_markup=MenuService.keyboard_for(account),
     )

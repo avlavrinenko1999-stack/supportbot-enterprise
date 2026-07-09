@@ -23,6 +23,8 @@ from app.services.message_service import MessageService
 from app.ui.context import UIContext
 from app.ui.navigation import PageService
 from app.ui.actions import MenuAction, MenuActionFilter
+from app.ui.navigation_service import NavigationService
+from app.ui.screens import Screen
 
 router = Router()
 
@@ -302,6 +304,7 @@ async def render_company_card(
 @router.message(MenuActionFilter(MenuAction.COMPANIES))
 @require_permission(Permission.COMPANY_VIEW)
 async def companies_entry(message: Message, state: FSMContext, account=None) -> None:
+    await NavigationService.open(state, Screen.COMPANIES)
     await render_company_catalog(message, state)
 
 

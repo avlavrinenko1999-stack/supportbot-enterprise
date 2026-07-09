@@ -6,12 +6,15 @@ from app.handlers.admin.common import answer_admin_panel
 from app.keyboards.employees import employees_root_menu
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
+from app.ui.navigation_service import NavigationService
+from app.ui.screens import Screen
 
 router = Router()
 
 
 @router.message(MenuActionFilter(MenuAction.EMPLOYEES))
 async def employees_entry(message: Message, state: FSMContext) -> None:
+    await NavigationService.open(state, Screen.EMPLOYEES)
     await MessageService.replace_service_message(
         message,
         state,

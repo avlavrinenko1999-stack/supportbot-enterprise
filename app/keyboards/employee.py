@@ -13,7 +13,7 @@ def employee_card_menu(*, is_active: bool = True) -> ReplyKeyboardMarkup:
             toggle_text,
             "📜 История изменений",
             "⬅️ К списку сотрудников",
-            "🏠 Админ меню",
+            "⬅️ Назад",
         ],
         input_field_placeholder="Выберите действие",
     )

@@ -47,7 +47,7 @@ def coordinators_reply_menu(
         per_page=per_page,
         search_text="🔎 Поиск координатора",
         create_text="➕ Создать приглашение координатора",
-        home_text="🏠 Админ меню",
+        home_text="⬅️ Назад",
         placeholder_prefix="Координаторы",
     )
 
@@ -57,7 +57,7 @@ def coordinator_card_menu() -> InlineKeyboardMarkup:
         buttons=[],
         back_buttons=[
             button("⬅️ К списку координаторов", "coordinator:list"),
-            button("🏠 Админ меню", "admin:menu"),
+            button("⬅️ Назад", "admin:menu"),
         ],
         columns=1,
     )
