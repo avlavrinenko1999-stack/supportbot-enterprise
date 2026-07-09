@@ -27,5 +27,13 @@
   "button.yes": "✅ Yes",
   "button.no": "❌ No",
   "button.next": "➡️ Next",
-  "button.prev": "⬅️ Back"
+  "button.prev": "⬅️ Back",
+  "common.access_denied": "You do not have permission for this action.",
+  "common.not_found": "Not found.",
+  "common.saved": "Saved.",
+  "common.cancelled": "Cancelled.",
+  "common.error": "An error occurred.",
+  "language.search.title": "🌐 Language\n\nType your language name.\n\nExample: English, Русский",
+  "language.not_found": "Language not found. Try English or Русский.",
+  "language.card": "🌐 Language card\n\n{language}\n\nPress the button below to apply this language."
 }

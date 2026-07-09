@@ -27,5 +27,13 @@
   "button.yes": "✅ Да",
   "button.no": "❌ Нет",
   "button.next": "➡️ Далее",
-  "button.prev": "⬅️ Назад"
+  "button.prev": "⬅️ Назад",
+  "common.access_denied": "Недостаточно прав для этого действия.",
+  "common.not_found": "Не найдено.",
+  "common.saved": "Сохранено.",
+  "common.cancelled": "Отменено.",
+  "common.error": "Произошла ошибка.",
+  "language.search.title": "🌐 Language\n\nВведите название языка.\n\nНапример: English, Русский",
+  "language.not_found": "Язык не найден. Попробуйте English или Русский.",
+  "language.card": "🌐 Карточка языка\n\n{language}\n\nНажмите кнопку ниже, чтобы применить язык."
 }
