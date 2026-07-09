@@ -8,6 +8,7 @@ def admin_main_menu() -> ReplyKeyboardMarkup:
     return reply_keyboard(
         [
             "Компании",
+            "Сотрудники",
             "Тикеты",
             "Отчёты",
             "Профиль",
