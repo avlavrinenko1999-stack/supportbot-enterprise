@@ -4,6 +4,7 @@ from aiogram.types import BotCommand
 from app.keyboards.admin import admin_main_menu
 from app.keyboards.coordinator import coordinator_main_menu
 from app.keyboards.operator import operator_main_menu
+from app.keyboards.observer import observer_main_menu
 from app.keyboards.user_menu import user_main_menu
 from app.models.account import Account
 from app.models.enums import UserRole
@@ -30,6 +31,9 @@ class MenuService:
         if account.role == UserRole.OPERATOR:
             return operator_main_menu()
 
+        if account.role == UserRole.OBSERVER:
+            return observer_main_menu()
+
         return user_main_menu()
 
     @staticmethod
@@ -42,5 +46,8 @@ class MenuService:
 
         if account.role == UserRole.OPERATOR:
             return "Меню оператора."
+
+        if account.role == UserRole.OBSERVER:
+            return "Меню наблюдателя."
 
         return "Меню пользователя."

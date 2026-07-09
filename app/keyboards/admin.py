@@ -21,6 +21,7 @@ def invite_role_menu() -> ReplyKeyboardMarkup:
         [
             "coordinator",
             "operator",
+            "observer",
             "user",
             "Отмена",
         ],

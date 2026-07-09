@@ -34,6 +34,8 @@ class InviteRole(str, Enum):
 
     OPERATOR = "operator"
 
+    OBSERVER = "observer"
+
     USER = "user"
 
 
