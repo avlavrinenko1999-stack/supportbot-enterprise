@@ -11,6 +11,7 @@ from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import UserRole
 from app.services.account_admin_service import AccountAdminService
+from app.services.directory_service import DirectoryService
 from app.services.message_service import MessageService
 from app.ui.navigation import PageService
 
@@ -52,13 +53,10 @@ def coordinators_text(
 
 async def load_coordinators():
     async with AsyncSessionLocal() as session:
-        service = AccountAdminService(session)
-        coordinators = list(
-            await session.scalars(
-                select(Account)
-                .where(Account.role == UserRole.COORDINATOR)
-                .order_by(Account.id)
-            )
+        directory = DirectoryService(session, Account)
+        coordinators = await directory.list(
+            filters=[Account.role == UserRole.COORDINATOR],
+            order_by=Account.id,
         )
 
     return coordinators
