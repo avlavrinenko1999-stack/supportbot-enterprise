@@ -5,11 +5,12 @@ from aiogram.types import Message
 from app.handlers.admin.common import answer_admin_panel
 from app.keyboards.employees import employees_root_menu
 from app.services.message_service import MessageService
+from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
 
-@router.message(F.text == "Сотрудники")
+@router.message(MenuActionFilter(MenuAction.EMPLOYEES))
 async def employees_entry(message: Message, state: FSMContext) -> None:
     await MessageService.replace_service_message(
         message,

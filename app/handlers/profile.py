@@ -9,11 +9,12 @@ from app.models.company import Company
 from app.security.localization import get_permission_name, get_role_name
 from app.security.permissions import role_permissions
 from app.services.message_service import MessageService
+from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
 
-@router.message(F.text == "Профиль")
+@router.message(MenuActionFilter(MenuAction.PROFILE))
 async def profile(message: Message, state: FSMContext) -> None:
     async with AsyncSessionLocal() as session:
         account = await session.scalar(

@@ -22,6 +22,7 @@ from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
 from app.ui.navigation import PageService
+from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
@@ -298,7 +299,7 @@ async def render_company_card(
     )
 
 
-@router.message(F.text == "Компании")
+@router.message(MenuActionFilter(MenuAction.COMPANIES))
 @require_permission(Permission.COMPANY_VIEW)
 async def companies_entry(message: Message, state: FSMContext, account=None) -> None:
     await render_company_catalog(message, state)
