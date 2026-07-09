@@ -9,6 +9,7 @@ def coordinator_main_menu() -> ReplyKeyboardMarkup:
             "Сотрудники",
             "Тикеты компании",
             "Профиль",
+            "🌐 Language",
         ],
         input_field_placeholder="Выберите действие",
     )

@@ -1,0 +1,21 @@
+{
+  "button.language": "🌐 Language",
+  "button.back": "⬅️ Back",
+  "button.admin_menu": "🏠 Admin menu",
+  "language.title": "🌐 Choose language",
+  "language.saved": "Interface language changed.",
+  "menu.admin.title": "SupportBot Enterprise\n\nAdmin menu.",
+  "menu.admin.companies": "Companies",
+  "menu.admin.employees": "Employees",
+  "menu.admin.tickets": "Tickets",
+  "menu.admin.reports": "Reports",
+  "menu.profile": "Profile",
+  "profile.title": "👤 Profile",
+  "profile.not_found": "Profile not found.",
+  "profile.permissions": "Permissions",
+  "role.admin": "Administrator",
+  "role.coordinator": "Coordinator",
+  "role.operator": "Operator",
+  "role.observer": "Observer",
+  "role.user": "User"
+}

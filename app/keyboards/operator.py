@@ -9,6 +9,7 @@ def operator_main_menu() -> ReplyKeyboardMarkup:
             "Новые тикеты",
             "Мои тикеты",
             "Профиль",
+            "🌐 Language",
         ],
         input_field_placeholder="Выберите действие",
     )

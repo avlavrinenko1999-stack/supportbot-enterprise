@@ -12,6 +12,7 @@ def admin_main_menu() -> ReplyKeyboardMarkup:
             "Тикеты",
             "Отчёты",
             "Профиль",
+            "🌐 Language",
         ],
         input_field_placeholder="Выберите раздел",
     )

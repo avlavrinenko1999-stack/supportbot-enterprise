@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 
 from app.config import settings
 from app.handlers.admin import router as admin_router
+from app.handlers.language import router as language_router
 from app.handlers.coordinator import router as coordinator_router
 from app.handlers.operator import router as operator_router
 from app.handlers.profile import router as profile_router
@@ -26,6 +27,7 @@ async def main() -> None:
     dp.include_router(operator_router)
     dp.include_router(coordinator_router)
     dp.include_router(profile_router)
+    dp.include_router(language_router)
     dp.include_router(admin_router)
 
     await dp.start_polling(bot)

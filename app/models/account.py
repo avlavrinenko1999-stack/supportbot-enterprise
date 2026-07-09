@@ -53,6 +53,12 @@ class Account(Base, IDMixin, TimestampMixin):
         nullable=True
     )
 
+    language: Mapped[str] = mapped_column(
+        String(8),
+        default="ru",
+        nullable=False,
+    )
+
     company = relationship(
         "Company",
         back_populates="accounts"

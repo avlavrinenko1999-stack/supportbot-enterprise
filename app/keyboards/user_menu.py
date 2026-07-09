@@ -9,6 +9,7 @@ def user_main_menu() -> ReplyKeyboardMarkup:
             "Создать тикет",
             "Мои тикеты",
             "Профиль",
+            "🌐 Language",
         ],
         input_field_placeholder="Выберите действие",
     )

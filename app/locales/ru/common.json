@@ -1,0 +1,21 @@
+{
+  "button.language": "🌐 Language",
+  "button.back": "⬅️ Назад",
+  "button.admin_menu": "🏠 Админ меню",
+  "language.title": "🌐 Выберите язык",
+  "language.saved": "Язык интерфейса изменён.",
+  "menu.admin.title": "SupportBot Enterprise\n\nАдминистративное меню.",
+  "menu.admin.companies": "Компании",
+  "menu.admin.employees": "Сотрудники",
+  "menu.admin.tickets": "Тикеты",
+  "menu.admin.reports": "Отчёты",
+  "menu.profile": "Профиль",
+  "profile.title": "👤 Профиль",
+  "profile.not_found": "Профиль не найден.",
+  "profile.permissions": "Разрешения",
+  "role.admin": "Администратор",
+  "role.coordinator": "Координатор",
+  "role.operator": "Оператор",
+  "role.observer": "Наблюдатель",
+  "role.user": "Пользователь"
+}
