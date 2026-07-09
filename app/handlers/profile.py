@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.database.db import AsyncSessionLocal
 from app.models.account import Account
 from app.models.company import Company
+from app.security.localization import get_permission_name, get_role_name
 from app.security.permissions import role_permissions
 from app.services.message_service import MessageService
 
@@ -41,7 +42,7 @@ async def profile(message: Message, state: FSMContext) -> None:
             if company:
                 company_name = f"{company.name} #{company.id}"
 
-    permissions = sorted(str(permission) for permission in role_permissions(account.role))
+    permissions = sorted(get_permission_name(permission) for permission in role_permissions(account.role))
 
     permissions_text = "\n".join(f"✅ {permission}" for permission in permissions)
     if not permissions_text:
@@ -54,7 +55,7 @@ async def profile(message: Message, state: FSMContext) -> None:
         f"ID: {account.id}\n"
         f"Telegram ID: {account.telegram_id}\n"
         f"ФИО: {account.full_name}\n"
-        f"Роль: {account.role.value}\n"
+        f"Роль: {get_role_name(account.role)}\n"
         f"Компания: {company_name}\n"
         f"Активен: {'да' if account.is_active else 'нет'}\n"
         f"Зарегистрирован: {'да' if account.registered else 'нет'}\n\n"
