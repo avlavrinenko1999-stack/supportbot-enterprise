@@ -14,6 +14,7 @@ from app.security.authorization import AuthorizationService
 from app.security.permissions import Permission
 from app.services.invite_service import InviteService
 from app.services.message_service import MessageService
+from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
@@ -46,7 +47,7 @@ async def _available_companies_for_invite(account: Account) -> list[Company]:
     return []
 
 
-@router.message(F.text == "➕ Создать приглашение")
+@router.message(MenuActionFilter(MenuAction.COMPANY_INVITE_CREATE))
 async def create_invite_start(message: Message, state: FSMContext) -> None:
     account = await get_current_account(message.from_user.id)
 
@@ -227,6 +228,6 @@ async def create_invite_finish(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "🏠 Админ меню")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def invites_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)

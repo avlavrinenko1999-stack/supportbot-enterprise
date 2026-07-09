@@ -112,7 +112,7 @@ async def language_start(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "🔎 Искать другой язык")
+@router.message(MenuActionFilter(MenuAction.LANGUAGE_SEARCH_AGAIN))
 async def language_search_again(message: Message, state: FSMContext) -> None:
     await language_start(message, state)
 

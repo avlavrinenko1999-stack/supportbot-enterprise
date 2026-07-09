@@ -47,7 +47,7 @@ COMPANY_CONTROL_TEXTS = {
     "🎫 Тикеты компании",
     "⚙️ Настройки компании",
     "⬅️ Каталог компаний",
-    "🏠 Админ меню",
+    "⬅️ Назад",
 }
 
 
@@ -314,17 +314,17 @@ async def companies_entry_from_inline(callback: CallbackQuery, state: FSMContext
     await callback.answer()
 
 
-@router.message(F.text == "📋 Все компании")
+@router.message(MenuActionFilter(MenuAction.COMPANIES_ALL))
 async def companies_all(message: Message, state: FSMContext) -> None:
     await render_all_companies(message, state, page=1)
 
 
-@router.message(F.text == "⛔ Отключенные компании")
+@router.message(MenuActionFilter(MenuAction.COMPANIES_DISABLED))
 async def companies_disabled(message: Message, state: FSMContext) -> None:
     await render_disabled_companies(message, state, page=1)
 
 
-@router.message(F.text == "🕘 Последние компании")
+@router.message(MenuActionFilter(MenuAction.COMPANIES_RECENT))
 async def companies_recent(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -333,7 +333,7 @@ async def companies_recent(message: Message, state: FSMContext) -> None:
     await render_recent_companies(message, state, account.id, page=1)
 
 
-@router.message(F.text == "⭐ Избранные компании")
+@router.message(MenuActionFilter(MenuAction.COMPANIES_FAVORITES))
 async def companies_favorites(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -342,7 +342,7 @@ async def companies_favorites(message: Message, state: FSMContext) -> None:
     await render_favorite_companies(message, state, account.id, page=1)
 
 
-@router.message(F.text == "🔎 Найти компанию")
+@router.message(MenuActionFilter(MenuAction.COMPANY_SEARCH))
 async def company_search_start(message: Message, state: FSMContext) -> None:
     await state.set_state(CompanyState.search_query)
 
@@ -371,7 +371,7 @@ async def company_search_finish(message: Message, state: FSMContext) -> None:
     await render_search_results(message, state, query, page=1)
 
 
-@router.message(F.text == "➡️ Далее")
+@router.message(MenuActionFilter(MenuAction.NEXT))
 async def companies_next_page(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -405,7 +405,7 @@ async def companies_next_page(message: Message, state: FSMContext) -> None:
     await render_all_companies(message, state, page=page)
 
 
-@router.message(F.text == "⬅️ Назад")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def companies_prev_page(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -439,12 +439,12 @@ async def companies_prev_page(message: Message, state: FSMContext) -> None:
     await render_all_companies(message, state, page=page)
 
 
-@router.message(F.text == "⬅️ Каталог компаний")
+@router.message(MenuActionFilter(MenuAction.COMPANY_CATALOG))
 async def companies_back_to_catalog(message: Message, state: FSMContext) -> None:
     await render_company_catalog(message, state)
 
 
-@router.message(F.text == "🏠 Админ меню")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def companies_back_to_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)
 
@@ -462,7 +462,7 @@ async def company_view_from_inline(callback: CallbackQuery, state: FSMContext) -
     await callback.answer()
 
 
-@router.message(F.text == "➕ Создать компанию")
+@router.message(MenuActionFilter(MenuAction.COMPANY_CREATE))
 async def company_create_start(message: Message, state: FSMContext) -> None:
     await state.set_state(CompanyState.create_name)
 
@@ -590,7 +590,7 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
     await render_company_card(message, state, company.id)
 
 
-@router.message(F.text == "⭐ В избранное")
+@router.message(MenuActionFilter(MenuAction.COMPANY_FAVORITE_ADD))
 async def company_add_to_favorites(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -613,7 +613,7 @@ async def company_add_to_favorites(message: Message, state: FSMContext) -> None:
     await render_company_card(message, state, company_id)
 
 
-@router.message(F.text == "⭐ Убрать из избранного")
+@router.message(MenuActionFilter(MenuAction.COMPANY_FAVORITE_REMOVE))
 async def company_remove_from_favorites(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -636,7 +636,7 @@ async def company_remove_from_favorites(message: Message, state: FSMContext) -> 
     await render_company_card(message, state, company_id)
 
 
-@router.message(F.text == "✏️ Переименовать")
+@router.message(MenuActionFilter(MenuAction.COMPANY_RENAME))
 async def company_rename_start(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -683,7 +683,7 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
     await render_company_card(message, state, company.id)
 
 
-@router.message(F.text == "⛔ Отключить")
+@router.message(MenuActionFilter(MenuAction.COMPANY_DISABLE))
 async def company_disable_from_reply(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -698,7 +698,7 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
     await render_company_card(message, state, company.id)
 
 
-@router.message(F.text == "✅ Включить")
+@router.message(MenuActionFilter(MenuAction.COMPANY_ENABLE))
 async def company_enable_from_reply(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -714,7 +714,7 @@ async def company_enable_from_reply(message: Message, state: FSMContext) -> None
 
 
 
-@router.message(F.text == "🔗 Создать приглашение")
+@router.message(MenuActionFilter(MenuAction.COMPANY_INVITE_CREATE))
 async def company_invite_from_card(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -732,7 +732,7 @@ async def company_invite_from_card(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "👤 Координаторы компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_COORDINATORS))
 async def company_coordinators_from_card(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -748,7 +748,7 @@ async def company_coordinators_from_card(message: Message, state: FSMContext) ->
     )
 
 
-@router.message(F.text == "👷 Операторы компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_OPERATORS))
 async def company_operators_from_card(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -764,7 +764,7 @@ async def company_operators_from_card(message: Message, state: FSMContext) -> No
     )
 
 
-@router.message(F.text == "👥 Пользователи компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_USERS))
 async def company_users_from_card(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -780,7 +780,7 @@ async def company_users_from_card(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "👥 Сотрудники компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_EMPLOYEES))
 async def company_employees_stub(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -792,7 +792,7 @@ async def company_employees_stub(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "🎫 Тикеты компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_TICKETS))
 async def company_tickets_stub(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -804,7 +804,7 @@ async def company_tickets_stub(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "⚙️ Настройки компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_SETTINGS))
 async def company_settings_stub(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 

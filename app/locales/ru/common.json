@@ -1,7 +1,6 @@
 {
   "button.language": "🌐 Language",
   "button.back": "⬅️ Назад",
-  "button.admin_menu": "🏠 Админ меню",
   "language.title": "🌐 Выберите язык",
   "language.saved": "Язык интерфейса изменён.",
   "menu.admin.title": "SupportBot Enterprise\n\nАдминистративное меню.",

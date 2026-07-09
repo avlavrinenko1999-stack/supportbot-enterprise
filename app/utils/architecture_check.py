@@ -1,6 +1,9 @@
 from pathlib import Path
 
 FORBIDDEN = [
+    "F.text.in_",
+    "F.text ==",
+    "🏠 Админ меню",
     "message.answer(",
     "callback.message.answer(",
     ".send_message(",

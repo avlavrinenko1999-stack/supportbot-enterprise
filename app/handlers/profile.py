@@ -74,7 +74,7 @@ async def profile(message: Message, state: FSMContext) -> None:
 
 
 
-@router.message(F.text == "⬅️ Назад")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def profile_back(message: Message, state: FSMContext) -> None:
     async with AsyncSessionLocal() as session:
         account = await session.scalar(

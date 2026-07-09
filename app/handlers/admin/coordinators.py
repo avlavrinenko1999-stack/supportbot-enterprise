@@ -16,6 +16,7 @@ from app.services.account_admin_service import AccountAdminService
 from app.services.directory_service import DirectoryService
 from app.services.message_service import MessageService
 from app.ui.navigation import PageService
+from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
@@ -64,7 +65,7 @@ async def load_coordinators():
     return coordinators
 
 
-@router.message(F.text == "Координаторы")
+@router.message(MenuActionFilter(MenuAction.COORDINATORS))
 async def coordinators_entry_from_reply_menu(message: Message, state: FSMContext) -> None:
     admin = await get_current_admin(message.from_user.id)
 
@@ -99,7 +100,7 @@ async def coordinators_list_callback(callback: CallbackQuery) -> None:
     )
 
 
-@router.message(F.text == "➡️ Далее")
+@router.message(MenuActionFilter(MenuAction.NEXT))
 async def coordinators_next_page(message: Message, state: FSMContext) -> None:
     page = await PageService.next_page(state, "coordinators")
 
@@ -113,7 +114,7 @@ async def coordinators_next_page(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "⬅️ Назад")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def coordinators_prev_page(message: Message, state: FSMContext) -> None:
     page = await PageService.prev_page(state, "coordinators")
 
@@ -127,12 +128,12 @@ async def coordinators_prev_page(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "🏠 Админ меню")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def coordinators_back_to_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)
 
 
-@router.message(F.text == "➕ Создать приглашение координатора")
+@router.message(MenuActionFilter(MenuAction.COORDINATOR_INVITE_CREATE))
 async def coordinator_create_start_from_reply(message: Message, state: FSMContext) -> None:
     async with AsyncSessionLocal() as session:
         companies = (

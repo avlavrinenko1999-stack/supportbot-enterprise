@@ -24,11 +24,11 @@ async def employees_entry(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "⬅️ Сотрудники")
+@router.message(MenuActionFilter(MenuAction.EMPLOYEES_BACK))
 async def employees_back(message: Message, state: FSMContext) -> None:
     await employees_entry(message, state)
 
 
-@router.message(F.text == "🏠 Админ меню")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def employees_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)

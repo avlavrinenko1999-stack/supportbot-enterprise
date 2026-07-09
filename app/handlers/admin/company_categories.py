@@ -20,6 +20,7 @@ from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.navigation import PageService
 from app.ui.context import UIContext
+from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
@@ -37,7 +38,7 @@ async def load_active_categories(company_id: int):
 
 
 
-@router.message(F.text == "📂 Категории компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_CATEGORIES))
 async def company_categories_from_reply(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = await UIContext.get_company_id(state)
@@ -140,12 +141,12 @@ async def company_categories_archive(callback: CallbackQuery, state: FSMContext)
 
 
 
-@router.message(F.text == "🏠 Админ меню")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def categories_back_to_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)
 
 
-@router.message(F.text == "📦 Архив категорий")
+@router.message(MenuActionFilter(MenuAction.CATEGORY_ARCHIVE))
 async def categories_archive_from_reply(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = int(data["category_company_id"])
@@ -177,7 +178,7 @@ async def categories_archive_from_reply(message: Message, state: FSMContext) -> 
     )
 
 
-@router.message(F.text == "⬅️ К активным категориям")
+@router.message(MenuActionFilter(MenuAction.CATEGORY_ACTIVE))
 async def categories_back_to_active_from_reply(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = int(data["category_company_id"])
@@ -290,7 +291,7 @@ async def company_category_view_from_reply(message: Message, state: FSMContext) 
 
 
 
-@router.message(F.text == "➕ Создать категорию")
+@router.message(MenuActionFilter(MenuAction.CATEGORY_CREATE))
 async def company_category_create_start_from_reply(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = await UIContext.get_company_id(state)
@@ -310,7 +311,7 @@ async def company_category_create_start_from_reply(message: Message, state: FSMC
     )
 
 
-@router.message(F.text == "⬅️ К карточке компании")
+@router.message(MenuActionFilter(MenuAction.COMPANY_CARD_BACK))
 async def categories_back_to_company_card(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = await UIContext.get_company_id(state)
@@ -343,7 +344,7 @@ async def categories_back_to_company_card(message: Message, state: FSMContext) -
     )
 
 
-@router.message(F.text == "➡️ Далее")
+@router.message(MenuActionFilter(MenuAction.NEXT))
 async def categories_next_page(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = data.get("category_company_id")
@@ -365,7 +366,7 @@ async def categories_next_page(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text == "⬅️ Назад")
+@router.message(MenuActionFilter(MenuAction.BACK))
 async def categories_prev_page(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = data.get("category_company_id")

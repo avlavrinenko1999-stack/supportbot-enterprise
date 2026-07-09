@@ -16,7 +16,7 @@ def list_reply_menu(
     create_text: str | None = None,
     archive_text: str | None = None,
     back_text: str | None = None,
-    home_text: str | None = "🏠 Админ меню",
+    home_text: str | None = "⬅️ Назад",
     placeholder_prefix: str = "Список",
 ) -> ReplyKeyboardMarkup:
     items = [str(item).strip() for item in item_buttons if str(item).strip()]
