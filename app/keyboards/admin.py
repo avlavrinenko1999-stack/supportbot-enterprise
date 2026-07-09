@@ -1,19 +1,20 @@
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
-from app.i18n import tr
 from app.keyboards.common import button, inline_menu
 from app.keyboards.reply import reply_keyboard
+from app.ui.actions import MenuAction
+from app.ui.menu_buttons import menu_button
 
 
 def admin_main_menu(language: str = "ru") -> ReplyKeyboardMarkup:
     return reply_keyboard(
         [
-            tr(language, "menu.admin.companies"),
-            tr(language, "menu.admin.employees"),
-            tr(language, "menu.admin.tickets"),
-            tr(language, "menu.admin.reports"),
-            tr(language, "menu.profile"),
-            tr(language, "button.language"),
+            menu_button(language, MenuAction.COMPANIES),
+            menu_button(language, MenuAction.EMPLOYEES),
+            menu_button(language, MenuAction.TICKETS),
+            menu_button(language, MenuAction.REPORTS),
+            menu_button(language, MenuAction.PROFILE),
+            menu_button(language, MenuAction.LANGUAGE),
         ],
         input_field_placeholder="Выберите раздел",
     )
