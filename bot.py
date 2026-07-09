@@ -7,6 +7,7 @@ from app.config import settings
 from app.handlers.admin import router as admin_router
 from app.handlers.coordinator import router as coordinator_router
 from app.handlers.operator import router as operator_router
+from app.handlers.profile import router as profile_router
 from app.handlers.start import router as start_router
 from app.handlers.user import router as user_router
 from app.services.menu_service import MenuService
@@ -24,6 +25,7 @@ async def main() -> None:
     dp.include_router(user_router)
     dp.include_router(operator_router)
     dp.include_router(coordinator_router)
+    dp.include_router(profile_router)
     dp.include_router(admin_router)
 
     await dp.start_polling(bot)
