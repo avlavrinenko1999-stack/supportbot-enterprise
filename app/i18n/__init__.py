@@ -1,6 +1,7 @@
 from app.i18n.language_service import LanguageService
 from app.i18n.service import (
-    SUPPORTED_LANGUAGES,
+    clear_locale_cache,
+    installed_languages,
     language_label,
     normalize_language,
     search_languages,
@@ -8,8 +9,9 @@ from app.i18n.service import (
 )
 
 __all__ = [
-    "SUPPORTED_LANGUAGES",
     "LanguageService",
+    "clear_locale_cache",
+    "installed_languages",
     "language_label",
     "normalize_language",
     "search_languages",

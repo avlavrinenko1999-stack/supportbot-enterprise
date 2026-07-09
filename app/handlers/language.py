@@ -5,14 +5,16 @@ from aiogram.types import Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.i18n import language_label, search_languages, tr
-from app.keyboards.language import language_card_menu, language_search_menu
+from app.i18n import tr
+from app.keyboards.language import language_search_menu
 from app.models.account import Account
+from app.services.language_pack_service import LanguagePackService
 from app.services.menu_service import MenuService
 from app.services.message_service import MessageService
+from app.ui.actions import MenuAction, MenuActionFilter
+from app.ui.keyboard_i18n import reset_current_language, set_current_language
 from app.ui.navigation_service import NavigationService
 from app.ui.screens import Screen
-from app.ui.actions import MenuAction, MenuActionFilter
 
 router = Router()
 
@@ -21,40 +23,18 @@ class LanguageState(StatesGroup):
     search = State()
 
 
-@router.message(MenuActionFilter(MenuAction.LANGUAGE))
-async def language_start(message: Message, state: FSMContext) -> None:
-    await NavigationService.open(state, Screen.LANGUAGE)
-    await state.set_state(LanguageState.search)
-
-    await MessageService.replace_service_message(
-        message,
-        state,
-        "🌐 Language\n\nType your language name.\n\nExample: English, Русский",
-        reply_markup=language_search_menu(),
-    )
-
-
-@router.message(F.text == "🔎 Искать другой язык")
-async def language_search_again(message: Message, state: FSMContext) -> None:
-    await language_start(message, state)
-
-
-@router.message(F.text.startswith("✅ "))
-async def language_apply(message: Message, state: FSMContext) -> None:
-    label = message.text.replace("✅ ", "", 1).strip()
-    matches = search_languages(label)
-
-    if not matches:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Language not found. Try English or Русский.",
-            reply_markup=language_search_menu(),
+async def _get_account(message: Message) -> Account | None:
+    async with AsyncSessionLocal() as session:
+        return await session.scalar(
+            select(Account).where(
+                Account.telegram_id == message.from_user.id,
+                Account.is_active.is_(True),
+                Account.registered.is_(True),
+            )
         )
-        return
 
-    language, _item = matches[0]
 
+async def _apply_language(message: Message, state: FSMContext, language: str) -> None:
     async with AsyncSessionLocal() as session:
         account = await session.scalar(
             select(Account).where(
@@ -68,7 +48,7 @@ async def language_apply(message: Message, state: FSMContext) -> None:
             await MessageService.replace_service_message(
                 message,
                 state,
-                tr(language, "profile.not_found"),
+                "Профиль не найден.",
                 delete_user_message=False,
             )
             return
@@ -78,20 +58,63 @@ async def language_apply(message: Message, state: FSMContext) -> None:
         await session.refresh(account)
 
     await state.clear()
-
-    for message_id in range(message.message_id - 10, message.message_id + 1):
-        if message_id > 0:
-            await MessageService.delete_message_by_id(message, message_id)
-
+    await NavigationService.reset(state)
     await MessageService.delete_service_messages(message, state)
+
+    token = set_current_language(language)
+    try:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            f"SupportBot Enterprise\n\n{MenuService.title_for(account)}",
+            reply_markup=MenuService.keyboard_for(account),
+            delete_user_message=False,
+        )
+    finally:
+        reset_current_language(token)
+
+
+async def _show_main_menu(message: Message, state: FSMContext) -> None:
+    account = await _get_account(message)
+
+    if account is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Профиль не найден.",
+            delete_user_message=False,
+        )
+        return
+
+    await state.clear()
+    await NavigationService.reset(state)
 
     await MessageService.replace_service_message(
         message,
         state,
-        tr(language, "language.saved"),
+        f"SupportBot Enterprise\n\n{MenuService.title_for(account)}",
         reply_markup=MenuService.keyboard_for(account),
         delete_user_message=False,
     )
+
+
+@router.message(MenuActionFilter(MenuAction.LANGUAGE))
+async def language_start(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await NavigationService.open(state, Screen.LANGUAGE)
+    await state.set_state(LanguageState.search)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "🌐 Language\n\nВведите название языка.\n\nНапример: English, Русский, Deutsch, Chinese Simplified",
+        reply_markup=language_search_menu(),
+    )
+
+
+@router.message(F.text == "🔎 Искать другой язык")
+async def language_search_again(message: Message, state: FSMContext) -> None:
+    await language_start(message, state)
 
 
 @router.message(LanguageState.search)
@@ -99,54 +122,63 @@ async def language_search(message: Message, state: FSMContext) -> None:
     query = (message.text or "").strip()
 
     if query in {"⬅️ Назад", "Back"}:
-        await state.clear()
+        await _show_main_menu(message, state)
+        return
 
-        async with AsyncSessionLocal() as session:
-            account = await session.scalar(
-                select(Account).where(
-                    Account.telegram_id == message.from_user.id,
-                    Account.is_active.is_(True),
-                    Account.registered.is_(True),
-                )
-            )
+    try:
+        meta = LanguagePackService.resolve_language(query)
+        code = meta["code"]
 
-        if account is None:
-            await MessageService.replace_service_message(
-                message,
-                state,
-                "Профиль не найден.",
-                delete_user_message=False,
-            )
+        if LanguagePackService.is_installed(code):
+            await _apply_language(message, state, code)
             return
 
         await MessageService.replace_service_message(
             message,
             state,
-            f"SupportBot Enterprise\n\n{MenuService.title_for(account)}",
-            reply_markup=MenuService.keyboard_for(account),
+            LanguagePackService.translate_progress_message(
+                query,
+                10,
+                "Определяю язык...",
+            ),
+            reply_markup=language_search_menu(),
         )
-        return
 
-    matches = search_languages(query)
-
-    if not matches:
         await MessageService.replace_service_message(
             message,
             state,
-            "Language not found. Try English or Русский.",
+            LanguagePackService.translate_progress_message(
+                query,
+                35,
+                "Создаю языковой пакет...",
+            ),
             reply_markup=language_search_menu(),
+            delete_user_message=False,
         )
-        return
 
-    code, _item = matches[0]
+        meta = await LanguagePackService.install_language_pack(query)
 
-    sent_message = await MessageService.replace_service_message(
-        message,
-        state,
-        "🌐 Language card\n\n"
-        f"{language_label(code)}\n\n"
-        "Press the button below to apply this language.",
-        reply_markup=language_card_menu(language_label(code)),
-    )
+        await MessageService.replace_service_message(
+            message,
+            state,
+            LanguagePackService.translate_progress_message(
+                query,
+                100,
+                "Язык установлен. Применяю настройки...",
+            ),
+            reply_markup=language_search_menu(),
+            delete_user_message=False,
+        )
 
-    await state.update_data(language_card_message_id=sent_message.message_id)
+        await _apply_language(message, state, meta["code"])
+
+    except Exception as exc:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Не удалось установить язык.\n\n"
+            f"Причина: {exc}\n\n"
+            "Попробуйте другое название языка.",
+            reply_markup=language_search_menu(),
+            delete_user_message=False,
+        )

@@ -97,7 +97,9 @@ async def company_categories(callback: CallbackQuery, state: FSMContext) -> None
     await PageService.set_page(state, "company_categories", 1)
     await state.update_data(category_company_id=company_id)
 
-    await callback.message.answer(
+    await MessageService.send_service_message(
+        callback.message,
+        state,
         f"Категории компании\n\nКомпания: {company.name}",
         reply_markup=company_categories_reply_menu(categories, page=1),
     )
@@ -128,7 +130,9 @@ async def company_categories_archive(callback: CallbackQuery, state: FSMContext)
     await PageService.set_page(state, "company_categories_archive", 1)
     await state.update_data(category_company_id=company_id)
 
-    await callback.message.answer(
+    await MessageService.send_service_message(
+        callback.message,
+        state,
         text,
         reply_markup=company_archived_categories_reply_menu(categories, page=1),
     )
@@ -335,7 +339,7 @@ async def categories_back_to_company_card(message: Message, state: FSMContext) -
         f"Координаторов: {summary.coordinators_count}\n"
         f"Сотрудников: {summary.employees_count}\n"
         f"Тикетов: {summary.tickets_count}",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 

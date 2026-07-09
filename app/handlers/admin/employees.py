@@ -14,6 +14,7 @@ router = Router()
 
 @router.message(MenuActionFilter(MenuAction.EMPLOYEES))
 async def employees_entry(message: Message, state: FSMContext) -> None:
+    await state.set_state(None)
     await NavigationService.open(state, Screen.EMPLOYEES)
     await MessageService.replace_service_message(
         message,

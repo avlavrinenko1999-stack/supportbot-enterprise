@@ -20,6 +20,7 @@ router = Router()
 
 @router.message(MenuActionFilter(MenuAction.PROFILE))
 async def profile(message: Message, state: FSMContext) -> None:
+    await state.set_state(None)
     await NavigationService.open(state, Screen.PROFILE)
     async with AsyncSessionLocal() as session:
         account = await session.scalar(

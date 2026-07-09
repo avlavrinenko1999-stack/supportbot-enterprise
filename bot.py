@@ -14,6 +14,7 @@ from app.handlers.start import router as start_router
 from app.handlers.user import router as user_router
 from app.handlers.fallback import router as fallback_router
 from app.services.menu_service import MenuService
+from app.ui.locale_middleware import LocaleMiddleware
 
 
 async def main() -> None:
@@ -23,6 +24,7 @@ async def main() -> None:
     await MenuService.setup_bot_commands(bot)
 
     dp = Dispatcher()
+    dp.message.outer_middleware(LocaleMiddleware())
 
     dp.include_router(start_router)
     dp.include_router(user_router)

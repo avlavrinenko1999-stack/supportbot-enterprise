@@ -2,6 +2,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from app.services.text_service import TextService
+
 
 class MessageService:
     LAST_SERVICE_MESSAGE_KEY = "last_service_message_id"
@@ -82,6 +84,8 @@ class MessageService:
         if delete_user_message:
             await MessageService.delete_message(message)
 
+        text = await TextService.translate(text)
+        text = await TextService.translate(text)
         sent_message = await message.answer(text, **kwargs)
 
         await MessageService.remember_service_message(

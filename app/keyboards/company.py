@@ -2,6 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from app.keyboards.common import button, inline_menu
 from app.keyboards.reply import reply_keyboard
+from app.ui.reply import reply_keyboard_async
 from app.keyboards.reply_list import list_reply_menu
 from app.models.company import Company
 
@@ -65,7 +66,7 @@ def companies_catalog_reply_menu() -> ReplyKeyboardMarkup:
     )
 
 
-def companies_reply_menu(
+async def companies_reply_menu(
     companies: list[Company],
     *,
     page: int = 1,
@@ -77,6 +78,16 @@ def companies_reply_menu(
     for company in companies:
         status = "✅" if company.is_active else "⛔"
         company_buttons.append(f"{status} {company.id}. {company.name}")
+
+    return await reply_keyboard_async(
+        company_buttons + [
+            "🔎 Найти компанию",
+            "➕ Создать компанию",
+            "⬅️ Каталог компаний",
+            "⬅️ Назад",
+        ],
+        input_field_placeholder=placeholder_prefix,
+    )
 
     return list_reply_menu(
         company_buttons,
@@ -90,10 +101,10 @@ def companies_reply_menu(
     )
 
 
-def company_card_reply_menu(*, is_favorite: bool = False) -> ReplyKeyboardMarkup:
+async def company_card_reply_menu(*, is_favorite: bool = False) -> ReplyKeyboardMarkup:
     favorite_text = "⭐ Убрать из избранного" if is_favorite else "⭐ В избранное"
 
-    return reply_keyboard(
+    return await reply_keyboard_async(
         [
             favorite_text,
             "🏢 Заполнить по ИНН",
@@ -107,6 +118,7 @@ def company_card_reply_menu(*, is_favorite: bool = False) -> ReplyKeyboardMarkup
             "👤 Координаторы компании",
             "👷 Операторы компании",
             "👥 Пользователи компании",
+            "👥 Сотрудники компании",
             "📂 Категории компании",
             "🎫 Тикеты компании",
             "⚙️ Настройки компании",

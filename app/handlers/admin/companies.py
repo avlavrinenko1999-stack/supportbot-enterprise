@@ -133,7 +133,7 @@ async def render_company_list(
         message,
         state,
         text,
-        reply_markup=companies_reply_menu(
+        reply_markup=await companies_reply_menu(
             companies,
             page=page,
             per_page=per_page,
@@ -297,7 +297,7 @@ async def render_company_card(
         f"Координаторов: {summary.coordinators_count}\n"
         f"Сотрудников: {summary.employees_count}\n"
         f"Тикетов: {summary.tickets_count}",
-        reply_markup=company_card_reply_menu(is_favorite=is_favorite),
+        reply_markup=await company_card_reply_menu(is_favorite=is_favorite),
     )
 
 
@@ -477,7 +477,11 @@ async def company_create_start(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == "company:create")
 async def company_create_start_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(CompanyState.create_name)
-    await callback.message.answer("Введите ИНН компании. Компания будет создана по данным DaData.")
+    await MessageService.send_service_message(
+        callback.message,
+        state,
+        "Введите ИНН компании. Компания будет создана по данным DaData.",
+    )
     await callback.answer()
 
 
@@ -652,7 +656,7 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
         message,
         state,
         "Введите новое название компании.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -724,7 +728,7 @@ async def company_invite_from_card(message: Message, state: FSMContext) -> None:
         message,
         state,
         "Создание приглашения для выбранной компании будет подключено следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -740,7 +744,7 @@ async def company_coordinators_from_card(message: Message, state: FSMContext) ->
         message,
         state,
         f"Координаторы компании #{company_id}\n\nРаздел будет подключен следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -756,7 +760,7 @@ async def company_operators_from_card(message: Message, state: FSMContext) -> No
         message,
         state,
         f"Операторы компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -772,7 +776,7 @@ async def company_users_from_card(message: Message, state: FSMContext) -> None:
         message,
         state,
         f"Пользователи компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -784,7 +788,7 @@ async def company_employees_stub(message: Message, state: FSMContext) -> None:
         message,
         state,
         f"Сотрудники компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -796,7 +800,7 @@ async def company_tickets_stub(message: Message, state: FSMContext) -> None:
         message,
         state,
         f"Тикеты компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -808,7 +812,7 @@ async def company_settings_stub(message: Message, state: FSMContext) -> None:
         message,
         state,
         f"Настройки компании #{company_id}\n\nРаздел будет реализован следующим этапом.",
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
 
@@ -884,7 +888,7 @@ async def company_audit_history_fallback(message: Message, state: FSMContext) ->
             message,
             state,
             "Сначала выберите компанию.",
-            reply_markup=company_card_reply_menu(),
+            reply_markup=await company_card_reply_menu(),
         )
         return
 
@@ -897,7 +901,7 @@ async def company_audit_history_fallback(message: Message, state: FSMContext) ->
             message,
             state,
             "📜 История изменений компании\n\nИзменений с момента создания карточки компании не было.",
-            reply_markup=company_card_reply_menu(),
+            reply_markup=await company_card_reply_menu(),
         )
         return
 
@@ -925,6 +929,6 @@ async def company_audit_history_fallback(message: Message, state: FSMContext) ->
         message,
         state,
         "\n".join(lines).strip(),
-        reply_markup=company_card_reply_menu(),
+        reply_markup=await company_card_reply_menu(),
     )
 
