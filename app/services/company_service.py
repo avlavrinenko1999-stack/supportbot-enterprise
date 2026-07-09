@@ -9,6 +9,7 @@ from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import UserRole
 from app.models.ticket import Ticket
+from app.services.base_service import BaseService
 
 
 @dataclass(frozen=True)
@@ -19,7 +20,7 @@ class CompanySummary:
     tickets_count: int
 
 
-class CompanyService:
+class CompanyService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
 

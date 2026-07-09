@@ -5,6 +5,7 @@ from typing import Any, Generic, TypeVar
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.base_service import BaseService
 
 
 ModelT = TypeVar("ModelT")
@@ -19,7 +20,7 @@ class PageResult(Generic[ModelT]):
     total_pages: int
 
 
-class DirectoryService(Generic[ModelT]):
+class DirectoryService(BaseService, Generic[ModelT]):
     def __init__(self, session: AsyncSession, model: type[ModelT]):
         self.session = session
         self.model = model

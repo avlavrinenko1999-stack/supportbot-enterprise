@@ -4,9 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import UserRole
+from app.services.base_service import BaseService
 
 
-class EmployeeService:
+class EmployeeService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
 

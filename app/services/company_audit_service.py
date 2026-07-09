@@ -2,9 +2,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company_audit_event import CompanyAuditEvent
+from app.services.base_service import BaseService
 
 
-class CompanyAuditService:
+class CompanyAuditService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
 
