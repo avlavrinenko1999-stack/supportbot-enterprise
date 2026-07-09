@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.i18n import LanguageService
 from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
@@ -84,6 +85,7 @@ class InviteService:
         token: str,
         telegram_id: int,
         telegram_full_name: str,
+        telegram_language_code: str | None = None,
     ) -> Account:
         now = datetime.now(timezone.utc)
         token_hash = self.make_token_hash(token)
@@ -124,6 +126,7 @@ class InviteService:
             is_active=True,
             registered=True,
             last_login=now,
+            language=LanguageService.telegram_language(telegram_language_code),
         )
 
         self.session.add(account)

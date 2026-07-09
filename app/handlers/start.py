@@ -65,6 +65,7 @@ async def start(message: Message, state: FSMContext) -> None:
                 token=token,
                 telegram_id=message.from_user.id,
                 telegram_full_name=build_full_name(message),
+                telegram_language_code=message.from_user.language_code,
             )
         except ValueError as error:
             await MessageService.replace_service_message(

@@ -23,7 +23,7 @@ class MenuService:
     @staticmethod
     def keyboard_for(account: Account):
         if account.role == UserRole.ADMIN:
-            return admin_main_menu()
+            return admin_main_menu(account.language)
 
         if account.role == UserRole.COORDINATOR:
             return coordinator_main_menu()
