@@ -85,7 +85,6 @@ class MessageService:
             await MessageService.delete_message(message)
 
         text = await TextService.translate(text)
-        text = await TextService.translate(text)
         sent_message = await message.answer(text, **kwargs)
 
         await MessageService.remember_service_message(
