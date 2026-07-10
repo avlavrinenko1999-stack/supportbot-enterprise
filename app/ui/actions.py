@@ -9,6 +9,7 @@ from app.ui.keyboard_i18n import canonicalize_button
 class MenuAction(StrEnum):
     COMPANIES = "companies"
     EMPLOYEES = "employees"
+    EMPLOYEES_ALL = "employees_all"
     TICKETS = "tickets"
     REPORTS = "reports"
     PROFILE = "profile"
@@ -46,6 +47,7 @@ class MenuAction(StrEnum):
     COMPANY_CARD_BACK = "company_card_back"
 
     EMPLOYEES_BACK = "employees_back"
+    EMPLOYEE_COMPANY_SEARCH_AGAIN = "employee_company_search_again"
     COORDINATORS = "coordinators"
     COORDINATOR_INVITE_CREATE = "coordinator_invite_create"
 
@@ -55,6 +57,7 @@ class MenuAction(StrEnum):
 ACTION_BUTTONS = {
     MenuAction.COMPANIES: "Компании",
     MenuAction.EMPLOYEES: "Сотрудники",
+    MenuAction.EMPLOYEES_ALL: "Все сотрудники",
     MenuAction.TICKETS: "Тикеты",
     MenuAction.REPORTS: "Отчёты",
     MenuAction.PROFILE: "Профиль",
@@ -92,6 +95,7 @@ ACTION_BUTTONS = {
     MenuAction.COMPANY_CARD_BACK: "⬅️ К карточке компании",
 
     MenuAction.EMPLOYEES_BACK: "⬅️ Сотрудники",
+    MenuAction.EMPLOYEE_COMPANY_SEARCH_AGAIN: "🔎 Искать другую компанию",
     MenuAction.COORDINATORS: "Координаторы",
     MenuAction.COORDINATOR_INVITE_CREATE: "➕ Создать приглашение координатора",
 
@@ -100,6 +104,8 @@ ACTION_BUTTONS = {
 
 
 LEGACY_ALIASES = {
+    "➕ Создать приглашение": MenuAction.COMPANY_INVITE_CREATE,
+
     "Отчеты": MenuAction.REPORTS,
     "Language": MenuAction.LANGUAGE,
     "Язык": MenuAction.LANGUAGE,

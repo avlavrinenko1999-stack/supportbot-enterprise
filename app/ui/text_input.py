@@ -1,6 +1,7 @@
 TEXT_INPUT_ALLOWED_STATES = {
     "LanguageState:search",
-    "CreateInviteState:company_id",
+    "CreateInviteState:company_search",
+    "CreateInviteState:company_select",
     "CreateInviteState:full_name",
     "CoordinatorState:company_id",
     "CoordinatorState:full_name",

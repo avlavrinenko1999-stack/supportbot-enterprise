@@ -57,6 +57,11 @@ async def render_company_card(
 
     await UIContext.set_company_id(state, company.id)
     await UIContext.set_section(state, "company")
+    await UIContext.set_value(
+        state,
+        "invite_source",
+        "company_card",
+    )
 
     await MessageService.replace_service_message(
         message,

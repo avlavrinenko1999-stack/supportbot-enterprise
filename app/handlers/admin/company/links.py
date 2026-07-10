@@ -28,26 +28,6 @@ async def _get_company_id_or_answer(
     return company_id
 
 
-@router.message(MenuActionFilter(MenuAction.COMPANY_INVITE_CREATE))
-async def company_invite_from_card(
-    message: Message,
-    state: FSMContext,
-) -> None:
-    company_id = await _get_company_id_or_answer(message, state)
-    if company_id is None:
-        return
-
-    await state.update_data(company_id=company_id)
-
-    await MessageService.replace_service_message(
-        message,
-        state,
-        "Создание приглашения для выбранной компании "
-        "будет подключено следующим этапом.",
-        reply_markup=await company_card_reply_menu(),
-    )
-
-
 @router.message(MenuActionFilter(MenuAction.COMPANY_COORDINATORS))
 async def company_coordinators_from_card(
     message: Message,

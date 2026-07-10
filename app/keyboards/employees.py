@@ -22,10 +22,38 @@ def employees_root_menu() -> ReplyKeyboardMarkup:
 def employees_list_menu() -> ReplyKeyboardMarkup:
     return reply_keyboard(
         [
-            "➡️ Далее",
-            "⬅️ Назад",
             "⬅️ Сотрудники",
             "⬅️ Назад",
         ],
         input_field_placeholder="Выберите действие",
+    )
+
+
+def invite_company_search_menu() -> ReplyKeyboardMarkup:
+    return reply_keyboard(
+        [
+            "⬅️ Сотрудники",
+        ],
+        input_field_placeholder="Название или ИНН компании",
+    )
+
+
+def invite_company_results_menu(
+    companies,
+) -> ReplyKeyboardMarkup:
+    buttons = [
+        f"🏢 {company.id}. {company.name}"
+        for company in companies
+    ]
+
+    buttons.extend(
+        [
+            "🔎 Искать другую компанию",
+            "⬅️ Сотрудники",
+        ]
+    )
+
+    return reply_keyboard(
+        buttons,
+        input_field_placeholder="Выберите компанию",
     )
