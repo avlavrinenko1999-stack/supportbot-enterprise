@@ -10,6 +10,8 @@ class MenuAction(StrEnum):
     COMPANIES = "companies"
     EMPLOYEES = "employees"
     EMPLOYEES_ALL = "employees_all"
+    EMPLOYEES_OPERATORS = "employees_operators"
+    EMPLOYEES_OBSERVERS = "employees_observers"
     TICKETS = "tickets"
     REPORTS = "reports"
     PROFILE = "profile"
@@ -58,6 +60,8 @@ ACTION_BUTTONS = {
     MenuAction.COMPANIES: "Компании",
     MenuAction.EMPLOYEES: "Сотрудники",
     MenuAction.EMPLOYEES_ALL: "Все сотрудники",
+    MenuAction.EMPLOYEES_OPERATORS: "Операторы",
+    MenuAction.EMPLOYEES_OBSERVERS: "Наблюдатели",
     MenuAction.TICKETS: "Тикеты",
     MenuAction.REPORTS: "Отчёты",
     MenuAction.PROFILE: "Профиль",

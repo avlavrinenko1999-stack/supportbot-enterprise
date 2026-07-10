@@ -82,6 +82,89 @@ async def employees_all(message: Message, state: FSMContext) -> None:
     )
 
 
+async def _render_employees_by_role(
+    message: Message,
+    state: FSMContext,
+    *,
+    role: UserRole,
+    title: str,
+) -> None:
+    await state.set_state(None)
+
+    async with AsyncSessionLocal() as session:
+        accounts = list(
+            await session.scalars(
+                select(Account)
+                .where(
+                    Account.registered.is_(True),
+                    Account.role == role,
+                )
+                .order_by(Account.full_name, Account.id)
+            )
+        )
+
+    if not accounts:
+        text = f"{title}\n\nСписок пуст."
+    else:
+        lines = [title, ""]
+
+        for account in accounts:
+            status = (
+                "активен"
+                if account.is_active
+                else "отключён"
+            )
+            company_text = (
+                f"компания #{account.company_id}"
+                if account.company_id
+                else "без компании"
+            )
+
+            lines.append(
+                f"{account.id}. {account.full_name} — "
+                f"{company_text}, {status}"
+            )
+
+        text = "\n".join(lines)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        text,
+        reply_markup=employees_list_menu(),
+    )
+
+
+@router.message(
+    MenuActionFilter(MenuAction.EMPLOYEES_OPERATORS)
+)
+async def employees_operators(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    await _render_employees_by_role(
+        message,
+        state,
+        role=UserRole.OPERATOR,
+        title="Операторы",
+    )
+
+
+@router.message(
+    MenuActionFilter(MenuAction.EMPLOYEES_OBSERVERS)
+)
+async def employees_observers(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    await _render_employees_by_role(
+        message,
+        state,
+        role=UserRole.OBSERVER,
+        title="Наблюдатели",
+    )
+
+
 @router.message(MenuActionFilter(MenuAction.EMPLOYEES_BACK))
 async def employees_back(message: Message, state: FSMContext) -> None:
     await employees_entry(message, state)
