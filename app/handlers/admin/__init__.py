@@ -1,6 +1,7 @@
 from aiogram import Router
 
 from app.handlers.admin.companies import router as companies_router
+from app.handlers.admin.company import router as company_router
 from app.handlers.admin.company_coordinators import router as company_coordinators_router
 from app.handlers.admin.company_categories import router as company_categories_router
 from app.handlers.admin.coordinators import router as coordinators_router
@@ -13,6 +14,7 @@ router = Router()
 
 router.include_router(menu_router)
 router.include_router(companies_router)
+router.include_router(company_router)
 router.include_router(company_coordinators_router)
 router.include_router(company_categories_router)
 router.include_router(coordinators_router)
