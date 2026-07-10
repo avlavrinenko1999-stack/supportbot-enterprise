@@ -5,7 +5,7 @@ from aiogram.types import Message
 from sqlalchemy import select
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.companies import companies_entry
+from app.handlers.admin.company.catalog import companies_entry
 from app.keyboards.language import language_search_menu
 from app.models.account import Account
 from app.services.language_pack_service import LanguagePackService

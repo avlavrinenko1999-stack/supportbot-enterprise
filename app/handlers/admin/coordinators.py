@@ -166,7 +166,7 @@ async def coordinator_create_start_from_reply(message: Message, state: FSMContex
     )
 
 
-@router.message(F.text.regexp(r"^[✅⛔] \\d+\\. "))
+@router.message(F.text.regexp(r"^[✅⛔] \d+\. "))
 async def coordinator_view_from_reply(message: Message, state: FSMContext) -> None:
     coordinator_id = int((message.text or "").split(".", 1)[0].split()[-1])
 

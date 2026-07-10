@@ -37,6 +37,7 @@ class MenuAction(StrEnum):
     COMPANY_EMPLOYEES = "company_employees"
     COMPANY_TICKETS = "company_tickets"
     COMPANY_SETTINGS = "company_settings"
+    COMPANY_AUDIT_HISTORY = "company_audit_history"
     COMPANY_CATEGORIES = "company_categories"
 
     CATEGORY_ARCHIVE = "category_archive"
@@ -82,6 +83,7 @@ ACTION_BUTTONS = {
     MenuAction.COMPANY_EMPLOYEES: "👥 Сотрудники компании",
     MenuAction.COMPANY_TICKETS: "🎫 Тикеты компании",
     MenuAction.COMPANY_SETTINGS: "⚙️ Настройки компании",
+    MenuAction.COMPANY_AUDIT_HISTORY: "📜 История изменений",
     MenuAction.COMPANY_CATEGORIES: "📂 Категории компании",
 
     MenuAction.CATEGORY_ARCHIVE: "📦 Архив категорий",
