@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
+from app.application.base import BaseApplication
 from app.database.db import AsyncSessionLocal
 from app.keyboards.profile import profile_menu
-from app.models.account import Account
 from app.models.company import Company
 from app.security.localization import get_permission_name, get_role_name
 from app.security.permissions import role_permissions
@@ -10,21 +10,15 @@ from app.services.menu_service import MenuService
 from app.ui.screen_response import ScreenResponse
 
 
-class ProfileApplication:
-    @staticmethod
-    async def build_profile(telegram_id: int) -> ScreenResponse:
+class ProfileApplication(BaseApplication):
+    @classmethod
+    async def build_profile(cls, telegram_id: int) -> ScreenResponse:
         async with AsyncSessionLocal() as session:
-            account = await session.scalar(
-                select(Account).where(
-                    Account.telegram_id == telegram_id,
-                    Account.is_active.is_(True),
-                    Account.registered.is_(True),
-                )
-            )
+            account = await cls.get_current_account(session, telegram_id)
 
             if account is None:
                 return ScreenResponse(
-                    text="Профиль не найден.",
+                    text=cls.profile_not_found_text(),
                     delete_user_message=False,
                 )
 
@@ -34,6 +28,7 @@ class ProfileApplication:
                 company = await session.scalar(
                     select(Company).where(Company.id == account.company_id)
                 )
+
                 if company is not None:
                     company_name = f"{company.name} #{company.id}"
 
@@ -45,6 +40,7 @@ class ProfileApplication:
             permissions_text = "\n".join(
                 f"✅ {permission}" for permission in permissions
             )
+
             if not permissions_text:
                 permissions_text = "нет разрешений"
 
@@ -66,20 +62,14 @@ class ProfileApplication:
             reply_markup=profile_menu(),
         )
 
-    @staticmethod
-    async def build_main_menu(telegram_id: int) -> ScreenResponse:
+    @classmethod
+    async def build_main_menu(cls, telegram_id: int) -> ScreenResponse:
         async with AsyncSessionLocal() as session:
-            account = await session.scalar(
-                select(Account).where(
-                    Account.telegram_id == telegram_id,
-                    Account.is_active.is_(True),
-                    Account.registered.is_(True),
-                )
-            )
+            account = await cls.get_current_account(session, telegram_id)
 
             if account is None:
                 return ScreenResponse(
-                    text="Профиль не найден.",
+                    text=cls.profile_not_found_text(),
                     delete_user_message=False,
                 )
 
