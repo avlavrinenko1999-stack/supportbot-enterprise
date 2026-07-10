@@ -7,7 +7,7 @@ from app.database.db import AsyncSessionLocal
 from app.services.account_service import AccountService
 from app.services.invite_service import InviteService
 from app.services.menu_service import MenuService
-from app.services.message_service import MessageService
+from app.ui.screen_response import ScreenResponse
 
 router = Router()
 
@@ -39,22 +39,21 @@ async def start(message: Message, state: FSMContext) -> None:
         )
 
         if existing_account is not None and len(command_parts) == 1:
-            await MessageService.replace_service_message(
-                message,
-                state,
-                f"SupportBot Enterprise\n\n{MenuService.title_for(existing_account)}",
-                delete_user_message=False,
+            await ScreenResponse(
+                text=(
+                    "SupportBot Enterprise\n\n"
+                    f"{MenuService.title_for(existing_account)}"
+                ),
                 reply_markup=MenuService.keyboard_for(existing_account),
-            )
+                delete_user_message=False,
+            ).send(message, state)
             return
 
         if len(command_parts) != 2:
-            await MessageService.replace_service_message(
-                message,
-                state,
-                "Для регистрации используйте персональную ссылку-приглашение.",
+            await ScreenResponse(
+                text="Для регистрации используйте персональную ссылку-приглашение.",
                 delete_user_message=False,
-            )
+            ).send(message, state)
             return
 
         token = command_parts[1].strip()
@@ -68,18 +67,17 @@ async def start(message: Message, state: FSMContext) -> None:
                 telegram_language_code=message.from_user.language_code,
             )
         except ValueError as error:
-            await MessageService.replace_service_message(
-                message,
-                state,
-                str(error),
+            await ScreenResponse(
+                text=str(error),
                 delete_user_message=False,
-            )
+            ).send(message, state)
             return
 
-    await MessageService.replace_service_message(
-        message,
-        state,
-        f"SupportBot Enterprise\n\nДобро пожаловать, {account.full_name}.",
-        delete_user_message=False,
+    await ScreenResponse(
+        text=(
+            "SupportBot Enterprise\n\n"
+            f"Добро пожаловать, {account.full_name}."
+        ),
         reply_markup=MenuService.keyboard_for(account),
-    )
+        delete_user_message=False,
+    ).send(message, state)
