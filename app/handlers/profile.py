@@ -6,6 +6,7 @@ from app.application.profile_application import ProfileApplication
 from app.ui.actions import MenuAction, MenuActionFilter
 from app.ui.navigation_service import NavigationService
 from app.ui.screens import Screen
+from app.ui.screen_presenter import ScreenPresenter
 
 router = Router()
 
@@ -16,7 +17,7 @@ async def profile(message: Message, state: FSMContext) -> None:
     await NavigationService.open(state, Screen.PROFILE)
 
     response = await ProfileApplication.build_profile(message.from_user.id)
-    await response.send(message, state)
+    await ScreenPresenter.show(message, state, response)
 
 
 @router.message(MenuActionFilter(MenuAction.BACK))
@@ -24,4 +25,4 @@ async def profile_back(message: Message, state: FSMContext) -> None:
     await NavigationService.reset(state)
 
     response = await ProfileApplication.build_main_menu(message.from_user.id)
-    await response.send(message, state)
+    await ScreenPresenter.show(message, state, response)

@@ -1,46 +1,21 @@
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-from sqlalchemy import select
 
-from app.database.db import AsyncSessionLocal
-from app.models.account import Account
-from app.services.menu_service import MenuService
-from app.services.message_service import MessageService
-from app.ui.navigation_service import NavigationService
+from app.application.main_menu_application import MainMenuApplication
 from app.ui.actions import MenuAction, MenuActionFilter
+from app.ui.navigation_service import NavigationService
 from app.ui.screens import Screen
+from app.ui.screen_presenter import ScreenPresenter
 
 router = Router()
 
 
 async def render_main_menu(message: Message, state: FSMContext) -> None:
-    async with AsyncSessionLocal() as session:
-        account = await session.scalar(
-            select(Account).where(
-                Account.telegram_id == message.from_user.id,
-                Account.is_active.is_(True),
-                Account.registered.is_(True),
-            )
-        )
-
-    if account is None:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Профиль не найден.",
-            delete_user_message=False,
-        )
-        return
-
     await NavigationService.reset(state)
 
-    await MessageService.replace_service_message(
-        message,
-        state,
-        f"SupportBot Enterprise\n\n{MenuService.title_for(account)}",
-        reply_markup=MenuService.keyboard_for(account),
-    )
+    response = await MainMenuApplication.build(message.from_user.id)
+    await ScreenPresenter.show(message, state, response)
 
 
 @router.message(MenuActionFilter(MenuAction.BACK))
