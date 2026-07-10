@@ -3,6 +3,7 @@ TEXT_INPUT_ALLOWED_STATES = {
     "CreateInviteState:company_search",
     "CreateInviteState:company_select",
     "CreateInviteState:full_name",
+    "EmployeeSearchState:query",
     "CoordinatorState:company_id",
     "CoordinatorState:full_name",
     "CompanyInnState:inn",

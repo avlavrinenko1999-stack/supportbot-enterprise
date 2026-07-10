@@ -12,6 +12,8 @@ class MenuAction(StrEnum):
     EMPLOYEES_ALL = "employees_all"
     EMPLOYEES_OPERATORS = "employees_operators"
     EMPLOYEES_OBSERVERS = "employees_observers"
+    EMPLOYEES_USERS = "employees_users"
+    EMPLOYEE_SEARCH = "employee_search"
     TICKETS = "tickets"
     REPORTS = "reports"
     PROFILE = "profile"
@@ -62,6 +64,8 @@ ACTION_BUTTONS = {
     MenuAction.EMPLOYEES_ALL: "Все сотрудники",
     MenuAction.EMPLOYEES_OPERATORS: "Операторы",
     MenuAction.EMPLOYEES_OBSERVERS: "Наблюдатели",
+    MenuAction.EMPLOYEES_USERS: "Пользователи",
+    MenuAction.EMPLOYEE_SEARCH: "🔎 Найти сотрудника",
     MenuAction.TICKETS: "Тикеты",
     MenuAction.REPORTS: "Отчёты",
     MenuAction.PROFILE: "Профиль",

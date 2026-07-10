@@ -29,6 +29,15 @@ def employees_list_menu() -> ReplyKeyboardMarkup:
     )
 
 
+def employee_search_menu() -> ReplyKeyboardMarkup:
+    return reply_keyboard(
+        [
+            "⬅️ Сотрудники",
+        ],
+        input_field_placeholder="ФИО, ID или Telegram ID",
+    )
+
+
 def invite_company_search_menu() -> ReplyKeyboardMarkup:
     return reply_keyboard(
         [
