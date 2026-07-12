@@ -40,3 +40,32 @@ def test_coarse_read_permissions_map_to_all_scope_variants() -> None:
         "report.read.holding",
         "report.read.platform",
     }
+
+
+def test_holding_permissions_are_mapped() -> None:
+    assert permission_codes(
+        Permission.HOLDING_VIEW
+    ) == frozenset(
+        {
+            "holding.read",
+        }
+    )
+
+    assert permission_codes(
+        Permission.HOLDING_MANAGE
+    ) == frozenset(
+        {
+            "holding.manage",
+            "holding.policy.manage",
+        }
+    )
+
+    assert permission_codes(
+        Permission.HOLDING_AUDIT_VIEW
+    ) == frozenset(
+        {
+            "audit.read.holding",
+            "audit.read.organization",
+            "audit.read.platform",
+        }
+    )
