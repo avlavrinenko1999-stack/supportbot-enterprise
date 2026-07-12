@@ -123,6 +123,18 @@ class Account(Base, IDMixin, TimestampMixin):
         back_populates="revoked_by",
     )
 
+    access_audit_events_created = relationship(
+        "AccessAuditEvent",
+        foreign_keys="AccessAuditEvent.actor_account_id",
+        back_populates="actor",
+    )
+
+    access_audit_events_received = relationship(
+        "AccessAuditEvent",
+        foreign_keys="AccessAuditEvent.target_account_id",
+        back_populates="target_account",
+    )
+
     repr_cols = (
         "id",
         "full_name",

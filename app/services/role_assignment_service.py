@@ -4,6 +4,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.access_audit_event import AccessAuditEvent
 from app.models.account import Account
 from app.models.role import Role
 from app.models.role_assignment import RoleAssignment
@@ -83,6 +84,32 @@ class RoleAssignmentService:
         )
 
         self.session.add(assignment)
+        await self.session.flush()
+
+        self.session.add(
+            AccessAuditEvent(
+                event_type="role_assignment_created",
+                actor_account_id=granted_by_account_id,
+                target_account_id=account_id,
+                role_assignment_id=assignment.id,
+                role_code=role.code,
+                scope_type=scope.scope_type,
+                scope_id=scope.scope_id,
+                details={
+                    "grant_reason": assignment.grant_reason,
+                    "valid_from": (
+                        valid_from.isoformat()
+                        if valid_from
+                        else None
+                    ),
+                    "valid_to": (
+                        valid_to.isoformat()
+                        if valid_to
+                        else None
+                    ),
+                },
+            )
+        )
 
         if commit:
             await self.session.commit()
@@ -97,11 +124,13 @@ class RoleAssignmentService:
         assignment_id: int,
         *,
         revoked_by_account_id: int | None = None,
+        revoke_reason: str | None = None,
         commit: bool = True,
     ) -> RoleAssignment:
-        assignment = await self.session.get(
-            RoleAssignment,
-            assignment_id,
+        assignment = await self.session.scalar(
+            select(RoleAssignment)
+            .where(RoleAssignment.id == assignment_id)
+            .options(selectinload(RoleAssignment.role))
         )
 
         if assignment is None:
@@ -121,10 +150,43 @@ class RoleAssignmentService:
         if not assignment.is_active:
             return assignment
 
+        role_code = (
+            assignment.role.code
+            if assignment.role is not None
+            else None
+        )
+
+        if (
+            role_code == "platform_admin"
+            and assignment.account_id
+            == revoked_by_account_id
+        ):
+            raise ValueError(
+                "Нельзя отозвать собственную роль "
+                "администратора платформы."
+            )
+
         assignment.is_active = False
         assignment.revoked_at = datetime.now(timezone.utc)
         assignment.revoked_by_account_id = (
             revoked_by_account_id
+        )
+
+        self.session.add(
+            AccessAuditEvent(
+                event_type="role_assignment_revoked",
+                actor_account_id=revoked_by_account_id,
+                target_account_id=assignment.account_id,
+                role_assignment_id=assignment.id,
+                role_code=role_code,
+                scope_type=assignment.scope_type,
+                scope_id=assignment.scope_id,
+                details={
+                    "revoke_reason": self._clean_reason(
+                        revoke_reason
+                    ),
+                },
+            )
         )
 
         if commit:
@@ -217,7 +279,7 @@ class RoleAssignmentService:
 
         if len(clean_reason) > 1024:
             raise ValueError(
-                "Причина назначения роли слишком длинная."
+                "Причина изменения роли слишком длинная."
             )
 
         return clean_reason

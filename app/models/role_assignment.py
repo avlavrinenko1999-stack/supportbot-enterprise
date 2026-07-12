@@ -129,6 +129,11 @@ class RoleAssignment(Base, IDMixin, TimestampMixin):
         back_populates="revoked_role_assignments",
     )
 
+    audit_events = relationship(
+        "AccessAuditEvent",
+        back_populates="role_assignment",
+    )
+
     __table_args__ = (
         CheckConstraint(
             "("

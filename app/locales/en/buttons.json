@@ -54,5 +54,7 @@
   "🔎 Искать другую компанию": "🔎 Search another company",
   "🏢 Администратор компании": "🏢 Company administrator",
   "✅ Подтвердить назначение": "✅ Confirm assignment",
-  "❌ Отменить назначение": "❌ Cancel assignment"
+  "❌ Отменить назначение": "❌ Cancel assignment",
+  "✅ Подтвердить отзыв": "✅ Confirm revocation",
+  "❌ Отменить отзыв": "❌ Cancel revocation"
 }

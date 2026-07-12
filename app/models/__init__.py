@@ -1,4 +1,5 @@
 from .account import Account
+from .access_audit_event import AccessAuditEvent
 from .account_company_preference import AccountCompanyPreference
 from .attachment import Attachment
 from .base import Base
@@ -26,6 +27,7 @@ __all__ = [
     "CompanyAuditEvent",
     "CompanySetting",
     "Account",
+    "AccessAuditEvent",
     "AccountCompanyPreference",
     "Invite",
     "Category",

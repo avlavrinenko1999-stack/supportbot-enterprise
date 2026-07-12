@@ -13,6 +13,8 @@ from app.handlers.admin.common import (
 from app.keyboards.access import (
     access_back_menu,
     access_root_menu,
+    active_assignments_menu,
+    assignment_revoke_confirmation_menu,
     assignment_account_results_menu,
     assignment_account_search_menu,
     assignment_company_results_menu,
@@ -21,6 +23,7 @@ from app.keyboards.access import (
     assignment_role_menu,
     role_assignments_menu,
 )
+from app.models.access_audit_event import AccessAuditEvent
 from app.models.account import Account
 from app.models.enums import ScopeType
 from app.models.permission import PermissionDefinition
@@ -51,6 +54,8 @@ class AccessAssignmentState(StatesGroup):
     company_search = State()
     company_select = State()
     confirmation = State()
+    revoke_select = State()
+    revoke_confirmation = State()
 
 
 ROLE_LABELS = {
@@ -194,6 +199,21 @@ def _parse_company_button(text: str) -> int | None:
 
     company_id = int(id_part)
     return company_id if company_id > 0 else None
+
+
+def _parse_revoke_button(text: str) -> int | None:
+    prefix = "❌ Отозвать #"
+
+    if not text.startswith(prefix):
+        return None
+
+    value = text.removeprefix(prefix).strip()
+
+    if not value.isdigit():
+        return None
+
+    assignment_id = int(value)
+    return assignment_id if assignment_id > 0 else None
 
 
 async def _load_account_results(
@@ -813,7 +833,7 @@ async def access_active_assignments(
                 selectinload(RoleAssignment.role),
             )
             .order_by(RoleAssignment.id)
-            .limit(50)
+            .limit(30)
         )
 
         if not platform_access:
@@ -841,42 +861,311 @@ async def access_active_assignments(
             )
 
     if not assignments:
-        text = (
+        await state.set_state(None)
+
+        await MessageService.replace_service_message(
+            message,
+            state,
             "Активные назначения\n\n"
-            "Доступных активных назначений нет."
+            "Доступных активных назначений нет.",
+            reply_markup=role_assignments_menu(),
         )
-    else:
-        lines = ["Активные назначения", ""]
+        return
 
-        for assignment in assignments:
-            account_name = (
-                assignment.account.full_name
-                if assignment.account
-                else f"Аккаунт #{assignment.account_id}"
-            )
-            role_name = (
-                assignment.role.name
-                if assignment.role
-                else f"Роль #{assignment.role_id}"
-            )
-            scope_id = (
-                assignment.scope_id
-                if assignment.scope_id is not None
-                else "global"
-            )
+    lines = ["Активные назначения", ""]
 
-            lines.append(
-                f"#{assignment.id} — {account_name}\n"
-                f"{role_name}\n"
-                f"{assignment.scope_type.value}:{scope_id}\n"
-            )
+    for assignment in assignments:
+        account_name = (
+            assignment.account.full_name
+            if assignment.account
+            else f"Аккаунт #{assignment.account_id}"
+        )
+        role_name = (
+            assignment.role.name
+            if assignment.role
+            else f"Роль #{assignment.role_id}"
+        )
+        scope_id = (
+            assignment.scope_id
+            if assignment.scope_id is not None
+            else "global"
+        )
 
-        text = "\n".join(lines).strip()
+        lines.append(
+            f"#{assignment.id} — {account_name}\n"
+            f"{role_name}\n"
+            f"{assignment.scope_type.value}:{scope_id}\n"
+        )
+
+    await state.update_data(
+        access_revoke_result_ids=[
+            assignment.id
+            for assignment in assignments
+        ]
+    )
+    await state.set_state(
+        AccessAssignmentState.revoke_select
+    )
 
     await MessageService.replace_service_message(
         message,
         state,
-        text,
+        "\n".join(lines).strip(),
+        reply_markup=active_assignments_menu(assignments),
+    )
+
+
+@router.message(AccessAssignmentState.revoke_select)
+async def access_revoke_select(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    action = resolve_menu_action(message.text)
+
+    if action == MenuAction.ACCESS_ASSIGNMENTS_BACK:
+        await _show_role_assignments_menu(message, state)
+        return
+
+    assignment_id = _parse_revoke_button(
+        (message.text or "").strip()
+    )
+
+    data = await state.get_data()
+    allowed_ids = {
+        int(value)
+        for value in data.get(
+            "access_revoke_result_ids",
+            [],
+        )
+    }
+
+    if (
+        assignment_id is None
+        or assignment_id not in allowed_ids
+    ):
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Выберите назначение с помощью кнопки.",
+            reply_markup=role_assignments_menu(),
+        )
+        return
+
+    manager = await _require_access_management(message, state)
+    if manager is None:
+        return
+
+    async with AsyncSessionLocal() as session:
+        assignment = await session.scalar(
+            select(RoleAssignment)
+            .where(
+                RoleAssignment.id == assignment_id,
+                RoleAssignment.is_active.is_(True),
+                RoleAssignment.revoked_at.is_(None),
+            )
+            .options(
+                selectinload(RoleAssignment.account),
+                selectinload(RoleAssignment.role),
+            )
+        )
+
+        if assignment is None:
+            await _show_role_assignments_menu(
+                message,
+                state,
+            )
+            return
+
+        scope = (
+            AccessScope.platform()
+            if assignment.scope_type
+            == ScopeType.PLATFORM
+            else AccessScope(
+                scope_type=assignment.scope_type,
+                scope_id=assignment.scope_id,
+            )
+        )
+
+        allowed = await AuthorizationService.can_async(
+            manager,
+            Permission.ROLE_ASSIGN,
+            scope=scope,
+            session=session,
+        )
+
+    if not allowed:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Недостаточно прав для отзыва "
+            "этого назначения.",
+            reply_markup=role_assignments_menu(),
+        )
+        return
+
+    role_code = (
+        assignment.role.code
+        if assignment.role
+        else ""
+    )
+
+    if (
+        role_code == "platform_admin"
+        and assignment.account_id == manager.id
+    ):
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Нельзя отозвать собственную роль "
+            "администратора платформы.",
+            reply_markup=role_assignments_menu(),
+        )
+        return
+
+    account_name = (
+        assignment.account.full_name
+        if assignment.account
+        else f"Аккаунт #{assignment.account_id}"
+    )
+    role_name = (
+        assignment.role.name
+        if assignment.role
+        else f"Роль #{assignment.role_id}"
+    )
+
+    await state.update_data(
+        access_revoke_assignment_id=assignment.id,
+    )
+    await state.set_state(
+        AccessAssignmentState.revoke_confirmation
+    )
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Подтверждение отзыва\n\n"
+        f"Назначение: #{assignment.id}\n"
+        f"Аккаунт: {account_name}\n"
+        f"Роль: {role_name}\n"
+        f"Scope: {assignment.scope_type.value}:"
+        f"{assignment.scope_id or 'global'}",
+        reply_markup=assignment_revoke_confirmation_menu(),
+    )
+
+
+@router.message(
+    AccessAssignmentState.revoke_confirmation
+)
+async def access_revoke_confirm(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    action = resolve_menu_action(message.text)
+
+    if action == MenuAction.ACCESS_REVOKE_CANCEL:
+        await _show_role_assignments_menu(message, state)
+        return
+
+    if action != MenuAction.ACCESS_REVOKE_CONFIRM:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Подтвердите или отмените отзыв роли.",
+            reply_markup=assignment_revoke_confirmation_menu(),
+        )
+        return
+
+    manager = await _require_access_management(message, state)
+    if manager is None:
+        return
+
+    data = await state.get_data()
+    assignment_id = int(
+        data["access_revoke_assignment_id"]
+    )
+
+    async with AsyncSessionLocal() as session:
+        assignment = await session.scalar(
+            select(RoleAssignment)
+            .where(RoleAssignment.id == assignment_id)
+            .options(
+                selectinload(RoleAssignment.account),
+                selectinload(RoleAssignment.role),
+            )
+        )
+
+        if assignment is None:
+            await _show_role_assignments_menu(
+                message,
+                state,
+            )
+            return
+
+        scope = (
+            AccessScope.platform()
+            if assignment.scope_type
+            == ScopeType.PLATFORM
+            else AccessScope(
+                scope_type=assignment.scope_type,
+                scope_id=assignment.scope_id,
+            )
+        )
+
+        if not await AuthorizationService.can_async(
+            manager,
+            Permission.ROLE_ASSIGN,
+            scope=scope,
+            session=session,
+        ):
+            await state.clear()
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Право отзыва роли было отозвано.",
+                reply_markup=access_root_menu(),
+            )
+            return
+
+        account_name = (
+            assignment.account.full_name
+            if assignment.account
+            else f"Аккаунт #{assignment.account_id}"
+        )
+        role_name = (
+            assignment.role.name
+            if assignment.role
+            else f"Роль #{assignment.role_id}"
+        )
+
+        service = RoleAssignmentService(session)
+
+        try:
+            await service.revoke_assignment(
+                assignment_id,
+                revoked_by_account_id=manager.id,
+                revoke_reason=(
+                    "Отозвано через административный "
+                    "раздел управления доступами"
+                ),
+            )
+        except ValueError as error:
+            await MessageService.replace_service_message(
+                message,
+                state,
+                str(error),
+                reply_markup=role_assignments_menu(),
+            )
+            return
+
+    await state.clear()
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Роль отозвана.\n\n"
+        f"Назначение: #{assignment_id}\n"
+        f"Аккаунт: {account_name}\n"
+        f"Роль: {role_name}",
         reply_markup=role_assignments_menu(),
     )
 
@@ -884,7 +1173,7 @@ async def access_active_assignments(
 @router.message(
     MenuActionFilter(MenuAction.ACCESS_ASSIGNMENT_HISTORY)
 )
-async def access_assignment_history_stub(
+async def access_assignment_history(
     message: Message,
     state: FSMContext,
 ) -> None:
@@ -892,12 +1181,58 @@ async def access_assignment_history_stub(
     if manager is None:
         return
 
+    async with AsyncSessionLocal() as session:
+        events = list(
+            await session.scalars(
+                select(AccessAuditEvent)
+                .where(
+                    AccessAuditEvent.event_type.in_(
+                        {
+                            "role_assignment_created",
+                            "role_assignment_revoked",
+                        }
+                    )
+                )
+                .order_by(
+                    AccessAuditEvent.created_at.desc(),
+                    AccessAuditEvent.id.desc(),
+                )
+                .limit(30)
+            )
+        )
+
+    lines = ["История назначений", ""]
+
+    if not events:
+        lines.append("Событий пока нет.")
+    else:
+        for event in events:
+            icon = (
+                "➕"
+                if event.event_type
+                == "role_assignment_created"
+                else "❌"
+            )
+
+            scope_id = (
+                event.scope_id
+                if event.scope_id is not None
+                else "global"
+            )
+
+            lines.append(
+                f"{icon} {event.created_at:%Y-%m-%d %H:%M}\n"
+                f"Аккаунт: #{event.target_account_id}\n"
+                f"Роль: {event.role_code or '—'}\n"
+                f"Scope: "
+                f"{event.scope_type.value if event.scope_type else '—'}:"
+                f"{scope_id}\n"
+            )
+
     await MessageService.replace_service_message(
         message,
         state,
-        "История назначений\n\n"
-        "Журнал выдачи и отзыва ролей будет подключён "
-        "после добавления аудита доступа.",
+        "\n".join(lines).strip(),
         reply_markup=role_assignments_menu(),
     )
 
@@ -998,7 +1333,7 @@ async def access_permissions(
 
 
 @router.message(MenuActionFilter(MenuAction.ACCESS_AUDIT))
-async def access_audit_stub(
+async def access_audit(
     message: Message,
     state: FSMContext,
 ) -> None:
@@ -1006,12 +1341,41 @@ async def access_audit_stub(
     if manager is None:
         return
 
+    async with AsyncSessionLocal() as session:
+        events = list(
+            await session.scalars(
+                select(AccessAuditEvent)
+                .order_by(
+                    AccessAuditEvent.created_at.desc(),
+                    AccessAuditEvent.id.desc(),
+                )
+                .limit(40)
+            )
+        )
+
+    lines = ["Журнал доступа", ""]
+
+    if not events:
+        lines.append("Событий пока нет.")
+    else:
+        labels = {
+            "role_assignment_created": "Роль назначена",
+            "role_assignment_revoked": "Роль отозвана",
+        }
+
+        for event in events:
+            lines.append(
+                f"{event.created_at:%Y-%m-%d %H:%M}\n"
+                f"{labels.get(event.event_type, event.event_type)}\n"
+                f"Исполнитель: #{event.actor_account_id or '—'}\n"
+                f"Аккаунт: #{event.target_account_id or '—'}\n"
+                f"Роль: {event.role_code or '—'}\n"
+            )
+
     await MessageService.replace_service_message(
         message,
         state,
-        "Журнал доступа\n\n"
-        "Аудит выдачи, изменения и отзыва ролей "
-        "будет подключён отдельным этапом.",
+        "\n".join(lines).strip(),
         reply_markup=access_back_menu(),
     )
 

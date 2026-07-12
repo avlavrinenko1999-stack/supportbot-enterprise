@@ -34,6 +34,8 @@ class MenuAction(StrEnum):
     ACCESS_ROLE_COMPANY_ADMIN = "access_role_company_admin"
     ACCESS_ASSIGN_CONFIRM = "access_assign_confirm"
     ACCESS_ASSIGN_CANCEL = "access_assign_cancel"
+    ACCESS_REVOKE_CONFIRM = "access_revoke_confirm"
+    ACCESS_REVOKE_CANCEL = "access_revoke_cancel"
 
     BACK = "back"
     CANCEL = "cancel"
@@ -102,6 +104,8 @@ ACTION_BUTTONS = {
     MenuAction.ACCESS_ROLE_COMPANY_ADMIN: "🏢 Администратор компании",
     MenuAction.ACCESS_ASSIGN_CONFIRM: "✅ Подтвердить назначение",
     MenuAction.ACCESS_ASSIGN_CANCEL: "❌ Отменить назначение",
+    MenuAction.ACCESS_REVOKE_CONFIRM: "✅ Подтвердить отзыв",
+    MenuAction.ACCESS_REVOKE_CANCEL: "❌ Отменить отзыв",
 
     MenuAction.BACK: "⬅️ Назад",
     MenuAction.CANCEL: "Отмена",

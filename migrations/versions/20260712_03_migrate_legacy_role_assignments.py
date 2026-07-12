@@ -47,7 +47,7 @@ def upgrade() -> None:
         SELECT
             accounts.id,
             roles.id,
-            :scope_type,
+            CAST(:scope_type AS VARCHAR(32)),
             CASE
                 WHEN :requires_company
                 THEN accounts.company_id
@@ -75,14 +75,20 @@ def upgrade() -> None:
               FROM role_assignments existing
               WHERE existing.account_id = accounts.id
                 AND existing.role_id = roles.id
-                AND existing.scope_type = :scope_type
+                AND existing.scope_type = CAST(
+                    :scope_type AS VARCHAR(32)
+                )
                 AND (
                     (
-                        :scope_type = 'PLATFORM'
+                        CAST(
+                            :scope_type AS VARCHAR(32)
+                        ) = 'PLATFORM'
                         AND existing.scope_id IS NULL
                     )
                     OR (
-                        :scope_type != 'PLATFORM'
+                        CAST(
+                            :scope_type AS VARCHAR(32)
+                        ) != 'PLATFORM'
                         AND existing.scope_id = accounts.company_id
                     )
                 )

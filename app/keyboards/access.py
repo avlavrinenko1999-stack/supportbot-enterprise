@@ -115,3 +115,29 @@ def assignment_confirmation_menu() -> ReplyKeyboardMarkup:
         ],
         input_field_placeholder="Подтвердите действие",
     )
+
+
+def active_assignments_menu(
+    assignments,
+) -> ReplyKeyboardMarkup:
+    buttons = [
+        f"❌ Отозвать #{assignment.id}"
+        for assignment in assignments
+    ]
+
+    buttons.append("⬅️ Назначения ролей")
+
+    return reply_keyboard(
+        buttons,
+        input_field_placeholder="Выберите назначение",
+    )
+
+
+def assignment_revoke_confirmation_menu() -> ReplyKeyboardMarkup:
+    return reply_keyboard(
+        [
+            "✅ Подтвердить отзыв",
+            "❌ Отменить отзыв",
+        ],
+        input_field_placeholder="Подтвердите отзыв роли",
+    )
