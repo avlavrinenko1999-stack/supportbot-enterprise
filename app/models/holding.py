@@ -42,6 +42,12 @@ class Holding(Base, IDMixin, TimestampMixin):
         back_populates="holding",
     )
 
+    audit_events = relationship(
+        "HoldingAuditEvent",
+        back_populates="holding",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "organization_id",

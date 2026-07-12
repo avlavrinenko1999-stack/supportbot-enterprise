@@ -8,6 +8,7 @@ from .company import Company
 from .company_audit_event import CompanyAuditEvent
 from .company_setting import CompanySetting
 from .holding import Holding
+from .holding_audit_event import HoldingAuditEvent
 from .internal_note import InternalNote
 from .invite import Invite
 from .organization import Organization
@@ -24,6 +25,7 @@ __all__ = [
     "Company",
     "Organization",
     "Holding",
+    "HoldingAuditEvent",
     "CompanyAuditEvent",
     "CompanySetting",
     "Account",
