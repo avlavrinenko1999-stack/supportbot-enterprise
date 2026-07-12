@@ -11,3 +11,30 @@ __pycache__/
 
 data/text_translation_cache.json
 data/chat_message_registry.json
+# Local configuration and secrets
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+secrets/
+# Python
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+# Virtual environments
+.venv/
+env/
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+logs/
+run/
+tmp/
+# IDE and operating system
