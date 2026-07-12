@@ -29,7 +29,10 @@ async def get_account_with_permission(
 ) -> Account | None:
     account = await get_current_account(telegram_id)
 
-    if not AuthorizationService.can(account, permission):
+    if not await AuthorizationService.can_async(
+        account,
+        permission,
+    ):
         return None
 
     return account

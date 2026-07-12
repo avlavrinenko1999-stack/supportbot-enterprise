@@ -116,7 +116,7 @@ async def create_invite_start(
 ) -> None:
     account = await get_current_account(message.from_user.id)
 
-    if not AuthorizationService.can(
+    if not await AuthorizationService.can_async(
         account,
         Permission.EMPLOYEE_INVITE,
     ):
@@ -211,7 +211,7 @@ async def create_invite_company_search(
 
     account = await get_current_account(message.from_user.id)
 
-    if not AuthorizationService.can(
+    if not await AuthorizationService.can_async(
         account,
         Permission.EMPLOYEE_INVITE,
     ):
@@ -392,7 +392,7 @@ async def create_invite_finish(
 ) -> None:
     account = await get_current_account(message.from_user.id)
 
-    if not AuthorizationService.can(
+    if not await AuthorizationService.can_async(
         account,
         Permission.EMPLOYEE_INVITE,
     ):

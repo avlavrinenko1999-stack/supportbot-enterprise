@@ -32,7 +32,10 @@ def require_permission(permission: Permission):
 
             account = await get_account_by_telegram_id(user.id)
 
-            if not AuthorizationService.can(account, permission):
+            if not await AuthorizationService.can_async(
+                account,
+                permission,
+            ):
                 state = kwargs.get("state")
 
                 if isinstance(event, CallbackQuery):
