@@ -5,6 +5,9 @@ from aiogram.types import Message
 from app.database.db import AsyncSessionLocal
 from app.keyboards.company import company_card_reply_menu
 from app.services.company_audit_service import CompanyAuditService
+from app.security.decorators import require_permission
+from app.security.permissions import Permission
+from app.security.scope_resolvers import company_scope_from_state
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
 from app.ui.context import UIContext
@@ -79,6 +82,10 @@ def format_audit_payload_pretty(payload: dict | None) -> list[str]:
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_AUDIT_HISTORY))
+@require_permission(
+    Permission.COMPANY_AUDIT_VIEW,
+    scope_resolver=company_scope_from_state,
+)
 async def company_audit_history(
     message: Message,
     state: FSMContext,

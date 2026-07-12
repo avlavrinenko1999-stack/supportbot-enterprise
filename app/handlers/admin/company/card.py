@@ -8,6 +8,13 @@ from app.keyboards.company import (
     companies_catalog_reply_menu,
     company_card_reply_menu,
 )
+from app.security.decorators import require_permission
+from app.security.permissions import Permission
+from app.security.scope_resolvers import (
+    company_scope_from_callback,
+    company_scope_from_reply,
+    company_scope_from_state,
+)
 from app.services.company_preference_service import CompanyPreferenceService
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
@@ -87,6 +94,10 @@ async def render_company_card(
 
 
 @router.message(F.text.regexp(r"^[✅⛔] \d+\. "))
+@require_permission(
+    Permission.COMPANY_VIEW,
+    scope_resolver=company_scope_from_reply,
+)
 async def company_view_from_reply(
     message: Message,
     state: FSMContext,
@@ -98,6 +109,10 @@ async def company_view_from_reply(
 
 
 @router.callback_query(F.data.startswith("company:view:"))
+@require_permission(
+    Permission.COMPANY_VIEW,
+    scope_resolver=company_scope_from_callback,
+)
 async def company_view_from_inline(
     callback: CallbackQuery,
     state: FSMContext,
@@ -108,6 +123,10 @@ async def company_view_from_inline(
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_FAVORITE_ADD))
+@require_permission(
+    Permission.COMPANY_VIEW,
+    scope_resolver=company_scope_from_state,
+)
 async def company_add_to_favorites(
     message: Message,
     state: FSMContext,
@@ -138,6 +157,10 @@ async def company_add_to_favorites(
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_FAVORITE_REMOVE))
+@require_permission(
+    Permission.COMPANY_VIEW,
+    scope_resolver=company_scope_from_state,
+)
 async def company_remove_from_favorites(
     message: Message,
     state: FSMContext,

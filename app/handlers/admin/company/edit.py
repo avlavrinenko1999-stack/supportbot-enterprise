@@ -13,6 +13,9 @@ from app.keyboards.company import (
     companies_catalog_reply_menu,
     company_card_reply_menu,
 )
+from app.security.decorators import require_permission
+from app.security.permissions import Permission
+from app.security.scope_resolvers import company_scope_from_state
 from app.services.company_audit_service import CompanyAuditService, company_legal_snapshot, diff_snapshots
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
@@ -172,6 +175,10 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_RENAME))
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
 async def company_rename_start(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -196,6 +203,10 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
 
 
 @router.message(CompanyState.rename_name)
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
 async def company_rename_finish(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
     if account is None:
@@ -219,6 +230,10 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_DISABLE))
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
 async def company_disable_from_reply(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
@@ -234,6 +249,10 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_ENABLE))
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
 async def company_enable_from_reply(message: Message, state: FSMContext) -> None:
     company_id = await UIContext.get_company_id(state)
 
