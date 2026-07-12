@@ -10,6 +10,10 @@ from .holding import Holding
 from .internal_note import InternalNote
 from .invite import Invite
 from .organization import Organization
+from .permission import PermissionDefinition
+from .role import Role
+from .role_assignment import RoleAssignment
+from .role_permission import RolePermission
 from .message import Message
 from .ticket import Ticket
 from .ticket_event import TicketEvent
@@ -30,6 +34,10 @@ __all__ = [
     "Attachment",
     "TicketEvent",
     "InternalNote",
+    "Role",
+    "PermissionDefinition",
+    "RolePermission",
+    "RoleAssignment",
     "CategoryMember",
 ]
 

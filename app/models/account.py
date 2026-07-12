@@ -104,6 +104,25 @@ class Account(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    role_assignments = relationship(
+        "RoleAssignment",
+        foreign_keys="RoleAssignment.account_id",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+
+    granted_role_assignments = relationship(
+        "RoleAssignment",
+        foreign_keys="RoleAssignment.granted_by_account_id",
+        back_populates="granted_by",
+    )
+
+    revoked_role_assignments = relationship(
+        "RoleAssignment",
+        foreign_keys="RoleAssignment.revoked_by_account_id",
+        back_populates="revoked_by",
+    )
+
     repr_cols = (
         "id",
         "full_name",
