@@ -66,3 +66,15 @@ class OrganizationType(str, Enum):
     CUSTOMER = "customer"
     SUPPORT_PROVIDER = "support_provider"
     PARTNER = "partner"
+
+
+class ScopeType(str, Enum):
+    """Область действия роли или разрешения."""
+
+    PLATFORM = "platform"
+    ORGANIZATION = "organization"
+    HOLDING = "holding"
+    COMPANY = "company"
+    SUPPORT_CONTRACT = "support_contract"
+    SUPPORT_QUEUE = "support_queue"
+    TICKET = "ticket"
