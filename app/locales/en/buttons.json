@@ -62,5 +62,18 @@
   "👷 Оператор доступа": "👷 Operator",
   "👁 Наблюдатель доступа": "👁 Observer",
   "🙋 Пользователь доступа": "🙋 User",
-  "🔍 Аудитор доступа": "🔍 Auditor"
+  "🔍 Аудитор доступа": "🔍 Auditor",
+  "Холдинги": "Holdings",
+  "📋 Все холдинги": "📋 All holdings",
+  "⬅️ Каталог холдингов": "⬅️ Holdings catalog",
+  "🔎 Найти холдинг": "🔎 Find holding",
+  "➕ Создать холдинг": "➕ Create holding",
+  "✏️ Переименовать холдинг": "✏️ Rename holding",
+  "📦 Архивировать холдинг": "📦 Archive holding",
+  "✅ Восстановить холдинг": "✅ Restore holding",
+  "🏢 Компании холдинга": "🏢 Holding companies",
+  "➕ Добавить компанию": "➕ Add company",
+  "➖ Удалить компанию": "➖ Remove company",
+  "👤 Администраторы холдинга": "👤 Holding administrators",
+  "📜 История холдинга": "📜 Holding history"
 }

@@ -23,6 +23,27 @@ class UIContext:
         return context.get(key, default)
 
     @staticmethod
+    async def set_holding_id(
+        state: FSMContext,
+        holding_id: int,
+    ) -> None:
+        await UIContext.set_value(
+            state,
+            "holding_id",
+            int(holding_id),
+        )
+
+    @staticmethod
+    async def get_holding_id(
+        state: FSMContext,
+    ) -> int | None:
+        value = await UIContext.get_value(
+            state,
+            "holding_id",
+        )
+        return int(value) if value is not None else None
+
+    @staticmethod
     async def set_company_id(state: FSMContext, company_id: int) -> None:
         await UIContext.set_value(state, "company_id", int(company_id))
 

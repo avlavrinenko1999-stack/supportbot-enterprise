@@ -7,6 +7,21 @@ from app.ui.keyboard_i18n import canonicalize_button
 
 
 class MenuAction(StrEnum):
+    HOLDINGS = "holdings"
+    HOLDINGS_ALL = "holdings_all"
+    HOLDING_SELECT = "holding_select"
+    HOLDING_CATALOG = "holding_catalog"
+    HOLDING_SEARCH = "holding_search"
+    HOLDING_CREATE = "holding_create"
+    HOLDING_RENAME = "holding_rename"
+    HOLDING_ARCHIVE = "holding_archive"
+    HOLDING_RESTORE = "holding_restore"
+    HOLDING_COMPANIES = "holding_companies"
+    HOLDING_COMPANY_ADD = "holding_company_add"
+    HOLDING_COMPANY_REMOVE = "holding_company_remove"
+    HOLDING_ADMINS = "holding_admins"
+    HOLDING_AUDIT = "holding_audit"
+
     COMPANIES = "companies"
     EMPLOYEES = "employees"
     EMPLOYEES_ALL = "employees_all"
@@ -83,6 +98,20 @@ class MenuAction(StrEnum):
 
 
 ACTION_BUTTONS = {
+    MenuAction.HOLDINGS: "Холдинги",
+    MenuAction.HOLDINGS_ALL: "📋 Все холдинги",
+    MenuAction.HOLDING_CATALOG: "⬅️ Каталог холдингов",
+    MenuAction.HOLDING_SEARCH: "🔎 Найти холдинг",
+    MenuAction.HOLDING_CREATE: "➕ Создать холдинг",
+    MenuAction.HOLDING_RENAME: "✏️ Переименовать холдинг",
+    MenuAction.HOLDING_ARCHIVE: "📦 Архивировать холдинг",
+    MenuAction.HOLDING_RESTORE: "✅ Восстановить холдинг",
+    MenuAction.HOLDING_COMPANIES: "🏢 Компании холдинга",
+    MenuAction.HOLDING_COMPANY_ADD: "➕ Добавить компанию",
+    MenuAction.HOLDING_COMPANY_REMOVE: "➖ Удалить компанию",
+    MenuAction.HOLDING_ADMINS: "👤 Администраторы холдинга",
+    MenuAction.HOLDING_AUDIT: "📜 История холдинга",
+
     MenuAction.COMPANIES: "Компании",
     MenuAction.EMPLOYEES: "Сотрудники",
     MenuAction.EMPLOYEES_ALL: "Все сотрудники",
@@ -177,6 +206,9 @@ def resolve_menu_action(text: str | None) -> MenuAction | None:
 
     if value in LEGACY_ALIASES:
         return LEGACY_ALIASES[value]
+
+    if value.startswith("🏛 "):
+        return MenuAction.HOLDING_SELECT
 
     for action, button_text in ACTION_BUTTONS.items():
         if value == button_text:
