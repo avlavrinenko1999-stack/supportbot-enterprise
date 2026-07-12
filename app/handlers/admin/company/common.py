@@ -1,7 +1,7 @@
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from app.handlers.admin.common import get_current_admin
+from app.handlers.admin.common import get_current_account
 from app.services.message_service import MessageService
 
 
@@ -9,7 +9,7 @@ async def get_current_account_or_answer(
     message: Message,
     state: FSMContext,
 ):
-    account = await get_current_admin(message.from_user.id)
+    account = await get_current_account(message.from_user.id)
 
     if account is None:
         await MessageService.replace_service_message(

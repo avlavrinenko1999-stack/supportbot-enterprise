@@ -3,17 +3,24 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.common import answer_admin_panel
-from app.handlers.admin.company.common import get_current_account_or_answer
+from app.handlers.admin.common import (
+    answer_admin_panel,
+    get_current_account,
+)
+from app.handlers.admin.company.common import (
+    get_current_account_or_answer,
+)
 from app.handlers.admin.company.state import CompanyState
 from app.keyboards.company import (
     companies_catalog_reply_menu,
     companies_reply_menu,
 )
+from app.security.company_access import CompanyAccessService
 from app.security.decorators import require_permission
 from app.security.permissions import Permission
-from app.services.company_preference_service import CompanyPreferenceService
-from app.services.company_service import CompanyService
+from app.services.company_preference_service import (
+    CompanyPreferenceService,
+)
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
 from app.ui.context import UIContext
@@ -24,18 +31,24 @@ from app.ui.screens import Screen
 router = Router()
 
 
-async def load_companies() -> list:
+async def load_companies(account) -> list:
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
-        return await service.list_companies()
+        access_service = CompanyAccessService(session)
+        return await access_service.list_visible_companies(account)
 
 
 async def render_company_catalog(
     message: Message,
     state: FSMContext,
 ) -> None:
-    companies = await load_companies()
-    active_count = len([company for company in companies if company.is_active])
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    companies = await load_companies(account)
+    active_count = len(
+        [company for company in companies if company.is_active]
+    )
     disabled_count = len(companies) - active_count
 
     await UIContext.set_section(state, "companies_catalog")
@@ -44,7 +57,7 @@ async def render_company_catalog(
         message,
         state,
         "Компании\n\n"
-        f"Всего: {len(companies)}\n"
+        f"Всего доступно: {len(companies)}\n"
         f"Активных: {active_count}\n"
         f"Отключенных: {disabled_count}\n\n"
         "Для больших списков используйте поиск, избранное "
@@ -76,8 +89,14 @@ async def render_company_list(
         lines = [f"{title} — страница {page}/{total_pages}:\n"]
 
         for company in companies[start:end]:
-            status = "активна" if company.is_active else "отключена"
-            lines.append(f"{company.id}. {company.name} — {status}")
+            status = (
+                "активна"
+                if company.is_active
+                else "отключена"
+            )
+            lines.append(
+                f"{company.id}. {company.name} — {status}"
+            )
 
         text = "\n".join(lines)
     else:
@@ -101,7 +120,11 @@ async def render_all_companies(
     state: FSMContext,
     page: int = 1,
 ) -> None:
-    companies = await load_companies()
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    companies = await load_companies(account)
 
     await render_company_list(
         message,
@@ -118,11 +141,16 @@ async def render_disabled_companies(
     state: FSMContext,
     page: int = 1,
 ) -> None:
-    companies = [
-        company
-        for company in await load_companies()
-        if not company.is_active
-    ]
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
+    async with AsyncSessionLocal() as session:
+        access_service = CompanyAccessService(session)
+        companies = await access_service.list_visible_companies(
+            account,
+            active=False,
+        )
 
     await render_company_list(
         message,
@@ -137,13 +165,19 @@ async def render_disabled_companies(
 async def render_recent_companies(
     message: Message,
     state: FSMContext,
-    account_id: int,
+    account,
     page: int = 1,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        service = CompanyPreferenceService(session)
-        companies = await service.list_recent_companies(
-            account_id=account_id
+        access_service = CompanyAccessService(session)
+        allowed_ids = await access_service.visible_company_ids(
+            account
+        )
+
+        preference_service = CompanyPreferenceService(session)
+        companies = await preference_service.list_recent_companies(
+            account_id=account.id,
+            allowed_company_ids=allowed_ids,
         )
 
     await render_company_list(
@@ -159,13 +193,19 @@ async def render_recent_companies(
 async def render_favorite_companies(
     message: Message,
     state: FSMContext,
-    account_id: int,
+    account,
     page: int = 1,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        service = CompanyPreferenceService(session)
-        companies = await service.list_favorite_companies(
-            account_id=account_id
+        access_service = CompanyAccessService(session)
+        allowed_ids = await access_service.visible_company_ids(
+            account
+        )
+
+        preference_service = CompanyPreferenceService(session)
+        companies = await preference_service.list_favorite_companies(
+            account_id=account.id,
+            allowed_company_ids=allowed_ids,
         )
 
     await render_company_list(
@@ -181,23 +221,37 @@ async def render_favorite_companies(
 async def render_search_results(
     message: Message,
     state: FSMContext,
+    account,
     query: str,
     page: int = 1,
 ) -> None:
     query = query.strip().lower()
-    companies = await load_companies()
+    companies = await load_companies(account)
 
     if query.isdigit():
         filtered = [
             company
             for company in companies
-            if company.id == int(query) or query in company.name.lower()
+            if (
+                company.id == int(query)
+                or query in company.name.lower()
+                or (
+                    company.inn is not None
+                    and query in company.inn
+                )
+            )
         ]
     else:
         filtered = [
             company
             for company in companies
-            if query in company.name.lower()
+            if (
+                query in company.name.lower()
+                or (
+                    company.legal_name is not None
+                    and query in company.legal_name.lower()
+                )
+            )
         ]
 
     await state.update_data(company_search_query=query)
@@ -222,17 +276,24 @@ async def render_current_section(
     if account is None:
         return
 
-    section = await UIContext.get_section(state) or "companies_all"
+    section = (
+        await UIContext.get_section(state)
+        or "companies_all"
+    )
 
     if section == "companies_disabled":
-        await render_disabled_companies(message, state, page=page)
+        await render_disabled_companies(
+            message,
+            state,
+            page=page,
+        )
         return
 
     if section == "companies_recent":
         await render_recent_companies(
             message,
             state,
-            account.id,
+            account,
             page=page,
         )
         return
@@ -241,7 +302,7 @@ async def render_current_section(
         await render_favorite_companies(
             message,
             state,
-            account.id,
+            account,
             page=page,
         )
         return
@@ -251,6 +312,7 @@ async def render_current_section(
         await render_search_results(
             message,
             state,
+            account,
             str(data.get("company_search_query", "")),
             page=page,
         )
@@ -275,6 +337,17 @@ async def companies_entry_from_inline(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
+    account = await get_current_account(
+        callback.from_user.id
+    )
+
+    if account is None:
+        await callback.answer(
+            "Недостаточно прав для этого действия.",
+            show_alert=True,
+        )
+        return
+
     await render_company_catalog(callback.message, state)
     await callback.answer()
 
@@ -287,7 +360,9 @@ async def companies_all(
     await render_all_companies(message, state, page=1)
 
 
-@router.message(MenuActionFilter(MenuAction.COMPANIES_DISABLED))
+@router.message(
+    MenuActionFilter(MenuAction.COMPANIES_DISABLED)
+)
 async def companies_disabled(
     message: Message,
     state: FSMContext,
@@ -295,7 +370,9 @@ async def companies_disabled(
     await render_disabled_companies(message, state, page=1)
 
 
-@router.message(MenuActionFilter(MenuAction.COMPANIES_RECENT))
+@router.message(
+    MenuActionFilter(MenuAction.COMPANIES_RECENT)
+)
 async def companies_recent(
     message: Message,
     state: FSMContext,
@@ -307,12 +384,14 @@ async def companies_recent(
     await render_recent_companies(
         message,
         state,
-        account.id,
+        account,
         page=1,
     )
 
 
-@router.message(MenuActionFilter(MenuAction.COMPANIES_FAVORITES))
+@router.message(
+    MenuActionFilter(MenuAction.COMPANIES_FAVORITES)
+)
 async def companies_favorites(
     message: Message,
     state: FSMContext,
@@ -324,7 +403,7 @@ async def companies_favorites(
     await render_favorite_companies(
         message,
         state,
-        account.id,
+        account,
         page=1,
     )
 
@@ -339,7 +418,7 @@ async def company_search_start(
     await MessageService.replace_service_message(
         message,
         state,
-        "Введите ID или часть названия компании.",
+        "Введите ID, название или ИНН компании.",
         reply_markup=companies_catalog_reply_menu(),
     )
 
@@ -355,13 +434,23 @@ async def company_search_finish(
         await MessageService.replace_service_message(
             message,
             state,
-            "Введите ID или часть названия компании.",
+            "Введите ID, название или ИНН компании.",
             reply_markup=companies_catalog_reply_menu(),
         )
         return
 
+    account = await get_current_account_or_answer(message, state)
+    if account is None:
+        return
+
     await state.clear()
-    await render_search_results(message, state, query, page=1)
+    await render_search_results(
+        message,
+        state,
+        account,
+        query,
+        page=1,
+    )
 
 
 @router.message(MenuActionFilter(MenuAction.NEXT))
@@ -369,7 +458,10 @@ async def companies_next_page(
     message: Message,
     state: FSMContext,
 ) -> None:
-    section = await UIContext.get_section(state) or "companies_all"
+    section = (
+        await UIContext.get_section(state)
+        or "companies_all"
+    )
     page = await PageService.next_page(state, section)
     await render_current_section(message, state, page=page)
 
@@ -379,12 +471,17 @@ async def companies_prev_page(
     message: Message,
     state: FSMContext,
 ) -> None:
-    section = await UIContext.get_section(state) or "companies_all"
+    section = (
+        await UIContext.get_section(state)
+        or "companies_all"
+    )
     page = await PageService.prev_page(state, section)
     await render_current_section(message, state, page=page)
 
 
-@router.message(MenuActionFilter(MenuAction.COMPANY_CATALOG))
+@router.message(
+    MenuActionFilter(MenuAction.COMPANY_CATALOG)
+)
 async def companies_back_to_catalog(
     message: Message,
     state: FSMContext,

@@ -74,19 +74,32 @@ class CompanyPreferenceService:
         self,
         *,
         account_id: int,
+        allowed_company_ids: set[int] | None = None,
         limit: int = 8,
     ) -> list[Company]:
-        preferences = (
-            await self.session.scalars(
-                select(AccountCompanyPreference)
-                .where(
-                    AccountCompanyPreference.account_id == account_id,
-                    AccountCompanyPreference.last_opened_at.is_not(None),
-                )
-                .options(selectinload(AccountCompanyPreference.company))
-                .order_by(AccountCompanyPreference.last_opened_at.desc())
-                .limit(limit)
+        statement = (
+            select(AccountCompanyPreference)
+            .where(
+                AccountCompanyPreference.account_id == account_id,
+                AccountCompanyPreference.last_opened_at.is_not(None),
             )
+            .options(selectinload(AccountCompanyPreference.company))
+            .order_by(AccountCompanyPreference.last_opened_at.desc())
+            .limit(limit)
+        )
+
+        if allowed_company_ids is not None:
+            if not allowed_company_ids:
+                return []
+
+            statement = statement.where(
+                AccountCompanyPreference.company_id.in_(
+                    allowed_company_ids
+                )
+            )
+
+        preferences = (
+            await self.session.scalars(statement)
         ).all()
 
         return [
@@ -99,20 +112,33 @@ class CompanyPreferenceService:
         self,
         *,
         account_id: int,
+        allowed_company_ids: set[int] | None = None,
     ) -> list[Company]:
-        preferences = (
-            await self.session.scalars(
-                select(AccountCompanyPreference)
-                .where(
-                    AccountCompanyPreference.account_id == account_id,
-                    AccountCompanyPreference.is_favorite.is_(True),
-                )
-                .options(selectinload(AccountCompanyPreference.company))
-                .order_by(
-                    AccountCompanyPreference.pin_order.asc().nullslast(),
-                    AccountCompanyPreference.updated_at.desc(),
+        statement = (
+            select(AccountCompanyPreference)
+            .where(
+                AccountCompanyPreference.account_id == account_id,
+                AccountCompanyPreference.is_favorite.is_(True),
+            )
+            .options(selectinload(AccountCompanyPreference.company))
+            .order_by(
+                AccountCompanyPreference.pin_order.asc().nullslast(),
+                AccountCompanyPreference.updated_at.desc(),
+            )
+        )
+
+        if allowed_company_ids is not None:
+            if not allowed_company_ids:
+                return []
+
+            statement = statement.where(
+                AccountCompanyPreference.company_id.in_(
+                    allowed_company_ids
                 )
             )
+
+        preferences = (
+            await self.session.scalars(statement)
         ).all()
 
         return [
