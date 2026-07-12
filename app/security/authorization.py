@@ -13,6 +13,7 @@ from app.models.role_permission import RolePermission
 from app.security.access_scope import AccessScope
 from app.security.permission_mapping import permission_codes
 from app.security.permissions import Permission, has_permission
+from app.security.scope_resolver import ScopeResolver
 
 
 class AuthorizationError(PermissionError):
@@ -182,19 +183,38 @@ class AuthorizationService:
         )
 
         if scope is not None:
-            statement = statement.where(
-                or_(
-                    RoleAssignment.scope_type
-                    == ScopeType.PLATFORM,
+            assignment_scopes = await ScopeResolver(
+                session
+            ).resolve_assignment_scopes(scope)
+
+            scope_conditions = []
+
+            for assignment_scope in assignment_scopes:
+                if assignment_scope.is_platform:
+                    scope_conditions.append(
+                        (
+                            RoleAssignment.scope_type
+                            == ScopeType.PLATFORM
+                        )
+                        & (
+                            RoleAssignment.scope_id.is_(None)
+                        )
+                    )
+                    continue
+
+                scope_conditions.append(
                     (
                         RoleAssignment.scope_type
-                        == scope.scope_type
+                        == assignment_scope.scope_type
                     )
                     & (
                         RoleAssignment.scope_id
-                        == scope.scope_id
-                    ),
+                        == assignment_scope.scope_id
+                    )
                 )
+
+            statement = statement.where(
+                or_(*scope_conditions)
             )
 
         return set(await session.scalars(statement))
