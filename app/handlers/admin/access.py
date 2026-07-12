@@ -29,6 +29,7 @@ from app.models.enums import ScopeType
 from app.models.permission import PermissionDefinition
 from app.models.role import Role
 from app.models.role_assignment import RoleAssignment
+from app.security.access_audit_access import AccessAuditAccessService
 from app.security.access_scope import AccessScope
 from app.security.authorization import AuthorizationService
 from app.security.company_access import CompanyAccessService
@@ -1182,23 +1183,31 @@ async def access_assignment_history(
         return
 
     async with AsyncSessionLocal() as session:
-        events = list(
-            await session.scalars(
-                select(AccessAuditEvent)
-                .where(
-                    AccessAuditEvent.event_type.in_(
-                        {
-                            "role_assignment_created",
-                            "role_assignment_revoked",
-                        }
-                    )
+        statement = (
+            select(AccessAuditEvent)
+            .where(
+                AccessAuditEvent.event_type.in_(
+                    {
+                        "role_assignment_created",
+                        "role_assignment_revoked",
+                    }
                 )
-                .order_by(
-                    AccessAuditEvent.created_at.desc(),
-                    AccessAuditEvent.id.desc(),
-                )
-                .limit(30)
             )
+            .order_by(
+                AccessAuditEvent.created_at.desc(),
+                AccessAuditEvent.id.desc(),
+            )
+            .limit(30)
+        )
+
+        access_service = AccessAuditAccessService(session)
+        statement = await access_service.apply_filter(
+            statement,
+            manager,
+        )
+
+        events = list(
+            await session.scalars(statement)
         )
 
     lines = ["История назначений", ""]
@@ -1342,15 +1351,23 @@ async def access_audit(
         return
 
     async with AsyncSessionLocal() as session:
-        events = list(
-            await session.scalars(
-                select(AccessAuditEvent)
-                .order_by(
-                    AccessAuditEvent.created_at.desc(),
-                    AccessAuditEvent.id.desc(),
-                )
-                .limit(40)
+        statement = (
+            select(AccessAuditEvent)
+            .order_by(
+                AccessAuditEvent.created_at.desc(),
+                AccessAuditEvent.id.desc(),
             )
+            .limit(40)
+        )
+
+        access_service = AccessAuditAccessService(session)
+        statement = await access_service.apply_filter(
+            statement,
+            manager,
+        )
+
+        events = list(
+            await session.scalars(statement)
         )
 
     lines = ["Журнал доступа", ""]
