@@ -6,8 +6,10 @@ from .category import Category
 from .company import Company
 from .company_audit_event import CompanyAuditEvent
 from .company_setting import CompanySetting
+from .holding import Holding
 from .internal_note import InternalNote
 from .invite import Invite
+from .organization import Organization
 from .message import Message
 from .ticket import Ticket
 from .ticket_event import TicketEvent
@@ -15,6 +17,8 @@ from .ticket_event import TicketEvent
 __all__ = [
     "Base",
     "Company",
+    "Organization",
+    "Holding",
     "CompanyAuditEvent",
     "CompanySetting",
     "Account",

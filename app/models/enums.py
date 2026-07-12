@@ -57,3 +57,12 @@ class EventType(str, Enum):
     CLOSED = "closed"
 
     REOPENED = "reopened"
+
+
+class OrganizationType(str, Enum):
+    """Тип организации в организационной структуре."""
+
+    PLATFORM = "platform"
+    CUSTOMER = "customer"
+    SUPPORT_PROVIDER = "support_provider"
+    PARTNER = "partner"

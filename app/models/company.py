@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -24,6 +24,24 @@ class Company(Base, IDMixin, TimestampMixin):
         Boolean,
         default=True,
         nullable=False
+    )
+
+    organization_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "organizations.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    holding_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "holdings.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
     )
 
     inn: Mapped[str | None] = mapped_column(
@@ -80,6 +98,16 @@ class Company(Base, IDMixin, TimestampMixin):
     last_registry_sync_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    organization = relationship(
+        "Organization",
+        back_populates="companies",
+    )
+
+    holding = relationship(
+        "Holding",
+        back_populates="companies",
     )
 
     accounts = relationship(
