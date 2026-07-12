@@ -19,6 +19,7 @@ PERMISSION_NAMES = {
     Permission.EMPLOYEE_VIEW: "Просмотр сотрудников",
     Permission.EMPLOYEE_INVITE: "Создание приглашений",
     Permission.EMPLOYEE_MANAGE: "Управление сотрудниками",
+    Permission.ROLE_ASSIGN: "Назначение ролей",
 
     Permission.CATEGORY_VIEW: "Просмотр категорий",
     Permission.CATEGORY_MANAGE: "Управление категориями",

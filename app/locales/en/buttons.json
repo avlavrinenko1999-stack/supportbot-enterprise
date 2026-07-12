@@ -48,5 +48,11 @@
   "🔑 Разрешения": "🔑 Permissions",
   "📜 Журнал доступа": "📜 Access log",
   "⬅️ Доступы": "⬅️ Access",
-  "⬅️ Административное меню": "⬅️ Admin menu"
+  "⬅️ Административное меню": "⬅️ Admin menu",
+  "⬅️ Назначения ролей": "⬅️ Role assignments",
+  "🔎 Искать другой аккаунт": "🔎 Search another account",
+  "🔎 Искать другую компанию": "🔎 Search another company",
+  "🏢 Администратор компании": "🏢 Company administrator",
+  "✅ Подтвердить назначение": "✅ Confirm assignment",
+  "❌ Отменить назначение": "❌ Cancel assignment"
 }

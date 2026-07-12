@@ -11,6 +11,7 @@ class Permission(StrEnum):
     EMPLOYEE_VIEW = "employee.view"
     EMPLOYEE_INVITE = "employee.invite"
     EMPLOYEE_MANAGE = "employee.manage"
+    ROLE_ASSIGN = "role.assign"
 
     CATEGORY_VIEW = "category.view"
     CATEGORY_MANAGE = "category.manage"

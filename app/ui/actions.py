@@ -28,6 +28,12 @@ class MenuAction(StrEnum):
     ACCESS_AUDIT = "access_audit"
     ACCESS_BACK = "access_back"
     ACCESS_ADMIN_BACK = "access_admin_back"
+    ACCESS_ASSIGNMENTS_BACK = "access_assignments_back"
+    ACCESS_ACCOUNT_SEARCH_AGAIN = "access_account_search_again"
+    ACCESS_COMPANY_SEARCH_AGAIN = "access_company_search_again"
+    ACCESS_ROLE_COMPANY_ADMIN = "access_role_company_admin"
+    ACCESS_ASSIGN_CONFIRM = "access_assign_confirm"
+    ACCESS_ASSIGN_CANCEL = "access_assign_cancel"
 
     BACK = "back"
     CANCEL = "cancel"
@@ -90,6 +96,12 @@ ACTION_BUTTONS = {
     MenuAction.ACCESS_AUDIT: "📜 Журнал доступа",
     MenuAction.ACCESS_BACK: "⬅️ Доступы",
     MenuAction.ACCESS_ADMIN_BACK: "⬅️ Административное меню",
+    MenuAction.ACCESS_ASSIGNMENTS_BACK: "⬅️ Назначения ролей",
+    MenuAction.ACCESS_ACCOUNT_SEARCH_AGAIN: "🔎 Искать другой аккаунт",
+    MenuAction.ACCESS_COMPANY_SEARCH_AGAIN: "🔎 Искать другую компанию",
+    MenuAction.ACCESS_ROLE_COMPANY_ADMIN: "🏢 Администратор компании",
+    MenuAction.ACCESS_ASSIGN_CONFIRM: "✅ Подтвердить назначение",
+    MenuAction.ACCESS_ASSIGN_CANCEL: "❌ Отменить назначение",
 
     MenuAction.BACK: "⬅️ Назад",
     MenuAction.CANCEL: "Отмена",

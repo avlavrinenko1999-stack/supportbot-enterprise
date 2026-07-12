@@ -39,6 +39,11 @@ LEGACY_PERMISSION_CODES: dict[Permission, frozenset[str]] = {
             "employee.role.assign",
         }
     ),
+    Permission.ROLE_ASSIGN: frozenset(
+        {
+            "employee.role.assign",
+        }
+    ),
     Permission.CATEGORY_VIEW: frozenset(
         {
             "category.read",
