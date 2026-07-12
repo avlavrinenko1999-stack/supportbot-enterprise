@@ -11,6 +11,7 @@ def admin_main_menu(language: str = "ru") -> ReplyKeyboardMarkup:
             "Сотрудники",
             "Тикеты",
             "Отчёты",
+            "Доступы",
             "Профиль",
             "🌐 Language",
         ],

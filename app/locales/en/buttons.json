@@ -38,5 +38,15 @@
   "🔎 Найти сотрудника": "🔎 Find employee",
   "➕ Создать приглашение": "➕ Create invite",
   "⬅️ Сотрудники": "⬅️ Employees",
-  "🌐 Language": "🌐 Language"
+  "🌐 Language": "🌐 Language",
+  "Доступы": "Access",
+  "👤 Назначения ролей": "👤 Role assignments",
+  "➕ Назначить роль": "➕ Assign role",
+  "📋 Активные назначения": "📋 Active assignments",
+  "🕘 История назначений": "🕘 Assignment history",
+  "🛡 Роли": "🛡 Roles",
+  "🔑 Разрешения": "🔑 Permissions",
+  "📜 Журнал доступа": "📜 Access log",
+  "⬅️ Доступы": "⬅️ Access",
+  "⬅️ Административное меню": "⬅️ Admin menu"
 }

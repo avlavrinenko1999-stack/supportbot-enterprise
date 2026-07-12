@@ -18,6 +18,16 @@ class MenuAction(StrEnum):
     REPORTS = "reports"
     PROFILE = "profile"
     LANGUAGE = "language"
+    ACCESS = "access"
+    ACCESS_ROLE_ASSIGNMENTS = "access_role_assignments"
+    ACCESS_ASSIGN_ROLE = "access_assign_role"
+    ACCESS_ACTIVE_ASSIGNMENTS = "access_active_assignments"
+    ACCESS_ASSIGNMENT_HISTORY = "access_assignment_history"
+    ACCESS_ROLES = "access_roles"
+    ACCESS_PERMISSIONS = "access_permissions"
+    ACCESS_AUDIT = "access_audit"
+    ACCESS_BACK = "access_back"
+    ACCESS_ADMIN_BACK = "access_admin_back"
 
     BACK = "back"
     CANCEL = "cancel"
@@ -70,6 +80,16 @@ ACTION_BUTTONS = {
     MenuAction.REPORTS: "Отчёты",
     MenuAction.PROFILE: "Профиль",
     MenuAction.LANGUAGE: "🌐 Language",
+    MenuAction.ACCESS: "Доступы",
+    MenuAction.ACCESS_ROLE_ASSIGNMENTS: "👤 Назначения ролей",
+    MenuAction.ACCESS_ASSIGN_ROLE: "➕ Назначить роль",
+    MenuAction.ACCESS_ACTIVE_ASSIGNMENTS: "📋 Активные назначения",
+    MenuAction.ACCESS_ASSIGNMENT_HISTORY: "🕘 История назначений",
+    MenuAction.ACCESS_ROLES: "🛡 Роли",
+    MenuAction.ACCESS_PERMISSIONS: "🔑 Разрешения",
+    MenuAction.ACCESS_AUDIT: "📜 Журнал доступа",
+    MenuAction.ACCESS_BACK: "⬅️ Доступы",
+    MenuAction.ACCESS_ADMIN_BACK: "⬅️ Административное меню",
 
     MenuAction.BACK: "⬅️ Назад",
     MenuAction.CANCEL: "Отмена",
