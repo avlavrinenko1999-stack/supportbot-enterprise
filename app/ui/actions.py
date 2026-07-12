@@ -32,6 +32,12 @@ class MenuAction(StrEnum):
     ACCESS_ACCOUNT_SEARCH_AGAIN = "access_account_search_again"
     ACCESS_COMPANY_SEARCH_AGAIN = "access_company_search_again"
     ACCESS_ROLE_COMPANY_ADMIN = "access_role_company_admin"
+    ACCESS_ROLE_SUPPORT_MANAGER = "access_role_support_manager"
+    ACCESS_ROLE_COORDINATOR = "access_role_coordinator"
+    ACCESS_ROLE_OPERATOR = "access_role_operator"
+    ACCESS_ROLE_OBSERVER = "access_role_observer"
+    ACCESS_ROLE_USER = "access_role_user"
+    ACCESS_ROLE_AUDITOR = "access_role_auditor"
     ACCESS_ASSIGN_CONFIRM = "access_assign_confirm"
     ACCESS_ASSIGN_CANCEL = "access_assign_cancel"
     ACCESS_REVOKE_CONFIRM = "access_revoke_confirm"
@@ -102,6 +108,12 @@ ACTION_BUTTONS = {
     MenuAction.ACCESS_ACCOUNT_SEARCH_AGAIN: "🔎 Искать другой аккаунт",
     MenuAction.ACCESS_COMPANY_SEARCH_AGAIN: "🔎 Искать другую компанию",
     MenuAction.ACCESS_ROLE_COMPANY_ADMIN: "🏢 Администратор компании",
+    MenuAction.ACCESS_ROLE_SUPPORT_MANAGER: "🧭 Руководитель поддержки",
+    MenuAction.ACCESS_ROLE_COORDINATOR: "👤 Координатор доступа",
+    MenuAction.ACCESS_ROLE_OPERATOR: "👷 Оператор доступа",
+    MenuAction.ACCESS_ROLE_OBSERVER: "👁 Наблюдатель доступа",
+    MenuAction.ACCESS_ROLE_USER: "🙋 Пользователь доступа",
+    MenuAction.ACCESS_ROLE_AUDITOR: "🔍 Аудитор доступа",
     MenuAction.ACCESS_ASSIGN_CONFIRM: "✅ Подтвердить назначение",
     MenuAction.ACCESS_ASSIGN_CANCEL: "❌ Отменить назначение",
     MenuAction.ACCESS_REVOKE_CONFIRM: "✅ Подтвердить отзыв",

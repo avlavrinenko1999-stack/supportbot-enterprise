@@ -56,5 +56,11 @@
   "✅ Подтвердить назначение": "✅ Confirm assignment",
   "❌ Отменить назначение": "❌ Cancel assignment",
   "✅ Подтвердить отзыв": "✅ Confirm revocation",
-  "❌ Отменить отзыв": "❌ Cancel revocation"
+  "❌ Отменить отзыв": "❌ Cancel revocation",
+  "🧭 Руководитель поддержки": "🧭 Support manager",
+  "👤 Координатор доступа": "👤 Coordinator",
+  "👷 Оператор доступа": "👷 Operator",
+  "👁 Наблюдатель доступа": "👁 Observer",
+  "🙋 Пользователь доступа": "🙋 User",
+  "🔍 Аудитор доступа": "🔍 Auditor"
 }

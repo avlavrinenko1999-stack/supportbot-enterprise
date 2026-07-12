@@ -67,12 +67,45 @@ def assignment_account_results_menu(
     )
 
 
-def assignment_role_menu() -> ReplyKeyboardMarkup:
+def assignment_role_menu(
+    role_codes: set[str] | frozenset[str] | None = None,
+) -> ReplyKeyboardMarkup:
+    labels = {
+        "company_admin": "🏢 Администратор компании",
+        "support_manager": "🧭 Руководитель поддержки",
+        "coordinator": "👤 Координатор доступа",
+        "operator": "👷 Оператор доступа",
+        "observer": "👁 Наблюдатель доступа",
+        "user": "🙋 Пользователь доступа",
+        "auditor": "🔍 Аудитор доступа",
+    }
+
+    ordered_codes = (
+        "company_admin",
+        "support_manager",
+        "coordinator",
+        "operator",
+        "observer",
+        "user",
+        "auditor",
+    )
+
+    allowed_codes = (
+        set(role_codes)
+        if role_codes is not None
+        else set(ordered_codes)
+    )
+
+    buttons = [
+        labels[role_code]
+        for role_code in ordered_codes
+        if role_code in allowed_codes
+    ]
+
+    buttons.append("⬅️ Назначения ролей")
+
     return reply_keyboard(
-        [
-            "🏢 Администратор компании",
-            "⬅️ Назначения ролей",
-        ],
+        buttons,
         input_field_placeholder="Выберите роль",
     )
 

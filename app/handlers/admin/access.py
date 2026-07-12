@@ -34,6 +34,10 @@ from app.security.access_scope import AccessScope
 from app.security.authorization import AuthorizationService
 from app.security.company_access import CompanyAccessService
 from app.security.permissions import Permission
+from app.security.role_grant_policy import (
+    ROLE_LABELS,
+    RoleGrantPolicy,
+)
 from app.services.company_search_service import CompanySearchService
 from app.services.message_service import MessageService
 from app.services.role_assignment_service import (
@@ -57,11 +61,6 @@ class AccessAssignmentState(StatesGroup):
     confirmation = State()
     revoke_select = State()
     revoke_confirmation = State()
-
-
-ROLE_LABELS = {
-    "company_admin": "Администратор компании",
-}
 
 
 async def _current_access_manager(
@@ -459,9 +458,39 @@ async def access_account_select(
         )
         return
 
+    manager = await _require_access_management(
+        message,
+        state,
+    )
+    if manager is None:
+        return
+
+    async with AsyncSessionLocal() as session:
+        policy = RoleGrantPolicy(session)
+        grantable_roles = (
+            await policy.list_grantable_company_roles(
+                manager
+            )
+        )
+
+    role_codes = {
+        role.code
+        for role in grantable_roles
+    }
+
+    if not role_codes:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "У вас нет ролей, доступных для назначения.",
+            reply_markup=role_assignments_menu(),
+        )
+        return
+
     await state.update_data(
         access_target_account_id=target.id,
         access_target_account_name=target.full_name,
+        access_grantable_role_codes=sorted(role_codes),
     )
     await state.set_state(
         AccessAssignmentState.role_select
@@ -472,7 +501,7 @@ async def access_account_select(
         state,
         "Выберите роль для назначения.\n\n"
         f"Аккаунт: {target.full_name} #{target.id}",
-        reply_markup=assignment_role_menu(),
+        reply_markup=assignment_role_menu(role_codes),
     )
 
 
@@ -487,17 +516,50 @@ async def access_role_select(
         await _show_role_assignments_menu(message, state)
         return
 
-    if action != MenuAction.ACCESS_ROLE_COMPANY_ADMIN:
+    action_to_role = {
+        MenuAction.ACCESS_ROLE_COMPANY_ADMIN:
+            "company_admin",
+        MenuAction.ACCESS_ROLE_SUPPORT_MANAGER:
+            "support_manager",
+        MenuAction.ACCESS_ROLE_COORDINATOR:
+            "coordinator",
+        MenuAction.ACCESS_ROLE_OPERATOR:
+            "operator",
+        MenuAction.ACCESS_ROLE_OBSERVER:
+            "observer",
+        MenuAction.ACCESS_ROLE_USER:
+            "user",
+        MenuAction.ACCESS_ROLE_AUDITOR:
+            "auditor",
+    }
+
+    role_code = action_to_role.get(action)
+    data = await state.get_data()
+
+    grantable_role_codes = {
+        str(value)
+        for value in data.get(
+            "access_grantable_role_codes",
+            [],
+        )
+    }
+
+    if (
+        role_code is None
+        or role_code not in grantable_role_codes
+    ):
         await MessageService.replace_service_message(
             message,
             state,
             "Выберите доступную роль с помощью кнопки.",
-            reply_markup=assignment_role_menu(),
+            reply_markup=assignment_role_menu(
+                grantable_role_codes
+            ),
         )
         return
 
     await state.update_data(
-        access_role_code="company_admin",
+        access_role_code=role_code,
     )
     await _show_company_search(message, state)
 
@@ -622,17 +684,23 @@ async def access_company_select(
 
     company_scope = AccessScope.company(company_id)
 
-    if not await AuthorizationService.can_async(
-        manager,
-        Permission.ROLE_ASSIGN,
-        scope=company_scope,
-    ):
+    role_code = str(data["access_role_code"])
+
+    async with AsyncSessionLocal() as session:
+        grant_policy = RoleGrantPolicy(session)
+        can_grant = await grant_policy.can_grant(
+            manager,
+            role_code=role_code,
+            scope=company_scope,
+        )
+
+    if not can_grant:
         await _show_company_search(
             message,
             state,
             text=(
-                "У вас нет права назначать роли "
-                "в выбранной компании."
+                "У вас нет права назначать выбранную роль "
+                "в этой компании."
             ),
         )
         return
@@ -659,8 +727,6 @@ async def access_company_select(
     target_name = str(
         data["access_target_account_name"]
     )
-    role_code = str(data["access_role_code"])
-
     warning = ""
 
     if target_account_id == manager.id:
@@ -726,16 +792,21 @@ async def access_assignment_confirm(
 
     scope = AccessScope.company(company_id)
 
-    if not await AuthorizationService.can_async(
-        manager,
-        Permission.ROLE_ASSIGN,
-        scope=scope,
-    ):
+    async with AsyncSessionLocal() as session:
+        grant_policy = RoleGrantPolicy(session)
+        can_grant = await grant_policy.can_grant(
+            manager,
+            role_code=role_code,
+            scope=scope,
+        )
+
+    if not can_grant:
         await state.clear()
         await MessageService.replace_service_message(
             message,
             state,
-            "Право назначения роли было отозвано.",
+            "Право назначения выбранной роли "
+            "было отозвано.",
             reply_markup=access_root_menu(),
         )
         return
