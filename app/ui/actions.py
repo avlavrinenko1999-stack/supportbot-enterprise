@@ -7,6 +7,10 @@ from app.ui.keyboard_i18n import canonicalize_button
 
 
 class MenuAction(StrEnum):
+    ORGANIZATIONS = "organizations"
+    ORGANIZATION_SELECT = "organization_select"
+    ORGANIZATION_CATALOG = "organization_catalog"
+
     HOLDINGS = "holdings"
     HOLDINGS_ALL = "holdings_all"
     HOLDING_SELECT = "holding_select"
@@ -98,6 +102,9 @@ class MenuAction(StrEnum):
 
 
 ACTION_BUTTONS = {
+    MenuAction.ORGANIZATIONS: "Организации",
+    MenuAction.ORGANIZATION_CATALOG: "⬅️ Каталог организаций",
+
     MenuAction.HOLDINGS: "Холдинги",
     MenuAction.HOLDINGS_ALL: "📋 Все холдинги",
     MenuAction.HOLDING_CATALOG: "⬅️ Каталог холдингов",
@@ -206,6 +213,9 @@ def resolve_menu_action(text: str | None) -> MenuAction | None:
 
     if value in LEGACY_ALIASES:
         return LEGACY_ALIASES[value]
+
+    if value.startswith("🏬 "):
+        return MenuAction.ORGANIZATION_SELECT
 
     if value.startswith("🏛 "):
         return MenuAction.HOLDING_SELECT

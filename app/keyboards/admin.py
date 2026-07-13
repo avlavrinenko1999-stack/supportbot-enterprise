@@ -7,6 +7,7 @@ from app.keyboards.reply import reply_keyboard
 def admin_main_menu(language: str = "ru") -> ReplyKeyboardMarkup:
     return reply_keyboard(
         [
+            "Организации",
             "Холдинги",
             "Компании",
             "Сотрудники",
