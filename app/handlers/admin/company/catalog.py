@@ -21,8 +21,8 @@ from app.services.business_unit_catalog_service import (
     BusinessUnitCatalogItem,
     BusinessUnitCatalogService,
 )
-from app.services.company_preference_service import (
-    CompanyPreferenceService,
+from app.services.business_unit_preference_service import (
+    BusinessUnitPreferenceService,
 )
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
@@ -213,26 +213,35 @@ async def render_recent_companies(
     page: int = 1,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        preference_service = (
-            CompanyPreferenceService(session)
-        )
-        legacy_companies = (
-            await preference_service
-            .list_recent_companies(
-                account_id=account.id,
-                allowed_company_ids=None,
-            )
-        )
-
         catalog_service = (
             BusinessUnitCatalogService(session)
         )
-        units = (
+        visible_items = (
             await catalog_service
-            .items_for_legacy_companies(
-                account,
-                legacy_companies,
+            .list_visible_items(account)
+        )
+        allowed_unit_ids = {
+            item.unit_id
+            for item in visible_items
+        }
+
+        preference_service = (
+            BusinessUnitPreferenceService(
+                session
             )
+        )
+        preferred_units = (
+            await preference_service
+            .list_recent_units(
+                account_id=account.id,
+                allowed_unit_ids=(
+                    allowed_unit_ids
+                ),
+            )
+        )
+
+        units = await catalog_service.items_for_units(
+            preferred_units
         )
 
     await render_company_list(
@@ -252,26 +261,35 @@ async def render_favorite_companies(
     page: int = 1,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        preference_service = (
-            CompanyPreferenceService(session)
-        )
-        legacy_companies = (
-            await preference_service
-            .list_favorite_companies(
-                account_id=account.id,
-                allowed_company_ids=None,
-            )
-        )
-
         catalog_service = (
             BusinessUnitCatalogService(session)
         )
-        units = (
+        visible_items = (
             await catalog_service
-            .items_for_legacy_companies(
-                account,
-                legacy_companies,
+            .list_visible_items(account)
+        )
+        allowed_unit_ids = {
+            item.unit_id
+            for item in visible_items
+        }
+
+        preference_service = (
+            BusinessUnitPreferenceService(
+                session
             )
+        )
+        preferred_units = (
+            await preference_service
+            .list_favorite_units(
+                account_id=account.id,
+                allowed_unit_ids=(
+                    allowed_unit_ids
+                ),
+            )
+        )
+
+        units = await catalog_service.items_for_units(
+            preferred_units
         )
 
     await render_company_list(

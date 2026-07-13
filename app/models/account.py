@@ -104,6 +104,12 @@ class Account(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    business_unit_preferences = relationship(
+        "AccountBusinessUnitPreference",
+        back_populates="account",
+        cascade="all, delete-orphan",
+    )
+
     organizational_unit_memberships = relationship(
         "AccountOrganizationalUnitMembership",
         back_populates="account",

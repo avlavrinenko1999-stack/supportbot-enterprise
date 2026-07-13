@@ -2,6 +2,7 @@ from .account import Account
 from .account_organizational_unit_membership import AccountOrganizationalUnitMembership
 from .access_audit_event import AccessAuditEvent
 from .account_company_preference import AccountCompanyPreference
+from .account_business_unit_preference import AccountBusinessUnitPreference
 from .attachment import Attachment
 from .base import Base
 from .category import Category
@@ -45,6 +46,7 @@ __all__ = [
     "Account",
     "AccessAuditEvent",
     "AccountCompanyPreference",
+    "AccountBusinessUnitPreference",
     "Invite",
     "Category",
     "Ticket",

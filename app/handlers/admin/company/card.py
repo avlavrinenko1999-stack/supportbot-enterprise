@@ -20,8 +20,8 @@ from app.security.scope_resolvers import (
 from app.services.business_unit_card_service import (
     BusinessUnitCardService,
 )
-from app.services.company_preference_service import (
-    CompanyPreferenceService,
+from app.services.business_unit_preference_service import (
+    BusinessUnitPreferenceService,
 )
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
@@ -58,7 +58,9 @@ async def render_company_card(
             session
         )
         preference_service = (
-            CompanyPreferenceService(session)
+            BusinessUnitPreferenceService(
+                session
+            )
         )
 
         try:
@@ -84,20 +86,17 @@ async def render_company_card(
             card.legacy_company_id
         )
 
-        is_favorite = False
+        await preference_service.touch_unit(
+            account_id=account.id,
+            business_unit_id=card.unit.id,
+        )
 
-        if legacy_company_id is not None:
-            await preference_service.touch_company(
+        is_favorite = (
+            await preference_service.is_favorite(
                 account_id=account.id,
-                company_id=legacy_company_id,
+                business_unit_id=card.unit.id,
             )
-
-            is_favorite = (
-                await preference_service.is_favorite(
-                    account_id=account.id,
-                    company_id=legacy_company_id,
-                )
-            )
+        )
 
     unit = card.unit
     legal_entity = card.legal_entity
@@ -237,33 +236,43 @@ async def company_add_to_favorites(
     if account is None:
         return
 
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
     company_id = await UIContext.get_company_id(
         state
     )
 
-    if company_id is None:
+    if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Для подразделения отсутствует "
-            "legacy-связь предпочтений.",
+            "Сначала выберите рабочее "
+            "подразделение.",
         )
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyPreferenceService(session)
+        service = (
+            BusinessUnitPreferenceService(
+                session
+            )
+        )
 
         await service.set_favorite(
             account_id=account.id,
-            company_id=company_id,
+            business_unit_id=business_unit_id,
             is_favorite=True,
         )
 
-    await render_company_card(
-        message,
-        state,
-        company_id,
-    )
+    if company_id is not None:
+        await render_company_card(
+            message,
+            state,
+            company_id,
+        )
 
 
 @router.message(
@@ -287,30 +296,40 @@ async def company_remove_from_favorites(
     if account is None:
         return
 
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
     company_id = await UIContext.get_company_id(
         state
     )
 
-    if company_id is None:
+    if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Для подразделения отсутствует "
-            "legacy-связь предпочтений.",
+            "Сначала выберите рабочее "
+            "подразделение.",
         )
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyPreferenceService(session)
+        service = (
+            BusinessUnitPreferenceService(
+                session
+            )
+        )
 
         await service.set_favorite(
             account_id=account.id,
-            company_id=company_id,
+            business_unit_id=business_unit_id,
             is_favorite=False,
         )
 
-    await render_company_card(
-        message,
-        state,
-        company_id,
-    )
+    if company_id is not None:
+        await render_company_card(
+            message,
+            state,
+            company_id,
+        )
