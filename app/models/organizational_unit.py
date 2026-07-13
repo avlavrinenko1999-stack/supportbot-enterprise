@@ -127,6 +127,11 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    tickets = relationship(
+        "Ticket",
+        back_populates="business_unit",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "tenant_id",

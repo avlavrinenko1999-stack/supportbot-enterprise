@@ -18,6 +18,15 @@ class Ticket(Base, IDMixin, TimestampMixin):
         nullable=False
     )
 
+    business_unit_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "organizational_units.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     account_id: Mapped[int] = mapped_column(
         ForeignKey("accounts.id"),
         nullable=False
@@ -47,6 +56,11 @@ class Ticket(Base, IDMixin, TimestampMixin):
     company = relationship(
         "Company",
         back_populates="tickets"
+    )
+
+    business_unit = relationship(
+        "OrganizationalUnit",
+        back_populates="tickets",
     )
 
     author = relationship(
