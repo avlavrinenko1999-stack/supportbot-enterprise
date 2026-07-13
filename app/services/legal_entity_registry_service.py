@@ -55,6 +55,61 @@ class LegalEntityRegistryService(BaseService):
         actor_account_id: int | None = None,
         source: str = "dadata",
     ) -> LegalEntity:
+        legal_entity = await self._require_legal_entity(
+            legal_entity_id
+        )
+
+        if not legal_entity.inn:
+            raise ValueError(
+                "У юридического лица не указан ИНН."
+            )
+
+        return await self._sync_loaded_legal_entity(
+            legal_entity,
+            legal_entity.inn,
+            actor_account_id=actor_account_id,
+            source=source,
+        )
+
+    async def sync_legal_entity_by_inn(
+        self,
+        legal_entity_id: int,
+        inn: str,
+        *,
+        actor_account_id: int | None = None,
+        source: str = "dadata",
+    ) -> LegalEntity:
+        legal_entity = await self._require_legal_entity(
+            legal_entity_id
+        )
+        clean_inn = self.normalize_inn(inn)
+
+        duplicate = await self.session.scalar(
+            select(LegalEntity.id).where(
+                LegalEntity.tenant_id
+                == legal_entity.tenant_id,
+                LegalEntity.inn == clean_inn,
+                LegalEntity.id != legal_entity.id,
+            )
+        )
+
+        if duplicate is not None:
+            raise ValueError(
+                "Юридическое лицо с таким ИНН "
+                "уже существует в текущем контуре."
+            )
+
+        return await self._sync_loaded_legal_entity(
+            legal_entity,
+            clean_inn,
+            actor_account_id=actor_account_id,
+            source=source,
+        )
+
+    async def _require_legal_entity(
+        self,
+        legal_entity_id: int,
+    ) -> LegalEntity:
         legal_entity = await self.session.scalar(
             select(LegalEntity).where(
                 LegalEntity.id == legal_entity_id
@@ -66,14 +121,32 @@ class LegalEntityRegistryService(BaseService):
                 "Юридическое лицо не найдено."
             )
 
-        if not legal_entity.inn:
-            raise ValueError(
-                "У юридического лица не указан ИНН."
-            )
+        return legal_entity
 
-        data = await self.client.find_company_by_inn(
-            legal_entity.inn
+    async def _sync_loaded_legal_entity(
+        self,
+        legal_entity: LegalEntity,
+        inn: str,
+        *,
+        actor_account_id: int | None,
+        source: str,
+    ) -> LegalEntity:
+        data = await self.client.find_company_by_inn(inn)
+
+        duplicate = await self.session.scalar(
+            select(LegalEntity.id).where(
+                LegalEntity.tenant_id
+                == legal_entity.tenant_id,
+                LegalEntity.inn == data.inn,
+                LegalEntity.id != legal_entity.id,
+            )
         )
+
+        if duplicate is not None:
+            raise ValueError(
+                "Юридическое лицо с полученным ИНН "
+                "уже существует в текущем контуре."
+            )
 
         before = legal_entity_snapshot(legal_entity)
         synchronized_at = datetime.now(timezone.utc)
@@ -97,9 +170,7 @@ class LegalEntityRegistryService(BaseService):
                     "Карточка юридического лица "
                     "обновлена из DaData"
                 ),
-                details=(
-                    f"ИНН: {legal_entity.inn}."
-                ),
+                details=f"ИНН: {legal_entity.inn}.",
                 payload={
                     "changes": changes,
                 },
@@ -113,6 +184,23 @@ class LegalEntityRegistryService(BaseService):
             raise
 
         return legal_entity
+
+    @staticmethod
+    def normalize_inn(
+        inn: str | None,
+    ) -> str:
+        clean_inn = "".join(
+            character
+            for character in (inn or "")
+            if character.isdigit()
+        )
+
+        if len(clean_inn) not in {10, 12}:
+            raise ValueError(
+                "ИНН должен содержать 10 или 12 цифр."
+            )
+
+        return clean_inn
 
     async def list_sync_candidates(
         self,
@@ -164,6 +252,7 @@ class LegalEntityRegistryService(BaseService):
         legal_entity.last_registry_sync_at = (
             synchronized_at
         )
+
 
 def legal_entity_snapshot(
     legal_entity: LegalEntity,

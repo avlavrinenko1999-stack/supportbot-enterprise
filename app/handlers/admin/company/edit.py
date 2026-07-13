@@ -17,6 +17,9 @@ from app.security.decorators import require_permission
 from app.security.permissions import Permission
 from app.security.scope_resolvers import company_scope_from_state
 from app.services.company_audit_service import CompanyAuditService, company_legal_snapshot, diff_snapshots
+from app.services.company_legal_entity_service import (
+    CompanyLegalEntityService,
+)
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
@@ -172,6 +175,177 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
     await state.clear()
     await render_company_card(message, state, company.id)
+
+
+@router.message(
+    MenuActionFilter(MenuAction.COMPANY_FILL_BY_INN)
+)
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
+async def company_fill_by_inn_start(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите компанию.",
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
+
+    await state.update_data(
+        legal_company_id=company_id
+    )
+    await state.set_state(CompanyState.legal_inn)
+
+    await MessageService.replace_service_message(
+        message,
+        state,
+        "Введите ИНН юридического лица.\n\n"
+        "Реквизиты будут сохранены только в карточке "
+        "юридического лица.",
+        reply_markup=await company_card_reply_menu(),
+    )
+
+
+@router.message(CompanyState.legal_inn)
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
+async def company_fill_by_inn_finish(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    text = (message.text or "").strip()
+
+    if text in COMPANY_CONTROL_TEXTS:
+        await state.set_state(None)
+
+        company_id = await UIContext.get_company_id(
+            state
+        )
+
+        if company_id is not None:
+            await render_company_card(
+                message,
+                state,
+                company_id,
+            )
+        return
+
+    account = await get_current_account_or_answer(
+        message,
+        state,
+    )
+
+    if account is None:
+        await state.clear()
+        return
+
+    data = await state.get_data()
+    company_id = int(
+        data.get("legal_company_id")
+        or await UIContext.get_company_id(state)
+        or 0
+    )
+
+    if company_id <= 0:
+        await state.set_state(None)
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Компания не выбрана.",
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
+
+    async with AsyncSessionLocal() as session:
+        service = CompanyLegalEntityService(session)
+
+        try:
+            await service.fill_by_inn(
+                company_id,
+                text,
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
+            await MessageService.replace_service_message(
+                message,
+                state,
+                str(error),
+                reply_markup=await company_card_reply_menu(),
+            )
+            return
+
+    await state.set_state(None)
+    await render_company_card(
+        message,
+        state,
+        company_id,
+    )
+
+
+@router.message(
+    MenuActionFilter(
+        MenuAction.COMPANY_REGISTRY_UPDATE
+    )
+)
+@require_permission(
+    Permission.COMPANY_MANAGE,
+    scope_resolver=company_scope_from_state,
+)
+async def company_registry_update(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    account = await get_current_account_or_answer(
+        message,
+        state,
+    )
+
+    if account is None:
+        return
+
+    company_id = await UIContext.get_company_id(state)
+
+    if company_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите компанию.",
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
+
+    async with AsyncSessionLocal() as session:
+        service = CompanyLegalEntityService(session)
+
+        try:
+            await service.refresh_from_registry(
+                company_id,
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
+            await MessageService.replace_service_message(
+                message,
+                state,
+                str(error),
+                reply_markup=await company_card_reply_menu(),
+            )
+            return
+
+    await render_company_card(
+        message,
+        state,
+        company_id,
+    )
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_RENAME))

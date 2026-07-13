@@ -15,6 +15,9 @@ from app.security.scope_resolvers import (
     company_scope_from_reply,
     company_scope_from_state,
 )
+from app.services.company_legal_entity_service import (
+    CompanyLegalEntityService,
+)
 from app.services.company_preference_service import CompanyPreferenceService
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
@@ -37,6 +40,9 @@ async def render_company_card(
 
     async with AsyncSessionLocal() as session:
         company_service = CompanyService(session)
+        legal_service = CompanyLegalEntityService(
+            session
+        )
         preference_service = CompanyPreferenceService(session)
 
         try:
@@ -50,6 +56,12 @@ async def render_company_card(
             )
             return
 
+        legal_entity = (
+            await legal_service.get_legal_entity(
+                company_id
+            )
+        )
+
         await preference_service.touch_company(
             account_id=account.id,
             company_id=company_id,
@@ -61,6 +73,37 @@ async def render_company_card(
 
     company = summary.company
     status = "активна" if company.is_active else "отключена"
+
+    legal_name = (
+        legal_entity.legal_name
+        if legal_entity is not None
+        else None
+    )
+    legal_status = (
+        legal_entity.legal_status
+        if legal_entity is not None
+        else None
+    )
+    inn = (
+        legal_entity.inn
+        if legal_entity is not None
+        else None
+    )
+    kpp = (
+        legal_entity.kpp
+        if legal_entity is not None
+        else None
+    )
+    ogrn = (
+        legal_entity.ogrn
+        if legal_entity is not None
+        else None
+    )
+    registry_sync_at = (
+        legal_entity.last_registry_sync_at
+        if legal_entity is not None
+        else None
+    )
 
     await UIContext.set_company_id(state, company.id)
     await UIContext.set_section(state, "company")
@@ -77,13 +120,16 @@ async def render_company_card(
         f"ID: {company.id}\n"
         f"Название: {company.name}\n"
         f"Статус: {status}\n"
-        f"Юр. статус: {company.legal_status or 'не заполнен'}\n"
-        f"ИНН: {company.inn or 'не заполнен'}\n"
-        f"КПП: {company.kpp or 'не заполнен'}\n"
-        f"ОГРН: {company.ogrn or 'не заполнен'}\n"
-        f"Телефон: {company.phone or 'не заполнен'}\n"
-        f"Синхронизация: "
-        f"{company.last_registry_sync_at or 'ещё не выполнялась'}\n\n"
+        f"Юридическое лицо: "
+        f"{legal_name or 'не связано'}\n"
+        f"Юр. статус: {legal_status or 'не заполнен'}\n"
+        f"ИНН: {inn or 'не заполнен'}\n"
+        f"КПП: {kpp or 'не заполнен'}\n"
+        f"ОГРН: {ogrn or 'не заполнен'}\n"
+        f"Телефон подразделения: "
+        f"{company.phone or 'не заполнен'}\n"
+        f"Синхронизация юрлица: "
+        f"{registry_sync_at or 'ещё не выполнялась'}\n\n"
         f"Координаторов: {summary.coordinators_count}\n"
         f"Сотрудников: {summary.employees_count}\n"
         f"Тикетов: {summary.tickets_count}",

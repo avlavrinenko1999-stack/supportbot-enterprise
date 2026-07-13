@@ -77,6 +77,8 @@ class MenuAction(StrEnum):
     COMPANY_SEARCH = "company_search"
     COMPANY_CATALOG = "company_catalog"
     COMPANY_CREATE = "company_create"
+    COMPANY_FILL_BY_INN = "company_fill_by_inn"
+    COMPANY_REGISTRY_UPDATE = "company_registry_update"
     COMPANY_FAVORITE_ADD = "company_favorite_add"
     COMPANY_FAVORITE_REMOVE = "company_favorite_remove"
     COMPANY_RENAME = "company_rename"
@@ -174,6 +176,8 @@ ACTION_BUTTONS = {
     MenuAction.COMPANY_SEARCH: "🔎 Найти компанию",
     MenuAction.COMPANY_CATALOG: "⬅️ Каталог компаний",
     MenuAction.COMPANY_CREATE: "➕ Создать компанию",
+    MenuAction.COMPANY_FILL_BY_INN: "🏢 Заполнить по ИНН",
+    MenuAction.COMPANY_REGISTRY_UPDATE: "🔄 Обновить из реестра",
     MenuAction.COMPANY_FAVORITE_ADD: "⭐ В избранное",
     MenuAction.COMPANY_FAVORITE_REMOVE: "⭐ Убрать из избранного",
     MenuAction.COMPANY_RENAME: "✏️ Переименовать",
