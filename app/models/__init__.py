@@ -12,6 +12,7 @@ from .holding_audit_event import HoldingAuditEvent
 from .internal_note import InternalNote
 from .invite import Invite
 from .organization import Organization
+from .organization_audit_event import OrganizationAuditEvent
 from .permission import PermissionDefinition
 from .role import Role
 from .role_assignment import RoleAssignment
@@ -24,6 +25,7 @@ __all__ = [
     "Base",
     "Company",
     "Organization",
+    "OrganizationAuditEvent",
     "Holding",
     "HoldingAuditEvent",
     "CompanyAuditEvent",

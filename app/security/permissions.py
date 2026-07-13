@@ -4,6 +4,10 @@ from app.models.enums import UserRole
 
 
 class Permission(StrEnum):
+    ORGANIZATION_VIEW = "organization.view"
+    ORGANIZATION_MANAGE = "organization.manage"
+    ORGANIZATION_AUDIT_VIEW = "organization.audit.view"
+
     HOLDING_VIEW = "holding.view"
     HOLDING_MANAGE = "holding.manage"
     HOLDING_AUDIT_VIEW = "holding.audit.view"

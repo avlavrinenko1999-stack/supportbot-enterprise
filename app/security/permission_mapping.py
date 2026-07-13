@@ -2,6 +2,22 @@ from app.security.permissions import Permission
 
 
 LEGACY_PERMISSION_CODES: dict[Permission, frozenset[str]] = {
+    Permission.ORGANIZATION_VIEW: frozenset(
+        {
+            "organization.read",
+        }
+    ),
+    Permission.ORGANIZATION_MANAGE: frozenset(
+        {
+            "organization.manage",
+        }
+    ),
+    Permission.ORGANIZATION_AUDIT_VIEW: frozenset(
+        {
+            "audit.read.organization",
+            "audit.read.platform",
+        }
+    ),
     Permission.HOLDING_VIEW: frozenset(
         {
             "holding.read",
