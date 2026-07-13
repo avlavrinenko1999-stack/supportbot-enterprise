@@ -68,6 +68,23 @@ class OrganizationType(str, Enum):
     PARTNER = "partner"
 
 
+class OrganizationalUnitType(str, Enum):
+    """Тип элемента рабочей организационной структуры."""
+
+    GENERAL = "general"
+    BUSINESS_UNIT = "business_unit"
+    DIVISION = "division"
+    DEPARTMENT = "department"
+    BRANCH = "branch"
+    OFFICE = "office"
+    PLANT = "plant"
+    WAREHOUSE = "warehouse"
+    SERVICE_CENTER = "service_center"
+    COST_CENTER = "cost_center"
+    REGION = "region"
+    PROJECT_OFFICE = "project_office"
+
+
 class ScopeType(str, Enum):
     """Область действия роли или разрешения."""
 
