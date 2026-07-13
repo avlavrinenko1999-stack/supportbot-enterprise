@@ -7,10 +7,6 @@ from app.integrations.dadata import (
     DadataClient,
     DadataCompany,
 )
-from app.models.company import Company
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.legal_entity import LegalEntity
 from app.services.base_service import BaseService
 from app.services.legal_entity_audit_service import (
@@ -37,9 +33,9 @@ class LegalEntityRegistryService(BaseService):
     """
     Синхронизация юридических лиц с внешним реестром.
 
-    Источником истины является LegalEntity. На переходном
-    этапе юридические поля копируются в связанные Company,
-    чтобы legacy UI продолжал работать.
+    Единственным источником юридических реквизитов
+    является LegalEntity. Рабочие подразделения и legacy
+    Company не изменяются при синхронизации реестра.
     """
 
     def __init__(
@@ -89,17 +85,6 @@ class LegalEntityRegistryService(BaseService):
                 synchronized_at=synchronized_at,
             )
 
-            companies = await self._legacy_companies(
-                legal_entity.id
-            )
-
-            for company in companies:
-                self.apply_legacy_company_data(
-                    company,
-                    data,
-                    synchronized_at=synchronized_at,
-                )
-
             after = legal_entity_snapshot(legal_entity)
             changes = diff_snapshots(before, after)
 
@@ -113,16 +98,10 @@ class LegalEntityRegistryService(BaseService):
                     "обновлена из DaData"
                 ),
                 details=(
-                    f"ИНН: {legal_entity.inn}. "
-                    f"Legacy-карточек обновлено: "
-                    f"{len(companies)}."
+                    f"ИНН: {legal_entity.inn}."
                 ),
                 payload={
                     "changes": changes,
-                    "legacy_company_ids": [
-                        company.id
-                        for company in companies
-                    ],
                 },
                 commit=False,
             )
@@ -159,26 +138,6 @@ class LegalEntityRegistryService(BaseService):
             )
         )
 
-    async def _legacy_companies(
-        self,
-        legal_entity_id: int,
-    ) -> list[Company]:
-        return list(
-            await self.session.scalars(
-                select(Company)
-                .join(
-                    LegacyCompanyMapping,
-                    LegacyCompanyMapping.company_id
-                    == Company.id,
-                )
-                .where(
-                    LegacyCompanyMapping.legal_entity_id
-                    == legal_entity_id
-                )
-                .order_by(Company.id)
-            )
-        )
-
     @staticmethod
     def apply_legal_data(
         legal_entity: LegalEntity,
@@ -205,35 +164,6 @@ class LegalEntityRegistryService(BaseService):
         legal_entity.last_registry_sync_at = (
             synchronized_at
         )
-
-    @staticmethod
-    def apply_legacy_company_data(
-        company: Company,
-        data: DadataCompany,
-        *,
-        synchronized_at: datetime,
-    ) -> None:
-        # Company.name теперь рассматривается как название
-        # рабочего подразделения и не перезаписывается.
-        company.legal_name = data.legal_name
-        company.inn = data.inn
-        company.kpp = data.kpp
-        company.ogrn = data.ogrn
-        company.legal_address = data.legal_address
-        company.legal_status = data.legal_status
-        company.legal_status_code = (
-            data.legal_status_code
-        )
-        company.registration_date = (
-            data.registration_date
-        )
-        company.liquidation_date = (
-            data.liquidation_date
-        )
-        company.last_registry_sync_at = (
-            synchronized_at
-        )
-
 
 def legal_entity_snapshot(
     legal_entity: LegalEntity,

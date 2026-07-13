@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
 from app.integrations.dadata.models import DadataCompany
-from app.models.company import Company
 from app.models.enums import OrganizationalUnitType
 from app.models.legal_entity import LegalEntity
 from app.services.legal_entity_registry_service import (
@@ -47,25 +46,6 @@ def test_apply_legal_data() -> None:
     assert entity.kpp == "773601001"
     assert entity.ogrn == "1027700132195"
     assert entity.last_registry_sync_at == synchronized_at
-
-
-def test_legacy_company_name_is_not_overwritten() -> None:
-    company = Company(
-        name="Московский филиал",
-        is_active=True,
-    )
-    synchronized_at = datetime.now(timezone.utc)
-
-    LegalEntityRegistryService.apply_legacy_company_data(
-        company,
-        dadata_company(),
-        synchronized_at=synchronized_at,
-    )
-
-    assert company.name == "Московский филиал"
-    assert company.legal_name is not None
-    assert company.inn == "7707083893"
-    assert company.last_registry_sync_at == synchronized_at
 
 
 def test_snapshot_diff_contains_changed_fields() -> None:
