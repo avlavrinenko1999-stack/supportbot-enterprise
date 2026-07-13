@@ -65,6 +65,31 @@ class UIContext:
         return int(value) if value is not None else None
 
     @staticmethod
+    async def set_business_unit_id(
+        state: FSMContext,
+        business_unit_id: int,
+    ) -> None:
+        await UIContext.set_value(
+            state,
+            "business_unit_id",
+            int(business_unit_id),
+        )
+
+    @staticmethod
+    async def get_business_unit_id(
+        state: FSMContext,
+    ) -> int | None:
+        value = await UIContext.get_value(
+            state,
+            "business_unit_id",
+        )
+        return (
+            int(value)
+            if value is not None
+            else None
+        )
+
+    @staticmethod
     async def set_company_id(state: FSMContext, company_id: int) -> None:
         await UIContext.set_value(state, "company_id", int(company_id))
 
