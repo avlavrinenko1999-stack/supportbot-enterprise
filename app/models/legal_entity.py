@@ -114,6 +114,12 @@ class LegalEntity(Base, IDMixin, TimestampMixin):
         overlaps="children,parent,tenant",
     )
 
+    audit_events = relationship(
+        "LegalEntityAuditEvent",
+        back_populates="legal_entity",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "tenant_id",

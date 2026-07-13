@@ -13,6 +13,7 @@ from .holding_audit_event import HoldingAuditEvent
 from .internal_note import InternalNote
 from .invite import Invite
 from .legal_entity import LegalEntity
+from .legal_entity_audit_event import LegalEntityAuditEvent
 from .legacy_company_mapping import LegacyCompanyMapping
 from .organization import Organization
 from .organizational_unit import OrganizationalUnit
@@ -31,6 +32,7 @@ __all__ = [
     "AccountOrganizationalUnitMembership",
     "OrganizationalUnit",
     "LegalEntity",
+    "LegalEntityAuditEvent",
     "LegacyCompanyMapping",
     "Tenant",
     "Company",
