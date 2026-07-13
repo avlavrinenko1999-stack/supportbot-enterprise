@@ -14,7 +14,7 @@ def test_ticket_has_business_unit_column() -> None:
     assert "business_unit_id" in table.columns
     assert (
         table.c.business_unit_id.nullable
-        is True
+        is False
     )
 
 
@@ -42,11 +42,11 @@ def test_organizational_unit_has_tickets_relationship() -> None:
     )
 
 
-def test_ticket_keeps_legacy_company_during_transition() -> None:
+def test_ticket_keeps_optional_legacy_company() -> None:
     table = inspect(Ticket).local_table
 
     assert "company_id" in table.columns
-    assert table.c.company_id.nullable is False
+    assert table.c.company_id.nullable is True
 
 
 def test_ticket_migration_backfills_from_mapping() -> None:
@@ -60,3 +60,16 @@ def test_ticket_migration_backfills_from_mapping() -> None:
     assert "ticket.company_id" in source
     assert "ticket.business_unit_id" in source
     assert "20260713_04" in source
+
+
+def test_ticket_primary_scope_migration_exists() -> None:
+    source = Path(
+        "migrations/versions/"
+        "20260713_06_make_ticket_business_unit_primary.py"
+    ).read_text(encoding="utf-8")
+
+    assert "20260713_05" in source
+    assert "business_unit_id" in source
+    assert "company_id" in source
+    assert "nullable=False" in source
+    assert "nullable=True" in source

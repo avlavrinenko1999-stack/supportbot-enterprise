@@ -255,18 +255,14 @@ class BusinessUnitService(BaseService):
             or 0
         )
 
-        tickets_count = 0
-
-        if legacy_company_id is not None:
-            tickets_count = (
-                await self.session.scalar(
-                    select(func.count(Ticket.id)).where(
-                        Ticket.company_id
-                        == legacy_company_id
-                    )
+        tickets_count = (
+            await self.session.scalar(
+                select(func.count(Ticket.id)).where(
+                    Ticket.business_unit_id == unit.id
                 )
-                or 0
             )
+            or 0
+        )
 
         return BusinessUnitSummary(
             unit=unit,

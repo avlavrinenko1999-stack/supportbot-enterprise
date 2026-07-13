@@ -13,17 +13,17 @@ class Ticket(Base, IDMixin, TimestampMixin):
 
     __tablename__ = "tickets"
 
-    company_id: Mapped[int] = mapped_column(
+    company_id: Mapped[int | None] = mapped_column(
         ForeignKey("companies.id"),
-        nullable=False
+        nullable=True,
     )
 
-    business_unit_id: Mapped[int | None] = mapped_column(
+    business_unit_id: Mapped[int] = mapped_column(
         ForeignKey(
             "organizational_units.id",
             ondelete="RESTRICT",
         ),
-        nullable=True,
+        nullable=False,
         index=True,
     )
 
