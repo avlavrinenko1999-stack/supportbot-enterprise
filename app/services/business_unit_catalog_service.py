@@ -21,11 +21,13 @@ from app.services.base_service import BaseService
 @dataclass(frozen=True, slots=True)
 class BusinessUnitCatalogItem:
     """
-    Представление рабочего подразделения для legacy UI.
+    Представление рабочего подразделения.
 
-    id временно содержит legacy company_id, потому что
-    карточка и callback-маршруты ещё используют Company.
-    unit_id является настоящим идентификатором новой модели.
+    id и unit_id содержат канонический идентификатор
+    OrganizationalUnit.
+
+    legacy_company_id временно используется только
+    адаптерами старых company:* маршрутов.
     """
 
     id: int
@@ -35,14 +37,18 @@ class BusinessUnitCatalogItem:
     legal_entity_id: int
     legal_name: str | None
     inn: str | None
+    legacy_company_id: int | None = None
 
 
 class BusinessUnitCatalogService(BaseService):
     """
     Формирует каталог из OrganizationalUnit.
 
-    Legacy Company используется только как технический
-    идентификатор переходного маршрута к старой карточке.
+    Основным идентификатором является
+    OrganizationalUnit.id.
+
+    Legacy Company используется только для поддержки
+    старых company:* маршрутов.
     """
 
     def __init__(self, session: AsyncSession):
@@ -118,8 +124,9 @@ class BusinessUnitCatalogService(BaseService):
 
             items.append(
                 BusinessUnitCatalogItem(
-                    id=company_id,
+                    id=unit.id,
                     unit_id=unit.id,
+                    legacy_company_id=company_id,
                     name=unit.name,
                     is_active=unit.is_active,
                     legal_entity_id=legal_entity.id,
@@ -187,8 +194,9 @@ class BusinessUnitCatalogService(BaseService):
 
         by_company_id = {
             company_id: BusinessUnitCatalogItem(
-                id=company_id,
+                id=unit.id,
                 unit_id=unit.id,
+                legacy_company_id=company_id,
                 name=unit.name,
                 is_active=unit.is_active,
                 legal_entity_id=legal_entity.id,
@@ -222,9 +230,12 @@ class BusinessUnitCatalogService(BaseService):
             matches_id = (
                 normalized_query.isdigit()
                 and (
-                    int(normalized_query) == item.id
-                    or int(normalized_query)
-                    == item.unit_id
+                    int(normalized_query) == item.unit_id
+                    or (
+                        item.legacy_company_id is not None
+                        and int(normalized_query)
+                        == item.legacy_company_id
+                    )
                 )
             )
 

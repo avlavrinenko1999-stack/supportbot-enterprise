@@ -1,13 +1,22 @@
+from typing import Protocol
+
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from app.keyboards.common import button, inline_menu
 from app.keyboards.reply import reply_keyboard
 from app.ui.reply import reply_keyboard_async
 from app.keyboards.reply_list import list_reply_menu
-from app.models.company import Company
 
 
-def companies_menu(companies: list[Company]) -> InlineKeyboardMarkup:
+class CompanyListItem(Protocol):
+    id: int
+    name: str
+    is_active: bool
+
+
+def companies_menu(
+    companies: list[CompanyListItem],
+) -> InlineKeyboardMarkup:
     company_buttons = []
 
     for company in companies:
@@ -31,7 +40,9 @@ def companies_menu(companies: list[Company]) -> InlineKeyboardMarkup:
     )
 
 
-def company_card_menu(company: Company) -> InlineKeyboardMarkup:
+def company_card_menu(
+    company: CompanyListItem,
+) -> InlineKeyboardMarkup:
     toggle_text = "⛔ Отключить" if company.is_active else "✅ Включить"
     toggle_action = "disable" if company.is_active else "enable"
 
@@ -67,7 +78,7 @@ def companies_catalog_reply_menu() -> ReplyKeyboardMarkup:
 
 
 async def companies_reply_menu(
-    companies: list[Company],
+    companies: list[CompanyListItem],
     *,
     page: int = 1,
     per_page: int = 8,

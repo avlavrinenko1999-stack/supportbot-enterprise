@@ -13,9 +13,10 @@ from app.keyboards.company import (
 from app.security.decorators import require_permission
 from app.security.permissions import Permission
 from app.security.scope_resolvers import (
+    business_unit_scope_from_callback,
+    business_unit_scope_from_reply,
+    business_unit_scope_from_state,
     company_scope_from_callback,
-    company_scope_from_reply,
-    company_scope_from_state,
 )
 from app.services.business_unit_card_service import (
     BusinessUnitCardService,
@@ -30,19 +31,12 @@ from app.ui.context import UIContext
 router = Router()
 
 
-async def render_company_card(
+async def render_business_unit_card(
     message: Message,
     state: FSMContext,
-    company_id: int,
+    business_unit_id: int,
 ) -> None:
-    """
-    Совместимый вход в карточку подразделения.
-
-    company_id приходит из старых кнопок и callback.
-    Содержимое карточки формируется только из новой
-    модели Business Unit.
-    """
-
+    """Показывает карточку по каноническому unit_id."""
     await state.set_state(None)
 
     account = await get_current_account_or_answer(
@@ -64,12 +58,9 @@ async def render_company_card(
         )
 
         try:
-            card = (
-                await card_service
-                .get_card_by_legacy_company_id(
-                    account,
-                    company_id,
-                )
+            card = await card_service.get_card(
+                account,
+                business_unit_id,
             )
         except ValueError as error:
             await MessageService.replace_service_message(
@@ -170,26 +161,86 @@ async def render_company_card(
     )
 
 
+async def render_company_card(
+    message: Message,
+    state: FSMContext,
+    company_id: int,
+) -> None:
+    """
+    Адаптер старого company_id для уже отправленных
+    кнопок и незавершённых пользовательских состояний.
+    """
+    async with AsyncSessionLocal() as session:
+        service = BusinessUnitCardService(session)
+        business_unit_id = (
+            await service
+            .get_unit_id_by_legacy_company_id(
+                company_id
+            )
+        )
+
+    if business_unit_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Для компании не найдено рабочее "
+            "подразделение.",
+            reply_markup=(
+                companies_catalog_reply_menu()
+            ),
+        )
+        return
+
+    await render_business_unit_card(
+        message,
+        state,
+        business_unit_id,
+    )
+
+
 @router.message(F.text.regexp(r"^[✅⛔] \d+\. "))
 @require_permission(
     Permission.COMPANY_VIEW,
-    scope_resolver=company_scope_from_reply,
+    scope_resolver=business_unit_scope_from_reply,
 )
-async def company_view_from_reply(
+async def business_unit_view_from_reply(
     message: Message,
     state: FSMContext,
 ) -> None:
-    company_id = int(
+    business_unit_id = int(
         (message.text or "")
         .split(".", 1)[0]
         .split()[-1]
     )
 
-    await render_company_card(
+    await render_business_unit_card(
         message,
         state,
-        company_id,
+        business_unit_id,
     )
+
+
+@router.callback_query(
+    F.data.startswith("business_unit:view:")
+)
+@require_permission(
+    Permission.COMPANY_VIEW,
+    scope_resolver=business_unit_scope_from_callback,
+)
+async def business_unit_view_from_inline(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    business_unit_id = int(
+        callback.data.split(":")[-1]
+    )
+
+    await render_business_unit_card(
+        callback.message,
+        state,
+        business_unit_id,
+    )
+    await callback.answer()
 
 
 @router.callback_query(
@@ -222,7 +273,7 @@ async def company_view_from_inline(
 )
 @require_permission(
     Permission.COMPANY_VIEW,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_add_to_favorites(
     message: Message,
@@ -241,10 +292,6 @@ async def company_add_to_favorites(
             state
         )
     )
-    company_id = await UIContext.get_company_id(
-        state
-    )
-
     if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
@@ -267,12 +314,11 @@ async def company_add_to_favorites(
             is_favorite=True,
         )
 
-    if company_id is not None:
-        await render_company_card(
-            message,
-            state,
-            company_id,
-        )
+    await render_business_unit_card(
+        message,
+        state,
+        business_unit_id,
+    )
 
 
 @router.message(
@@ -282,7 +328,7 @@ async def company_add_to_favorites(
 )
 @require_permission(
     Permission.COMPANY_VIEW,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_remove_from_favorites(
     message: Message,
@@ -301,10 +347,6 @@ async def company_remove_from_favorites(
             state
         )
     )
-    company_id = await UIContext.get_company_id(
-        state
-    )
-
     if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
@@ -327,9 +369,8 @@ async def company_remove_from_favorites(
             is_favorite=False,
         )
 
-    if company_id is not None:
-        await render_company_card(
-            message,
-            state,
-            company_id,
-        )
+    await render_business_unit_card(
+        message,
+        state,
+        business_unit_id,
+    )

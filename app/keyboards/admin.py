@@ -37,7 +37,10 @@ def invite_role_menu(language: str = "ru") -> ReplyKeyboardMarkup:
 def companies_admin_root_menu() -> InlineKeyboardMarkup:
     return inline_menu(
         buttons=[
-            button("🏢 Компании", "company:list"),
+            button(
+                "🏢 Компании",
+                "business_unit:list",
+            ),
             button("👤 Координаторы", "coordinator:list"),
             button("🔗 Создать приглашение", "invite:create"),
         ]

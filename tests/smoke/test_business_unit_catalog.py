@@ -21,6 +21,7 @@ def test_business_unit_catalog_item_contract() -> None:
         "legal_entity_id",
         "legal_name",
         "inn",
+        "legacy_company_id",
     }
 
 

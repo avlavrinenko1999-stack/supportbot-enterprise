@@ -417,6 +417,31 @@ async def companies_entry(
     await render_company_catalog(message, state)
 
 
+@router.callback_query(
+    F.data == "business_unit:list"
+)
+async def business_units_entry_from_inline(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    account = await get_current_account(
+        callback.from_user.id
+    )
+
+    if account is None:
+        await callback.answer(
+            "Недостаточно прав для этого действия.",
+            show_alert=True,
+        )
+        return
+
+    await render_company_catalog(
+        callback.message,
+        state,
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "company:list")
 async def companies_entry_from_inline(
     callback: CallbackQuery,
