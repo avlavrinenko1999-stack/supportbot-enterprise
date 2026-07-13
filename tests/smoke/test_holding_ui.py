@@ -21,7 +21,7 @@ def keyboard_texts(markup) -> list[str]:
 
 def test_holding_router_is_registered() -> None:
     assert router is not None
-    assert len(router.sub_routers) == 2
+    assert len(router.sub_routers) == 4
 
 
 def test_admin_menu_contains_holdings() -> None:

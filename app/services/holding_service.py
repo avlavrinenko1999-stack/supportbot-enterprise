@@ -27,8 +27,12 @@ class HoldingService(BaseService):
         *,
         include_companies: bool = False,
     ) -> Holding | None:
-        statement = select(Holding).where(
-            Holding.id == holding_id
+        statement = (
+            select(Holding)
+            .where(Holding.id == holding_id)
+            .options(
+                selectinload(Holding.organization)
+            )
         )
 
         if include_companies:
