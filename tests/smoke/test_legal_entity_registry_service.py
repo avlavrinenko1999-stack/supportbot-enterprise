@@ -5,6 +5,7 @@ from app.models.enums import OrganizationalUnitType
 from app.models.legal_entity import LegalEntity
 from app.services.legal_entity_registry_service import (
     LegalEntityRegistryService,
+    audit_json_value,
     diff_snapshots,
     legal_entity_snapshot,
 )
@@ -80,3 +81,52 @@ def test_unit_type_enum_is_unchanged() -> None:
         OrganizationalUnitType.GENERAL.value
         == "general"
     )
+
+
+
+def test_audit_json_value_serializes_datetime() -> None:
+    value = datetime(
+        2026,
+        7,
+        13,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    assert (
+        audit_json_value(value)
+        == "2026-07-13T12:00:00+00:00"
+    )
+
+
+def test_diff_snapshots_is_json_serializable() -> None:
+    import json
+
+    before = {
+        "last_registry_sync_at": datetime(
+            2026,
+            7,
+            12,
+            23,
+            0,
+            tzinfo=timezone.utc,
+        )
+    }
+    after = {
+        "last_registry_sync_at": datetime(
+            2026,
+            7,
+            13,
+            12,
+            0,
+            tzinfo=timezone.utc,
+        )
+    }
+
+    changes = diff_snapshots(before, after)
+
+    encoded = json.dumps(changes)
+
+    assert "2026-07-12T23:00:00+00:00" in encoded
+    assert "2026-07-13T12:00:00+00:00" in encoded

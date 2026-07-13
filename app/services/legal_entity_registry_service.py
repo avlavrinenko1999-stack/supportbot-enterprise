@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -174,14 +174,35 @@ def legal_entity_snapshot(
     }
 
 
+def audit_json_value(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        return {
+            str(key): audit_json_value(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, (list, tuple, set)):
+        return [
+            audit_json_value(item)
+            for item in value
+        ]
+
+    return value
+
+
 def diff_snapshots(
     before: dict,
     after: dict,
 ) -> dict:
     return {
         key: {
-            "old": old_value,
-            "new": after.get(key),
+            "old": audit_json_value(old_value),
+            "new": audit_json_value(
+                after.get(key)
+            ),
         }
         for key, old_value in before.items()
         if old_value != after.get(key)
