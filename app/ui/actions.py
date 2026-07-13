@@ -10,6 +10,10 @@ class MenuAction(StrEnum):
     ORGANIZATIONS = "organizations"
     ORGANIZATION_SELECT = "organization_select"
     ORGANIZATION_CATALOG = "organization_catalog"
+    ORGANIZATION_SEARCH = "organization_search"
+    ORGANIZATION_RENAME = "organization_rename"
+    ORGANIZATION_ARCHIVE = "organization_archive"
+    ORGANIZATION_RESTORE = "organization_restore"
 
     HOLDINGS = "holdings"
     HOLDINGS_ALL = "holdings_all"
@@ -104,6 +108,10 @@ class MenuAction(StrEnum):
 ACTION_BUTTONS = {
     MenuAction.ORGANIZATIONS: "Организации",
     MenuAction.ORGANIZATION_CATALOG: "⬅️ Каталог организаций",
+    MenuAction.ORGANIZATION_SEARCH: "🔎 Найти организацию",
+    MenuAction.ORGANIZATION_RENAME: "✏️ Переименовать организацию",
+    MenuAction.ORGANIZATION_ARCHIVE: "📦 Архивировать организацию",
+    MenuAction.ORGANIZATION_RESTORE: "✅ Восстановить организацию",
 
     MenuAction.HOLDINGS: "Холдинги",
     MenuAction.HOLDINGS_ALL: "📋 Все холдинги",

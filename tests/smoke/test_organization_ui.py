@@ -23,7 +23,7 @@ def keyboard_texts(markup) -> list[str]:
 
 def test_organization_router_is_registered() -> None:
     assert router is not None
-    assert len(router.sub_routers) == 2
+    assert len(router.sub_routers) == 4
 
 
 def test_admin_menu_contains_organizations() -> None:
@@ -95,6 +95,8 @@ def test_organization_card_has_catalog_back() -> None:
     assert (
         "⬅️ Каталог организаций"
         in keyboard_texts(
-            organization_card_reply_menu()
+            organization_card_reply_menu(
+                is_active=True
+            )
         )
     )

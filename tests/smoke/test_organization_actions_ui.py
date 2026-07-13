@@ -1,0 +1,95 @@
+from app.handlers.admin.organization import router
+from app.handlers.admin.organization.state import (
+    OrganizationState,
+)
+from app.keyboards.organization import (
+    organization_card_reply_menu,
+)
+from app.ui.actions import MenuAction, resolve_menu_action
+
+
+def keyboard_texts(markup) -> list[str]:
+    return [
+        button.text
+        for row in markup.keyboard
+        for button in row
+    ]
+
+
+def test_organization_router_contains_action_routers() -> None:
+    assert len(router.sub_routers) == 4
+
+
+def test_organization_search_action() -> None:
+    assert (
+        resolve_menu_action(
+            "🔎 Найти организацию"
+        )
+        == MenuAction.ORGANIZATION_SEARCH
+    )
+
+
+def test_organization_rename_action() -> None:
+    assert (
+        resolve_menu_action(
+            "✏️ Переименовать организацию"
+        )
+        == MenuAction.ORGANIZATION_RENAME
+    )
+
+
+def test_organization_archive_action() -> None:
+    assert (
+        resolve_menu_action(
+            "📦 Архивировать организацию"
+        )
+        == MenuAction.ORGANIZATION_ARCHIVE
+    )
+
+
+def test_organization_restore_action() -> None:
+    assert (
+        resolve_menu_action(
+            "✅ Восстановить организацию"
+        )
+        == MenuAction.ORGANIZATION_RESTORE
+    )
+
+
+def test_active_card_contains_archive() -> None:
+    texts = keyboard_texts(
+        organization_card_reply_menu(
+            is_active=True
+        )
+    )
+
+    assert (
+        "📦 Архивировать организацию"
+        in texts
+    )
+    assert (
+        "✅ Восстановить организацию"
+        not in texts
+    )
+
+
+def test_archived_card_contains_restore() -> None:
+    texts = keyboard_texts(
+        organization_card_reply_menu(
+            is_active=False
+        )
+    )
+
+    assert (
+        "✅ Восстановить организацию"
+        in texts
+    )
+    assert (
+        "📦 Архивировать организацию"
+        not in texts
+    )
+
+
+def test_fsm_contains_only_text_input_states() -> None:
+    assert OrganizationState.search_query is not None
+    assert OrganizationState.rename_name is not None

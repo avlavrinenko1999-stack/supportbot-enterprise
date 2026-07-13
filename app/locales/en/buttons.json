@@ -77,5 +77,9 @@
   "👤 Администраторы холдинга": "👤 Holding administrators",
   "📜 История холдинга": "📜 Holding history",
   "Организации": "Organizations",
-  "⬅️ Каталог организаций": "⬅️ Organization catalog"
+  "⬅️ Каталог организаций": "⬅️ Organization catalog",
+  "🔎 Найти организацию": "🔎 Find organization",
+  "✏️ Переименовать организацию": "✏️ Rename organization",
+  "📦 Архивировать организацию": "📦 Archive organization",
+  "✅ Восстановить организацию": "✅ Restore organization"
 }

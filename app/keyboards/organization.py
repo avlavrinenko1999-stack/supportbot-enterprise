@@ -41,7 +41,12 @@ def organizations_catalog_reply_menu(
         for organization in organizations
     ]
 
-    buttons.append("⬅️ Назад")
+    buttons.extend(
+        [
+            "🔎 Найти организацию",
+            "⬅️ Назад",
+        ]
+    )
 
     return reply_keyboard(
         buttons,
@@ -51,9 +56,20 @@ def organizations_catalog_reply_menu(
     )
 
 
-def organization_card_reply_menu() -> ReplyKeyboardMarkup:
+def organization_card_reply_menu(
+    *,
+    is_active: bool,
+) -> ReplyKeyboardMarkup:
+    lifecycle_action = (
+        "📦 Архивировать организацию"
+        if is_active
+        else "✅ Восстановить организацию"
+    )
+
     return reply_keyboard(
         [
+            "✏️ Переименовать организацию",
+            lifecycle_action,
             "⬅️ Каталог организаций",
         ],
         input_field_placeholder=(
