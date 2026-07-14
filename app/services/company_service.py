@@ -6,8 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.dadata import DadataCompany
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.company import Company
 from app.models.enums import UserRole
+from app.models.legacy_company_mapping import (
+    LegacyCompanyMapping,
+)
 from app.models.ticket import Ticket
 from app.services.base_service import BaseService
 
@@ -156,26 +162,73 @@ class CompanyService(BaseService):
         if company is None:
             raise ValueError("Компания не найдена.")
 
-        coordinators_count = await self.session.scalar(
-            select(func.count(Account.id)).where(
-                Account.company_id == company_id,
-                Account.role == UserRole.COORDINATOR,
+        business_unit_id = await self.session.scalar(
+            select(
+                LegacyCompanyMapping.organizational_unit_id
+            ).where(
+                LegacyCompanyMapping.company_id == company_id
             )
         )
 
-        employees_count = await self.session.scalar(
-            select(func.count(Account.id)).where(
-                Account.company_id == company_id,
-                Account.role.in_(
-                    [
-                        UserRole.COORDINATOR,
-                        UserRole.OPERATOR,
-                        UserRole.OBSERVER,
-                        UserRole.USER,
-                    ]
-                ),
+        coordinators_count = 0
+
+        if business_unit_id is not None:
+            coordinators_count = (
+                await self.session.scalar(
+                    select(func.count(Account.id))
+                    .select_from(Account)
+                    .join(
+                        AccountOrganizationalUnitMembership,
+                        AccountOrganizationalUnitMembership
+                        .account_id
+                        == Account.id,
+                    )
+                    .where(
+                        AccountOrganizationalUnitMembership
+                        .organizational_unit_id
+                        == business_unit_id,
+                        AccountOrganizationalUnitMembership
+                        .is_active
+                        .is_(True),
+                        Account.role
+                        == UserRole.COORDINATOR,
+                    )
+                )
+                or 0
             )
-        )
+
+        employees_count = 0
+
+        if business_unit_id is not None:
+            employees_count = (
+                await self.session.scalar(
+                    select(func.count(Account.id))
+                    .select_from(Account)
+                    .join(
+                        AccountOrganizationalUnitMembership,
+                        AccountOrganizationalUnitMembership
+                        .account_id
+                        == Account.id,
+                    )
+                    .where(
+                        AccountOrganizationalUnitMembership
+                        .organizational_unit_id
+                        == business_unit_id,
+                        AccountOrganizationalUnitMembership
+                        .is_active
+                        .is_(True),
+                        Account.role.in_(
+                            [
+                                UserRole.COORDINATOR,
+                                UserRole.OPERATOR,
+                                UserRole.OBSERVER,
+                                UserRole.USER,
+                            ]
+                        ),
+                    )
+                )
+                or 0
+            )
 
         tickets_count = await self.session.scalar(
             select(func.count(Ticket.id)).where(Ticket.company_id == company_id)
