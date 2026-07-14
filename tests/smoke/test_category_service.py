@@ -23,7 +23,8 @@ def make_session() -> MagicMock:
 def make_category(
     *,
     category_id: int = 10,
-    company_id: int = 1,
+    company_id: int | None = 1,
+    business_unit_id: int = 101,
     parent_id: int | None = None,
     name: str = "Поддержка",
     is_active: bool = True,
@@ -32,6 +33,7 @@ def make_category(
     return Category(
         id=category_id,
         company_id=company_id,
+        business_unit_id=business_unit_id,
         parent_id=parent_id,
         name=name,
         is_active=is_active,
@@ -63,8 +65,9 @@ def test_category_service_contract() -> None:
 async def test_create_category() -> None:
     session = make_session()
     session.scalar.side_effect = [
+        101,
         SimpleNamespace(
-            id=1,
+            id=101,
             is_active=True,
         ),
         None,
@@ -93,10 +96,13 @@ async def test_create_category() -> None:
 @pytest.mark.asyncio
 async def test_create_category_rejects_short_name() -> None:
     session = make_session()
-    session.scalar.return_value = SimpleNamespace(
-        id=1,
-        is_active=True,
-    )
+    session.scalar.side_effect = [
+        101,
+        SimpleNamespace(
+            id=101,
+            is_active=True,
+        ),
+    ]
 
     service = CategoryService(session)
 
@@ -122,7 +128,7 @@ async def test_create_category_requires_active_company() -> None:
 
     with pytest.raises(
         ValueError,
-        match="Компания не найдена или отключена",
+        match="рабочее подразделение",
     ):
         await service.create_category(
             company_id=999,
@@ -138,11 +144,13 @@ async def test_create_child_rejects_other_company() -> None:
     parent = make_category(
         category_id=5,
         company_id=2,
+        business_unit_id=202,
     )
 
     session.scalar.side_effect = [
+        101,
         SimpleNamespace(
-            id=1,
+            id=101,
             is_active=True,
         ),
         parent,
@@ -153,8 +161,8 @@ async def test_create_child_rejects_other_company() -> None:
     with pytest.raises(
         ValueError,
         match=(
-            "Родительская категория "
-            "принадлежит другой компании"
+            "Родительская категория принадлежит "
+            "другому рабочему подразделению"
         ),
     ):
         await service.create_category(
@@ -177,8 +185,9 @@ async def test_create_child_rejects_archived_parent() -> None:
     )
 
     session.scalar.side_effect = [
+        101,
         SimpleNamespace(
-            id=1,
+            id=101,
             is_active=True,
         ),
         parent,
@@ -209,8 +218,9 @@ async def test_create_category_rejects_duplicate() -> None:
     )
 
     session.scalar.side_effect = [
+        101,
         SimpleNamespace(
-            id=1,
+            id=101,
             is_active=True,
         ),
         existing,

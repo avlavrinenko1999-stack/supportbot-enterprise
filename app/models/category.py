@@ -13,9 +13,22 @@ class Category(Base, IDMixin, TimestampMixin):
 
     __tablename__ = "categories"
 
-    company_id: Mapped[int] = mapped_column(
-        ForeignKey("companies.id", ondelete="CASCADE"),
-        nullable=False
+    company_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "companies.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    business_unit_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "organizational_units.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
     )
 
     parent_id: Mapped[int | None] = mapped_column(
@@ -42,7 +55,12 @@ class Category(Base, IDMixin, TimestampMixin):
 
     company = relationship(
         "Company",
-        back_populates="categories"
+        back_populates="categories",
+    )
+
+    business_unit = relationship(
+        "OrganizationalUnit",
+        back_populates="categories",
     )
 
     parent = relationship(
@@ -70,6 +88,7 @@ class Category(Base, IDMixin, TimestampMixin):
 
     repr_cols = (
         "id",
+        "business_unit_id",
         "name",
         "is_active",
         "is_archived",

@@ -94,7 +94,7 @@ def test_current_category_fsm_uses_company_scope() -> None:
     assert "CategoryService" in source
 
 
-def test_current_category_model_uses_company_scope() -> None:
+def test_category_model_uses_business_unit_scope() -> None:
     model_source = Path(
         "app/models/category.py"
     ).read_text(encoding="utf-8")
@@ -103,11 +103,20 @@ def test_current_category_model_uses_company_scope() -> None:
         "app/services/category_service.py"
     ).read_text(encoding="utf-8")
 
+    assert "business_unit_id" in model_source
     assert "company_id" in model_source
-    assert "Category.company_id" in service_source
+
+    assert (
+        "Category.business_unit_id"
+        in service_source
+    )
+    assert (
+        "LegacyCompanyMapping"
+        in service_source
+    )
     assert (
         "from app.models.company import Company"
-        in service_source
+        not in service_source
     )
 
 

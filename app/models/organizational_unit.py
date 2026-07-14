@@ -132,6 +132,12 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         back_populates="business_unit",
     )
 
+    categories = relationship(
+        "Category",
+        back_populates="business_unit",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "tenant_id",
