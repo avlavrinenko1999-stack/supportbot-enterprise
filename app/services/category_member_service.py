@@ -3,9 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.category import Category
 from app.models.category_member import CategoryMember
 from app.models.enums import UserRole
+from app.models.legacy_company_mapping import (
+    LegacyCompanyMapping,
+)
 
 
 class CategoryMemberService:
@@ -36,11 +42,34 @@ class CategoryMemberService:
         company_id: int,
         role: UserRole,
     ) -> list[Account]:
+        """
+        Compatibility API для старого Company UI.
+
+        Каноническая область сотрудников определяется
+        через Business Unit membership.
+        """
+        business_unit_id = await self._get_business_unit_id(
+            company_id
+        )
+
+        if business_unit_id is None:
+            return []
+
         return list(
             await self.session.scalars(
                 select(Account)
+                .join(
+                    AccountOrganizationalUnitMembership,
+                    AccountOrganizationalUnitMembership.account_id
+                    == Account.id,
+                )
                 .where(
-                    Account.company_id == company_id,
+                    AccountOrganizationalUnitMembership
+                    .organizational_unit_id
+                    == business_unit_id,
+                    AccountOrganizationalUnitMembership
+                    .is_active
+                    .is_(True),
                     Account.role == role,
                     Account.is_active.is_(True),
                     Account.registered.is_(True),
@@ -64,9 +93,20 @@ class CategoryMemberService:
             raise ValueError("Категория не найдена.")
 
         account = await self.session.scalar(
-            select(Account).where(
+            select(Account)
+            .join(
+                AccountOrganizationalUnitMembership,
+                AccountOrganizationalUnitMembership.account_id
+                == Account.id,
+            )
+            .where(
                 Account.id == account_id,
-                Account.company_id == category.company_id,
+                AccountOrganizationalUnitMembership
+                .organizational_unit_id
+                == category.business_unit_id,
+                AccountOrganizationalUnitMembership
+                .is_active
+                .is_(True),
                 Account.role == role,
                 Account.is_active.is_(True),
                 Account.registered.is_(True),
@@ -98,6 +138,18 @@ class CategoryMemberService:
         await self.session.refresh(member)
 
         return member
+
+    async def _get_business_unit_id(
+        self,
+        company_id: int,
+    ) -> int | None:
+        return await self.session.scalar(
+            select(
+                LegacyCompanyMapping.organizational_unit_id
+            ).where(
+                LegacyCompanyMapping.company_id == company_id
+            )
+        )
 
     async def remove_member(self, member_id: int) -> CategoryMember:
         member = await self.session.scalar(
