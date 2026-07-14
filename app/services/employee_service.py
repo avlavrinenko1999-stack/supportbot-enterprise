@@ -167,10 +167,8 @@ class EmployeeService(BaseService):
         """
         Compatibility API для старого Company UI.
 
-        Каноническое перемещение выполняется через
-        primary AccountOrganizationalUnitMembership.
-        Account.company_id синхронизируется только как
-        временное legacy-поле.
+        Каноническое перемещение выполняется только
+        через primary AccountOrganizationalUnitMembership.
         """
         business_unit_id: int | None = None
 
@@ -251,7 +249,6 @@ class EmployeeService(BaseService):
                 target_membership.is_active = True
                 target_membership.is_primary = True
 
-        account.company_id = company_id
 
         await self.session.commit()
         await self.session.refresh(account)

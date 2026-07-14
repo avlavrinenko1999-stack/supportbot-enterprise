@@ -75,11 +75,9 @@ def test_employee_count_uses_membership() -> None:
     )
     assert "Account.company_id" not in block
 
-
-def test_employee_legacy_write_is_isolated() -> None:
+def test_employee_service_has_no_account_company_writes() -> None:
     source = SERVICE_PATH.read_text(encoding="utf-8")
 
-    assert source.count(
-        "account.company_id = company_id"
-    ) == 1
+    assert "account.company_id =" not in source
+    assert "Account.company_id =" not in source
     assert "async def move_to_company(" in source
