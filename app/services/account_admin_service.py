@@ -5,9 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
+from app.models.legacy_company_mapping import (
+    LegacyCompanyMapping,
+)
 from app.services.invite_service import CreatedInvite, InviteService
 
 
@@ -34,11 +40,38 @@ class AccountAdminService:
         company_id: int,
         role: UserRole,
     ) -> list[Account]:
+        """
+        Compatibility API для Company UI.
+
+        Каноническая принадлежность сотрудника определяется
+        через AccountOrganizationalUnitMembership.
+        """
+        business_unit_id = await self.session.scalar(
+            select(
+                LegacyCompanyMapping.organizational_unit_id
+            ).where(
+                LegacyCompanyMapping.company_id == company_id
+            )
+        )
+
+        if business_unit_id is None:
+            return []
+
         return list(
             await self.session.scalars(
                 select(Account)
+                .join(
+                    AccountOrganizationalUnitMembership,
+                    AccountOrganizationalUnitMembership.account_id
+                    == Account.id,
+                )
                 .where(
-                    Account.company_id == company_id,
+                    AccountOrganizationalUnitMembership
+                    .organizational_unit_id
+                    == business_unit_id,
+                    AccountOrganizationalUnitMembership
+                    .is_active
+                    .is_(True),
                     Account.role == role,
                 )
                 .order_by(Account.id)
