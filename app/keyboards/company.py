@@ -52,7 +52,10 @@ def company_card_menu(
             button(toggle_text, f"company:{toggle_action}:{company.id}"),
             button("👤 Координаторы компании", f"company:coordinators:{company.id}"),
             button("👥 Сотрудники компании", f"company:employees:{company.id}"),
-            button("📂 Категории компании", f"company:categories:{company.id}"),
+            button(
+            "📂 Категории подразделения",
+            f"business_unit:categories:{company.id}",
+        ),
             button("🎫 Тикеты компании", f"company:tickets:{company.id}"),
             button("⚙️ Настройки компании", f"company:settings:{company.id}"),
         ],

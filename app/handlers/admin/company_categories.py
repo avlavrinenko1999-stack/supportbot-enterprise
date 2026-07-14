@@ -3,7 +3,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
+from sqlalchemy import select
+
 from app.database.db import AsyncSessionLocal
+from app.models.legacy_company_mapping import (
+    LegacyCompanyMapping,
+)
+from app.models.organizational_unit import (
+    OrganizationalUnit,
+)
 from app.handlers.admin.common import edit_callback_message, get_current_admin, answer_admin_panel
 from app.keyboards.company_categories import (
     category_delete_confirm_menu,
@@ -36,47 +44,166 @@ async def load_active_categories(company_id: int):
         return await category_service.list_active_categories(company_id)
 
 
-
-@router.message(MenuActionFilter(MenuAction.COMPANY_CATEGORIES))
-async def company_categories_from_reply(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    company_id = await UIContext.get_company_id(state)
-    company_id = company_id or data.get("selected_company_id") or data.get("category_company_id")
-
-    if company_id is None:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Сначала выберите компанию.",
-        )
-        return
-
-    company_id = int(company_id)
-
+async def render_business_unit_categories(
+    message: Message,
+    state: FSMContext,
+    business_unit_id: int,
+    *,
+    send_new_message: bool = False,
+) -> None:
+    """
+    Показывает категории по каноническому
+    OrganizationalUnit.id.
+    """
     async with AsyncSessionLocal() as session:
-        company_service = CompanyService(session)
+        unit = await session.scalar(
+            select(OrganizationalUnit).where(
+                OrganizationalUnit.id
+                == business_unit_id
+            )
+        )
+
+        if unit is None:
+            if send_new_message:
+                await MessageService.send_service_message(
+                    message,
+                    state,
+                    "Рабочее подразделение не найдено.",
+                )
+            else:
+                await MessageService.replace_service_message(
+                    message,
+                    state,
+                    "Рабочее подразделение не найдено.",
+                )
+            return
+
         category_service = CategoryService(session)
 
-        company = await company_service.get_company(company_id)
-        categories = await category_service.list_active_categories(company_id)
+        categories = (
+            await category_service
+            .list_active_for_business_unit(
+                business_unit_id
+            )
+        )
 
-    if company is None:
+        legacy_company_id = await session.scalar(
+            select(
+                LegacyCompanyMapping.company_id
+            ).where(
+                LegacyCompanyMapping
+                .organizational_unit_id
+                == business_unit_id
+            )
+        )
+
+    await PageService.set_page(
+        state,
+        "business_unit_categories",
+        1,
+    )
+
+    state_data = {
+        "category_business_unit_id":
+            business_unit_id,
+    }
+
+    if legacy_company_id is not None:
+        state_data["category_company_id"] = (
+            legacy_company_id
+        )
+
+    await state.update_data(**state_data)
+
+    await UIContext.set_business_unit_id(
+        state,
+        business_unit_id,
+    )
+
+    text = (
+        "Категории подразделения\n\n"
+        f"Подразделение: {unit.name}"
+    )
+
+    reply_markup = company_categories_reply_menu(
+        categories,
+        page=1,
+    )
+
+    if send_new_message:
+        await MessageService.send_service_message(
+            message,
+            state,
+            text,
+            reply_markup=reply_markup,
+        )
+    else:
         await MessageService.replace_service_message(
             message,
             state,
-            "Компания не найдена.",
+            text,
+            reply_markup=reply_markup,
+        )
+
+
+@router.message(
+    MenuActionFilter(
+        MenuAction.COMPANY_CATEGORIES
+    )
+)
+async def business_unit_categories_from_reply(
+    message: Message,
+    state: FSMContext,
+) -> None:
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
+
+    if business_unit_id is None:
+        data = await state.get_data()
+        business_unit_id = data.get(
+            "category_business_unit_id"
+        )
+
+    if business_unit_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите рабочее "
+            "подразделение.",
         )
         return
 
-    await PageService.set_page(state, "company_categories", 1)
-    await state.update_data(category_company_id=company_id)
-
-    await MessageService.replace_service_message(
+    await render_business_unit_categories(
         message,
         state,
-        f"Категории компании\n\nКомпания: {company.name}",
-        reply_markup=company_categories_reply_menu(categories, page=1),
+        int(business_unit_id),
     )
+
+
+@router.callback_query(
+    F.data.startswith(
+        "business_unit:categories:"
+    )
+)
+async def business_unit_categories(
+    callback: CallbackQuery,
+    state: FSMContext,
+) -> None:
+    business_unit_id = int(
+        callback.data.rsplit(":", 1)[-1]
+    )
+
+    await render_business_unit_categories(
+        callback.message,
+        state,
+        business_unit_id,
+        send_new_message=True,
+    )
+
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("company:categories:"))
