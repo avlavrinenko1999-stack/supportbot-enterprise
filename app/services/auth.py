@@ -45,7 +45,6 @@ async def register_by_invite_token(
         telegram_id=telegram_id,
         full_name=invite.full_name,
         role=role,
-        company_id=invite.company_id,
     )
 
     await session.flush()

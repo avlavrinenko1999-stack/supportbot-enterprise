@@ -225,13 +225,12 @@ class InviteService:
 
         account = Account(
             telegram_id=telegram_id,
-            full_name=invite.full_name or telegram_full_name,
+            full_name=(invite.full_name or telegram_full_name),
             role=UserRole(invite.role.value),
-            company_id=invite.company_id,
             is_active=True,
             registered=True,
             last_login=now,
-            language=LanguageService.telegram_language(telegram_language_code),
+            language=(LanguageService.telegram_language(telegram_language_code)),
         )
 
         self.session.add(account)

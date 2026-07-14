@@ -45,12 +45,15 @@ def test_legacy_auth_registration_creates_membership() -> None:
     assert "invite.organizational_unit_id" in source
 
 
-def test_company_compatibility_remains() -> None:
+def test_registration_does_not_read_invite_company() -> None:
     invite_source = INVITE_SERVICE_PATH.read_text(encoding="utf-8")
     auth_source = AUTH_SERVICE_PATH.read_text(encoding="utf-8")
 
-    assert "company_id=invite.company_id" in invite_source
-    assert "company_id=invite.company_id" in auth_source
+    register_start = invite_source.index("async def register_by_token(")
+    register_block = invite_source[register_start:]
+
+    assert "invite.company_id" not in register_block
+    assert "invite.company_id" not in auth_source
 
 
 def test_membership_is_in_same_transaction() -> None:

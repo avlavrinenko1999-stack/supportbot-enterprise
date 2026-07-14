@@ -19,13 +19,11 @@ async def create_account(
     telegram_id: int,
     full_name: str,
     role,
-    company_id: int | None,
 ) -> Account:
     account = Account(
         telegram_id=telegram_id,
         full_name=full_name,
         role=role,
-        company_id=company_id,
         registered=True,
         is_active=True,
     )
