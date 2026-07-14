@@ -159,17 +159,103 @@ class EmployeeService(BaseService):
         await self.session.refresh(account)
         return account
 
-    async def move_to_company(self, account: Account, company_id: int | None) -> Account:
+    async def move_to_company(
+        self,
+        account: Account,
+        company_id: int | None,
+    ) -> Account:
+        """
+        Compatibility API для старого Company UI.
+
+        Каноническое перемещение выполняется через
+        primary AccountOrganizationalUnitMembership.
+        Account.company_id синхронизируется только как
+        временное legacy-поле.
+        """
+        business_unit_id: int | None = None
+
         if company_id is not None:
             company = await self.session.scalar(
-                select(Company).where(Company.id == company_id)
+                select(Company).where(
+                    Company.id == company_id
+                )
             )
+
             if company is None:
                 raise ValueError("Компания не найдена.")
 
+            business_unit_id = (
+                await self._get_business_unit_id(
+                    company_id
+                )
+            )
+
+            if business_unit_id is None:
+                raise ValueError(
+                    "Для компании не найдено рабочее "
+                    "подразделение."
+                )
+
+        memberships = list(
+            await self.session.scalars(
+                select(
+                    AccountOrganizationalUnitMembership
+                )
+                .where(
+                    AccountOrganizationalUnitMembership
+                    .account_id
+                    == account.id
+                )
+                .with_for_update()
+            )
+        )
+
+        target_membership = None
+
+        if business_unit_id is not None:
+            target_membership = next(
+                (
+                    membership
+                    for membership in memberships
+                    if membership.organizational_unit_id
+                    == business_unit_id
+                ),
+                None,
+            )
+
+        for membership in memberships:
+            if (
+                membership.is_primary
+                and membership.is_active
+                and membership is not target_membership
+            ):
+                membership.is_primary = False
+                membership.is_active = False
+
+        await self.session.flush()
+
+        if business_unit_id is not None:
+            if target_membership is None:
+                target_membership = (
+                    AccountOrganizationalUnitMembership(
+                        account_id=account.id,
+                        organizational_unit_id=(
+                            business_unit_id
+                        ),
+                        is_primary=True,
+                        is_active=True,
+                    )
+                )
+                self.session.add(target_membership)
+            else:
+                target_membership.is_active = True
+                target_membership.is_primary = True
+
         account.company_id = company_id
+
         await self.session.commit()
         await self.session.refresh(account)
+
         return account
 
     async def count_by_company(
