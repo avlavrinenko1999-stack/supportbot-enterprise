@@ -198,11 +198,48 @@ class AccountAdminService:
         account: Account,
         bot_username: str,
     ) -> AccountInviteResult:
-        if account.company_id is None:
-            raise ValueError("Аккаунт не привязан к компании.")
+        """
+        Повторно выдаёт приглашение сотруднику через его
+        каноническое основное membership.
+
+        Company используется только как compatibility
+        контракт старого UI.
+        """
+        business_unit_id = await self.session.scalar(
+            select(
+                AccountOrganizationalUnitMembership
+                .organizational_unit_id
+            ).where(
+                AccountOrganizationalUnitMembership.account_id
+                == account.id,
+                AccountOrganizationalUnitMembership.is_primary
+                .is_(True),
+                AccountOrganizationalUnitMembership.is_active
+                .is_(True),
+            )
+        )
+
+        if business_unit_id is None:
+            raise ValueError(
+                "Для аккаунта не найдено активное основное "
+                "рабочее подразделение."
+            )
+
+        company_id = await self.session.scalar(
+            select(LegacyCompanyMapping.company_id).where(
+                LegacyCompanyMapping.organizational_unit_id
+                == business_unit_id
+            )
+        )
+
+        if company_id is None:
+            raise ValueError(
+                "Для рабочего подразделения не найдена "
+                "совместимая компания."
+            )
 
         pending_invite = await self.get_pending_invite(
-            company_id=account.company_id,
+            company_id=company_id,
             full_name=account.full_name,
             role=account.role,
         )
@@ -214,7 +251,7 @@ class AccountAdminService:
 
         return await self.create_invite(
             admin=admin,
-            company_id=account.company_id,
+            company_id=company_id,
             full_name=account.full_name,
             role=account.role,
             bot_username=bot_username,
