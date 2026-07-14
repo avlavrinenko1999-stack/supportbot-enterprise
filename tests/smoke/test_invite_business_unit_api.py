@@ -42,10 +42,10 @@ def test_canonical_api_uses_private_record_factory() -> None:
     )
     block = source[start:end]
 
-    assert "LegacyCompanyMapping" in block
-    assert "legacy_company_id" in block
     assert "self._private_create_invite_record(" in block
-    assert "company_id=legacy_company_id" in block
+    assert "company_id=None" in block
+    assert "LegacyCompanyMapping" not in block
+    assert "legacy_company_id" not in block
     assert "self.create_invite(" not in block
 
 
@@ -75,4 +75,14 @@ def test_legacy_invite_api_remains_available() -> None:
 
     source = INVITE_SERVICE.read_text(encoding="utf-8")
 
-    assert "company_id: int" in source
+    start = source.index("async def create_invite(")
+    end = source.index(
+        "async def create_for_business_unit(",
+        start,
+    )
+    block = source[start:end]
+
+    assert "company_id: int" in block
+    assert "LegacyCompanyMapping" in block
+    assert "company_id=company.id" in block
+    assert "self._private_create_invite_record(" in block

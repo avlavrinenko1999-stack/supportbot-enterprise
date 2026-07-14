@@ -198,8 +198,7 @@ class InviteService:
         Создаёт приглашение в канонической области
         рабочего подразделения.
 
-        company_id вычисляется только внутри сервиса
-        как временный compatibility bridge.
+        Канонический путь не использует Company.
         """
         if created_by.role != UserRole.ADMIN:
             raise ValueError("Недостаточно прав для создания приглашения.")
@@ -214,21 +213,10 @@ class InviteService:
         if business_unit is None:
             raise ValueError("Рабочее подразделение не найдено или отключено.")
 
-        legacy_company_id = await self.session.scalar(
-            select(LegacyCompanyMapping.company_id).where(
-                LegacyCompanyMapping.organizational_unit_id == business_unit.id
-            )
-        )
-
-        if legacy_company_id is None:
-            raise ValueError(
-                "Для рабочего подразделения не найден compatibility bridge."
-            )
-
         return await self._private_create_invite_record(
             created_by=created_by,
             organizational_unit_id=business_unit.id,
-            company_id=legacy_company_id,
+            company_id=None,
             role=role,
             full_name=full_name,
             bot_username=bot_username,
