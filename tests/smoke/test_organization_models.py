@@ -64,8 +64,12 @@ def test_company_organization_links_are_optional() -> None:
     assert table.c.holding_id.nullable is True
 
 
-def test_existing_account_role_model_is_unchanged() -> None:
+def test_account_role_model_uses_membership_scope() -> None:
     account_table = Base.metadata.tables["accounts"]
 
     assert "role" in account_table.columns
-    assert "company_id" in account_table.columns
+    assert "company_id" not in account_table.columns
+    assert (
+        "account_organizational_unit_memberships"
+        in Base.metadata.tables
+    )

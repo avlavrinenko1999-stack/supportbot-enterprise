@@ -129,10 +129,13 @@ def test_domain_relationships_are_registered() -> None:
     )
 
 
-def test_legacy_company_domain_still_exists() -> None:
+def test_company_domain_remains_without_account_bridge() -> None:
     tables = Base.metadata.tables
 
     assert "companies" in tables
-    assert "company_id" in tables["accounts"].columns
-    assert "company_id" in tables["tickets"].columns
-    assert "company_id" in tables["categories"].columns
+    assert "accounts" in tables
+    assert "company_id" not in tables["accounts"].columns
+    assert (
+        "account_organizational_unit_memberships"
+        in tables
+    )

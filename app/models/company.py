@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 from app.models.mixins import IDMixin, TimestampMixin
 
-
 class Company(Base, IDMixin, TimestampMixin):
     """
     Компания.
@@ -108,12 +107,6 @@ class Company(Base, IDMixin, TimestampMixin):
     holding = relationship(
         "Holding",
         back_populates="companies",
-    )
-
-    accounts = relationship(
-        "Account",
-        back_populates="company",
-        cascade="all, delete-orphan"
     )
 
     invites = relationship(

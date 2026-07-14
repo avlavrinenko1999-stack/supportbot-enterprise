@@ -1,12 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, BigInteger, String
+from sqlalchemy import Boolean, DateTime, Enum, BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.enums import UserRole
 from app.models.mixins import IDMixin, TimestampMixin
-
 
 class Account(Base, IDMixin, TimestampMixin):
     """
@@ -31,11 +30,6 @@ class Account(Base, IDMixin, TimestampMixin):
         nullable=False
     )
 
-    company_id: Mapped[int | None] = mapped_column(
-        ForeignKey("companies.id"),
-        nullable=True
-    )
-
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -57,11 +51,6 @@ class Account(Base, IDMixin, TimestampMixin):
         String(8),
         default="ru",
         nullable=False,
-    )
-
-    company = relationship(
-        "Company",
-        back_populates="accounts"
     )
 
     tickets = relationship(

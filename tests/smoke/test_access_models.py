@@ -90,8 +90,8 @@ def test_scope_type_is_used_by_role_assignment() -> None:
     assert ScopeType.COMPANY.value == "company"
 
 
-def test_legacy_account_role_is_preserved() -> None:
+def test_account_role_is_preserved_without_company_column() -> None:
     account_table = Base.metadata.tables["accounts"]
 
     assert "role" in account_table.columns
-    assert "company_id" in account_table.columns
+    assert "company_id" not in account_table.columns
