@@ -120,12 +120,30 @@ class AccountAdminService:
         full_name: str,
         role: UserRole,
     ) -> Invite | None:
+        """
+        Compatibility API для Company UI.
+
+        Поиск приглашения выполняется в канонической
+        области рабочего подразделения.
+        """
+        business_unit_id = await self.session.scalar(
+            select(
+                LegacyCompanyMapping.organizational_unit_id
+            ).where(
+                LegacyCompanyMapping.company_id == company_id
+            )
+        )
+
+        if business_unit_id is None:
+            return None
+
         invite_role = self._invite_role_for_user_role(role)
 
         return await self.session.scalar(
             select(Invite)
             .where(
-                Invite.company_id == company_id,
+                Invite.organizational_unit_id
+                == business_unit_id,
                 Invite.role == invite_role,
                 Invite.full_name == full_name,
                 Invite.used_at.is_(None),
