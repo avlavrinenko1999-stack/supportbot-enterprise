@@ -50,12 +50,15 @@ def company_card_menu(
         buttons=[
             button("✏️ Переименовать", f"company:rename:{company.id}"),
             button(toggle_text, f"company:{toggle_action}:{company.id}"),
-            button("👤 Координаторы компании", f"company:coordinators:{company.id}"),
+            button(
+                "👤 Координаторы подразделения",
+                f"business_unit:coordinators:{company.id}",
+            ),
             button("👥 Сотрудники компании", f"company:employees:{company.id}"),
             button(
-            "📂 Категории подразделения",
-            f"business_unit:categories:{company.id}",
-        ),
+                "📂 Категории подразделения",
+                f"business_unit:categories:{company.id}",
+            ),
             button("🎫 Тикеты компании", f"company:tickets:{company.id}"),
             button("⚙️ Настройки компании", f"company:settings:{company.id}"),
         ],
@@ -94,7 +97,8 @@ async def companies_reply_menu(
         company_buttons.append(f"{status} {company.id}. {company.name}")
 
     return await reply_keyboard_async(
-        company_buttons + [
+        company_buttons
+        + [
             "🔎 Найти компанию",
             "➕ Создать компанию",
             "⬅️ Каталог компаний",

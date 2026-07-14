@@ -117,3 +117,113 @@ def back_to_company_coordinators_menu(company_id: int) -> InlineKeyboardMarkup:
             ],
         ]
     )
+
+
+def business_unit_coordinators_menu(
+    business_unit_id: int,
+    coordinators: list,
+) -> InlineKeyboardMarkup:
+    keyboard: list[list[InlineKeyboardButton]] = []
+
+    for item in coordinators:
+        account = item.account
+        membership = item.membership
+
+        status = "✅" if membership.is_active else "⛔"
+
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=(f"{status} {account.full_name}"),
+                    callback_data=(
+                        "business_unit_coordinator:"
+                        f"view:{business_unit_id}:"
+                        f"{account.id}"
+                    ),
+                )
+            ]
+        )
+
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                text="➕ Добавить координатора",
+                callback_data=(f"business_unit_coordinator:create:{business_unit_id}"),
+            )
+        ]
+    )
+
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                text=("⬅️ К карточке подразделения"),
+                callback_data=(f"business_unit:view:{business_unit_id}"),
+            )
+        ]
+    )
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def business_unit_coordinator_card_menu(
+    *,
+    business_unit_id: int,
+    coordinator_id: int,
+    membership_is_active: bool,
+) -> InlineKeyboardMarkup:
+    toggle_text = (
+        "⛔ Отключить в подразделении"
+        if membership_is_active
+        else "✅ Включить в подразделении"
+    )
+
+    toggle_action = "disable" if membership_is_active else "enable"
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=toggle_text,
+                    callback_data=(
+                        "business_unit_coordinator:"
+                        f"{toggle_action}:"
+                        f"{business_unit_id}:"
+                        f"{coordinator_id}"
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=("⬅️ К координаторам подразделения"),
+                    callback_data=(f"business_unit:coordinators:{business_unit_id}"),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=("⬅️ К карточке подразделения"),
+                    callback_data=(f"business_unit:view:{business_unit_id}"),
+                )
+            ],
+        ]
+    )
+
+
+def back_to_business_unit_coordinators_menu(
+    business_unit_id: int,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=("⬅️ К координаторам подразделения"),
+                    callback_data=(f"business_unit:coordinators:{business_unit_id}"),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=("⬅️ К карточке подразделения"),
+                    callback_data=(f"business_unit:view:{business_unit_id}"),
+                )
+            ],
+        ]
+    )
