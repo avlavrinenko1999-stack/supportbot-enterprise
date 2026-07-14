@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.company import Company
 from app.models.enums import ScopeType, UserRole
 from app.models.legacy_company_mapping import (
@@ -39,8 +42,10 @@ class BusinessUnitAccessService:
         Подразделение, связанное через
         LegacyCompanyMapping, и всё его поддерево.
 
-    При наличии активных RoleAssignment legacy-поля
-    Account.role и Account.company_id не используются.
+    При наличии активных RoleAssignment они являются
+    источником истины. Без назначений ADMIN сохраняет
+    platform-доступ, остальные аккаунты ограничиваются
+    active primary membership.
     """
 
     def __init__(self, session: AsyncSession):
@@ -389,19 +394,31 @@ class BusinessUnitAccessService:
         self,
         account: Account,
     ) -> set[int] | None:
+        """
+        Compatibility fallback для аккаунтов без
+        активных RoleAssignment.
+
+        ADMIN сохраняет platform-доступ. Остальные
+        аккаунты получают область через active primary
+        membership.
+        """
         if account.role == UserRole.ADMIN:
             return None
 
-        if account.company_id is None:
-            return set()
-
         unit_id = await self.session.scalar(
             select(
-                LegacyCompanyMapping
+                AccountOrganizationalUnitMembership
                 .organizational_unit_id
             ).where(
-                LegacyCompanyMapping.company_id
-                == account.company_id
+                AccountOrganizationalUnitMembership
+                .account_id
+                == account.id,
+                AccountOrganizationalUnitMembership
+                .is_primary
+                .is_(True),
+                AccountOrganizationalUnitMembership
+                .is_active
+                .is_(True),
             )
         )
 
