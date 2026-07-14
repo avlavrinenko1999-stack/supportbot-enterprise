@@ -33,9 +33,9 @@ class Invite(Base, IDMixin, TimestampMixin):
         nullable=False,
     )
 
-    company_id: Mapped[int] = mapped_column(
+    company_id: Mapped[int | None] = mapped_column(
         ForeignKey("companies.id"),
-        nullable=False,
+        nullable=True,
     )
 
     organizational_unit_id: Mapped[int] = mapped_column(
