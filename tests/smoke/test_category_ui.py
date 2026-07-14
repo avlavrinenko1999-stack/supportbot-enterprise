@@ -18,18 +18,9 @@ from app.keyboards.company_categories import (
 
 
 def test_category_state_contract() -> None:
-    assert (
-        CompanyCategoryState.create_name
-        is not None
-    )
-    assert (
-        CompanyCategoryState.create_child_name
-        is not None
-    )
-    assert (
-        CompanyCategoryState.rename_name
-        is not None
-    )
+    assert CompanyCategoryState.create_name is not None
+    assert CompanyCategoryState.create_child_name is not None
+    assert CompanyCategoryState.rename_name is not None
 
 
 def test_category_handlers_are_registered() -> None:
@@ -54,15 +45,13 @@ def test_category_keyboard_contract() -> None:
 
 
 def test_current_category_routes_are_documented() -> None:
-    handler_source = Path(
-        "app/handlers/admin/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
+    handler_source = Path("app/handlers/admin/company_categories.py").read_text(
+        encoding="utf-8"
+    )
 
-    keyboard_source = Path(
-        "app/keyboards/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
+    keyboard_source = Path("app/keyboards/company_categories.py").read_text(
+        encoding="utf-8"
+    )
 
     required_routes = {
         "company:categories:",
@@ -77,59 +66,39 @@ def test_current_category_routes_are_documented() -> None:
     }
 
     for route in required_routes:
-        assert (
-            route in handler_source
-            or route in keyboard_source
-        )
+        assert route in handler_source or route in keyboard_source
 
 
-def test_current_category_fsm_uses_company_scope() -> None:
-    source = Path(
-        "app/handlers/admin/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
+def test_category_fsm_uses_business_unit_scope() -> None:
+    source = Path("app/handlers/admin/company_categories.py").read_text(
+        encoding="utf-8"
+    )
 
-    assert "category_company_id" in source
-    assert "CompanyService" in source
+    assert "category_business_unit_id" in source
+    assert "category_company_id" not in source
+    assert "CompanyService" not in source
     assert "CategoryService" in source
 
 
 def test_category_model_uses_business_unit_scope() -> None:
-    model_source = Path(
-        "app/models/category.py"
-    ).read_text(encoding="utf-8")
+    model_source = Path("app/models/category.py").read_text(encoding="utf-8")
 
-    service_source = Path(
-        "app/services/category_service.py"
-    ).read_text(encoding="utf-8")
+    service_source = Path("app/services/category_service.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "business_unit_id" in model_source
     assert "company_id" in model_source
 
-    assert (
-        "Category.business_unit_id"
-        in service_source
-    )
-    assert (
-        "LegacyCompanyMapping"
-        in service_source
-    )
-    assert (
-        "from app.models.company import Company"
-        not in service_source
-    )
+    assert "Category.business_unit_id" in service_source
+    assert "LegacyCompanyMapping" in service_source
+    assert "from app.models.company import Company" not in service_source
 
 
 def test_category_ui_has_reply_navigation() -> None:
-    source = Path(
-        "app/keyboards/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
+    source = Path("app/keyboards/company_categories.py").read_text(encoding="utf-8")
 
     assert "company_categories_reply_menu" in source
-    assert (
-        "company_archived_categories_reply_menu"
-        in source
-    )
-    assert "⬅️ К карточке компании" in source
+    assert "company_archived_categories_reply_menu" in source
+    assert "⬅️ К карточке подразделения" in source
     assert "⬅️ К активным категориям" in source

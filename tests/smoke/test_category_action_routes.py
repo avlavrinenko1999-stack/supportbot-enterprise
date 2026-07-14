@@ -68,4 +68,4 @@ def test_category_card_returns_to_business_unit() -> None:
 def test_category_callback_parsing_is_namespace_independent() -> None:
     source = HANDLER_PATH.read_text(encoding="utf-8")
 
-    assert 'callback.data.split(":")[-1]' in source
+    assert 'callback.data.rsplit(":", 1)[-1]' in source

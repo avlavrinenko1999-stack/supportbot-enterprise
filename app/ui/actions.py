@@ -114,7 +114,6 @@ ACTION_BUTTONS = {
     MenuAction.ORGANIZATION_RENAME: "✏️ Переименовать организацию",
     MenuAction.ORGANIZATION_ARCHIVE: "📦 Архивировать организацию",
     MenuAction.ORGANIZATION_RESTORE: "✅ Восстановить организацию",
-
     MenuAction.HOLDINGS: "Холдинги",
     MenuAction.HOLDINGS_ALL: "📋 Все холдинги",
     MenuAction.HOLDING_CATALOG: "⬅️ Каталог холдингов",
@@ -128,7 +127,6 @@ ACTION_BUTTONS = {
     MenuAction.HOLDING_COMPANY_REMOVE: "➖ Удалить компанию",
     MenuAction.HOLDING_ADMINS: "👤 Администраторы холдинга",
     MenuAction.HOLDING_AUDIT: "📜 История холдинга",
-
     MenuAction.COMPANIES: "Компании",
     MenuAction.EMPLOYEES: "Сотрудники",
     MenuAction.EMPLOYEES_ALL: "Все сотрудники",
@@ -164,11 +162,9 @@ ACTION_BUTTONS = {
     MenuAction.ACCESS_ASSIGN_CANCEL: "❌ Отменить назначение",
     MenuAction.ACCESS_REVOKE_CONFIRM: "✅ Подтвердить отзыв",
     MenuAction.ACCESS_REVOKE_CANCEL: "❌ Отменить отзыв",
-
     MenuAction.BACK: "⬅️ Назад",
     MenuAction.CANCEL: "Отмена",
     MenuAction.NEXT: "➡️ Далее",
-
     MenuAction.COMPANIES_ALL: "📋 Все компании",
     MenuAction.COMPANIES_DISABLED: "⛔ Отключенные компании",
     MenuAction.COMPANIES_RECENT: "🕘 Последние компании",
@@ -191,25 +187,21 @@ ACTION_BUTTONS = {
     MenuAction.COMPANY_TICKETS: "🎫 Тикеты компании",
     MenuAction.COMPANY_SETTINGS: "⚙️ Настройки компании",
     MenuAction.COMPANY_AUDIT_HISTORY: "📜 История изменений",
-    MenuAction.COMPANY_CATEGORIES: "📂 Категории компании",
-
+    MenuAction.COMPANY_CATEGORIES: "📂 Категории подразделения",
     MenuAction.CATEGORY_ARCHIVE: "📦 Архив категорий",
     MenuAction.CATEGORY_ACTIVE: "⬅️ К активным категориям",
     MenuAction.CATEGORY_CREATE: "➕ Создать категорию",
-    MenuAction.COMPANY_CARD_BACK: "⬅️ К карточке компании",
-
+    MenuAction.COMPANY_CARD_BACK: "⬅️ К карточке подразделения",
     MenuAction.EMPLOYEES_BACK: "⬅️ Сотрудники",
     MenuAction.EMPLOYEE_COMPANY_SEARCH_AGAIN: "🔎 Искать другую компанию",
     MenuAction.COORDINATORS: "Координаторы",
     MenuAction.COORDINATOR_INVITE_CREATE: "➕ Создать приглашение координатора",
-
     MenuAction.LANGUAGE_SEARCH_AGAIN: "🔎 Искать другой язык",
 }
 
 
 LEGACY_ALIASES = {
     "➕ Создать приглашение": MenuAction.COMPANY_INVITE_CREATE,
-
     "Отчеты": MenuAction.REPORTS,
     "Language": MenuAction.LANGUAGE,
     "Язык": MenuAction.LANGUAGE,

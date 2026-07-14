@@ -8,41 +8,28 @@ from app.handlers.admin.company_categories import (
 
 
 def test_business_unit_category_handlers_exist() -> None:
-    assert callable(
-        render_business_unit_categories
-    )
-    assert callable(
-        business_unit_categories
-    )
-    assert callable(
-        business_unit_categories_from_reply
-    )
+    assert callable(render_business_unit_categories)
+    assert callable(business_unit_categories)
+    assert callable(business_unit_categories_from_reply)
 
 
 def test_business_unit_category_route_exists() -> None:
-    source = Path(
-        "app/handlers/admin/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
-
-    assert (
-        "business_unit:categories:"
-        in source
+    source = Path("app/handlers/admin/company_categories.py").read_text(
+        encoding="utf-8"
     )
+
+    assert "business_unit:categories:" in source
 
     # Legacy Telegram callback остаётся адаптером.
     assert "company:categories:" in source
 
 
 def test_category_renderer_uses_business_unit_service_contract() -> None:
-    source = Path(
-        "app/handlers/admin/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
-
-    start = source.index(
-        "async def render_business_unit_categories"
+    source = Path("app/handlers/admin/company_categories.py").read_text(
+        encoding="utf-8"
     )
+
+    start = source.index("async def render_business_unit_categories")
 
     end = source.index(
         "@router.message",
@@ -51,29 +38,16 @@ def test_category_renderer_uses_business_unit_service_contract() -> None:
 
     block = source[start:end]
 
-    assert (
-        "list_active_for_business_unit"
-        in block
-    )
-    assert (
-        "category_business_unit_id"
-        in block
-    )
-    assert (
-        "UIContext.set_business_unit_id"
-        in block
-    )
+    assert "load_active_categories" in block
+    assert "_store_business_unit_context" in block
 
 
 def test_reply_entry_uses_business_unit_context() -> None:
-    source = Path(
-        "app/handlers/admin/"
-        "company_categories.py"
-    ).read_text(encoding="utf-8")
-
-    start = source.index(
-        "async def business_unit_categories_from_reply"
+    source = Path("app/handlers/admin/company_categories.py").read_text(
+        encoding="utf-8"
     )
+
+    start = source.index("async def business_unit_categories_from_reply")
 
     end = source.index(
         "@router.callback_query",
@@ -82,27 +56,13 @@ def test_reply_entry_uses_business_unit_context() -> None:
 
     block = source[start:end]
 
-    assert (
-        "UIContext.get_business_unit_id"
-        in block
-    )
-    assert (
-        "render_business_unit_categories"
-        in block
-    )
+    assert "_business_unit_id_from_state" in block
+    assert "render_business_unit_categories" in block
     assert "CompanyService" not in block
 
 
 def test_business_unit_card_uses_category_route() -> None:
-    source = Path(
-        "app/keyboards/company.py"
-    ).read_text(encoding="utf-8")
+    source = Path("app/keyboards/company.py").read_text(encoding="utf-8")
 
-    assert (
-        "business_unit:categories:"
-        in source
-    )
-    assert (
-        "Категории подразделения"
-        in source
-    )
+    assert "business_unit:categories:" in source
+    assert "Категории подразделения" in source
