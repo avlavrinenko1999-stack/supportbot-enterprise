@@ -38,6 +38,14 @@ class Invite(Base, IDMixin, TimestampMixin):
         nullable=False,
     )
 
+    organizational_unit_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "organizational_units.id",
+        ),
+        nullable=False,
+        index=True,
+    )
+
     created_by_id: Mapped[int] = mapped_column(
         ForeignKey("accounts.id"),
         nullable=False,
@@ -69,6 +77,11 @@ class Invite(Base, IDMixin, TimestampMixin):
         back_populates="invites",
     )
 
+    business_unit = relationship(
+        "OrganizationalUnit",
+        back_populates="invites",
+    )
+
     created_by = relationship(
         "Account",
         foreign_keys=[created_by_id],
@@ -85,5 +98,7 @@ class Invite(Base, IDMixin, TimestampMixin):
         "id",
         "full_name",
         "role",
+        "company_id",
+        "organizational_unit_id",
         "is_active",
     )

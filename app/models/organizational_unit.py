@@ -75,19 +75,13 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
     tenant = relationship(
         "Tenant",
         back_populates="organizational_units",
-        overlaps=(
-            "children,legal_entity,"
-            "organizational_units,parent"
-        ),
+        overlaps=("children,legal_entity,organizational_units,parent"),
     )
 
     legal_entity = relationship(
         "LegalEntity",
         back_populates="organizational_units",
-        overlaps=(
-            "children,organizational_units,"
-            "parent,tenant"
-        ),
+        overlaps=("children,organizational_units,parent,tenant"),
     )
 
     parent = relationship(
@@ -98,10 +92,7 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
             "OrganizationalUnit.id"
         ),
         back_populates="children",
-        overlaps=(
-            "legal_entity,organizational_units,"
-            "tenant"
-        ),
+        overlaps=("legal_entity,organizational_units,tenant"),
     )
 
     children = relationship(
@@ -109,10 +100,7 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         back_populates="parent",
         cascade="all, delete-orphan",
         single_parent=True,
-        overlaps=(
-            "legal_entity,organizational_units,"
-            "tenant"
-        ),
+        overlaps=("legal_entity,organizational_units,tenant"),
     )
 
     account_memberships = relationship(
@@ -132,6 +120,11 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         back_populates="business_unit",
     )
 
+    invites = relationship(
+        "Invite",
+        back_populates="business_unit",
+    )
+
     categories = relationship(
         "Category",
         back_populates="business_unit",
@@ -143,10 +136,7 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
             "tenant_id",
             "legal_entity_id",
             "id",
-            name=(
-                "uq_organizational_units_"
-                "tenant_legal_entity_id"
-            ),
+            name=("uq_organizational_units_tenant_legal_entity_id"),
         ),
         ForeignKeyConstraint(
             ["tenant_id"],
@@ -160,10 +150,7 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
                 "legal_entities.tenant_id",
                 "legal_entities.id",
             ],
-            name=(
-                "fk_organizational_units_"
-                "tenant_legal_entity"
-            ),
+            name=("fk_organizational_units_tenant_legal_entity"),
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -177,20 +164,14 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
                 "organizational_units.legal_entity_id",
                 "organizational_units.id",
             ],
-            name=(
-                "fk_organizational_units_"
-                "parent_same_legal_entity"
-            ),
+            name=("fk_organizational_units_parent_same_legal_entity"),
             ondelete="CASCADE",
         ),
         UniqueConstraint(
             "legal_entity_id",
             "parent_id",
             "name",
-            name=(
-                "uq_organizational_units_"
-                "parent_name"
-            ),
+            name=("uq_organizational_units_parent_name"),
         ),
         Index(
             "ix_organizational_units_tree",

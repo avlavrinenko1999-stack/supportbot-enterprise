@@ -11,6 +11,9 @@ from app.models.account import Account
 from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
+from app.models.legacy_company_mapping import (
+    LegacyCompanyMapping,
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +58,15 @@ class InviteService:
         if company is None:
             raise ValueError("Компания не найдена или отключена.")
 
+        business_unit_id = await self.session.scalar(
+            select(LegacyCompanyMapping.organizational_unit_id).where(
+                LegacyCompanyMapping.company_id == company.id
+            )
+        )
+
+        if business_unit_id is None:
+            raise ValueError("Для компании не найдено рабочее подразделение.")
+
         token = self.generate_token()
         token_hash = self.make_token_hash(token)
 
@@ -63,6 +75,7 @@ class InviteService:
             full_name=full_name.strip(),
             role=role,
             company_id=company.id,
+            organizational_unit_id=(business_unit_id),
             created_by_id=created_by.id,
             expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
             used_at=None,
@@ -101,9 +114,7 @@ class InviteService:
             return existing_account
 
         invite = await self.session.scalar(
-            select(Invite)
-            .where(Invite.token_hash == token_hash)
-            .with_for_update()
+            select(Invite).where(Invite.token_hash == token_hash).with_for_update()
         )
 
         if invite is None:
