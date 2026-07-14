@@ -2,7 +2,7 @@ from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import answer_admin_panel
@@ -12,7 +12,13 @@ from app.keyboards.employees import (
     employees_root_menu,
 )
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.enums import UserRole
+from app.models.organizational_unit import (
+    OrganizationalUnit,
+)
 from app.services.message_service import MessageService
 from app.ui.actions import (
     MenuAction,
@@ -30,17 +36,68 @@ class EmployeeSearchState(StatesGroup):
     query = State()
 
 
-def _account_line(account: Account) -> str:
-    status = "активен" if account.is_active else "отключён"
-    company_text = (
-        f"компания #{account.company_id}"
-        if account.company_id
-        else "без компании"
+def _account_list_statement():
+    """
+    Возвращает аккаунт вместе с active primary
+    рабочим подразделением.
+
+    LEFT OUTER JOIN сохраняет в выдаче аккаунты,
+    для которых membership ещё не создан.
+    """
+    return (
+        select(
+            Account,
+            OrganizationalUnit.name,
+            OrganizationalUnit.id,
+        )
+        .outerjoin(
+            AccountOrganizationalUnitMembership,
+            and_(
+                AccountOrganizationalUnitMembership
+                .account_id
+                == Account.id,
+                AccountOrganizationalUnitMembership
+                .is_primary
+                .is_(True),
+                AccountOrganizationalUnitMembership
+                .is_active
+                .is_(True),
+            ),
+        )
+        .outerjoin(
+            OrganizationalUnit,
+            OrganizationalUnit.id
+            == AccountOrganizationalUnitMembership
+            .organizational_unit_id,
+        )
     )
+
+
+def _account_line(
+    account: Account,
+    business_unit_name: str | None,
+    business_unit_id: int | None,
+) -> str:
+    status = "активен" if account.is_active else "отключён"
+
+    if (
+        business_unit_name is not None
+        and business_unit_id is not None
+    ):
+        business_unit_text = (
+            f"подразделение "
+            f"{business_unit_name} "
+            f"#{business_unit_id}"
+        )
+    else:
+        business_unit_text = (
+            "без рабочего подразделения"
+        )
 
     return (
         f"{account.id}. {account.full_name} — "
-        f"{account.role.value}, {company_text}, {status}"
+        f"{account.role.value}, "
+        f"{business_unit_text}, {status}"
     )
 
 
@@ -49,13 +106,24 @@ async def _render_account_list(
     state: FSMContext,
     *,
     title: str,
-    accounts: list[Account],
+    account_rows: list,
 ) -> None:
-    if not accounts:
+    if not account_rows:
         text = f"{title}\n\nСписок пуст."
     else:
         lines = [title, ""]
-        lines.extend(_account_line(account) for account in accounts)
+        lines.extend(
+            _account_line(
+                account,
+                business_unit_name,
+                business_unit_id,
+            )
+            for (
+                account,
+                business_unit_name,
+                business_unit_id,
+            ) in account_rows
+        )
         text = "\n".join(lines)
 
     await MessageService.replace_service_message(
@@ -76,22 +144,27 @@ async def _render_employees_by_role(
     await state.set_state(None)
 
     async with AsyncSessionLocal() as session:
-        accounts = list(
-            await session.scalars(
-                select(Account)
-                .where(
-                    Account.registered.is_(True),
-                    Account.role == role,
+        account_rows = list(
+            (
+                await session.execute(
+                    _account_list_statement()
+                    .where(
+                        Account.registered.is_(True),
+                        Account.role == role,
+                    )
+                    .order_by(
+                        Account.full_name,
+                        Account.id,
+                    )
                 )
-                .order_by(Account.full_name, Account.id)
-            )
+            ).all()
         )
 
     await _render_account_list(
         message,
         state,
         title=title,
-        accounts=accounts,
+        account_rows=account_rows,
     )
 
 
@@ -124,22 +197,28 @@ async def employees_all(
     await state.set_state(None)
 
     async with AsyncSessionLocal() as session:
-        accounts = list(
-            await session.scalars(
-                select(Account)
-                .where(
-                    Account.registered.is_(True),
-                    Account.role != UserRole.ADMIN,
+        account_rows = list(
+            (
+                await session.execute(
+                    _account_list_statement()
+                    .where(
+                        Account.registered.is_(True),
+                        Account.role
+                        != UserRole.ADMIN,
+                    )
+                    .order_by(
+                        Account.full_name,
+                        Account.id,
+                    )
                 )
-                .order_by(Account.full_name, Account.id)
-            )
+            ).all()
         )
 
     await _render_account_list(
         message,
         state,
         title="Все сотрудники",
-        accounts=accounts,
+        account_rows=account_rows,
     )
 
 
@@ -244,17 +323,23 @@ async def employee_search_finish(
         )
 
     async with AsyncSessionLocal() as session:
-        accounts = list(
-            await session.scalars(
-                select(Account)
-                .where(
-                    Account.registered.is_(True),
-                    Account.role != UserRole.ADMIN,
-                    or_(*conditions),
+        account_rows = list(
+            (
+                await session.execute(
+                    _account_list_statement()
+                    .where(
+                        Account.registered.is_(True),
+                        Account.role
+                        != UserRole.ADMIN,
+                        or_(*conditions),
+                    )
+                    .order_by(
+                        Account.full_name,
+                        Account.id,
+                    )
+                    .limit(20)
                 )
-                .order_by(Account.full_name, Account.id)
-                .limit(20)
-            )
+            ).all()
         )
 
     await state.set_state(None)
@@ -263,7 +348,7 @@ async def employee_search_finish(
         message,
         state,
         title=f"Результаты поиска: {query}",
-        accounts=accounts,
+        account_rows=account_rows,
     )
 
 
