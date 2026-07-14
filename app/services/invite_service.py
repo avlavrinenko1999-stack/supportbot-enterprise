@@ -17,6 +17,9 @@ from app.models.invite import Invite
 from app.models.legacy_company_mapping import (
     LegacyCompanyMapping,
 )
+from app.models.organizational_unit import (
+    OrganizationalUnit,
+)
 
 
 @dataclass(frozen=True)
@@ -132,6 +135,56 @@ class InviteService:
             invite=invite,
             token=token,
             link=f"https://t.me/{bot_username}?start={token}",
+        )
+
+    async def create_for_business_unit(
+        self,
+        *,
+        created_by: Account,
+        business_unit_id: int,
+        role: InviteRole,
+        full_name: str,
+        bot_username: str,
+        expires_days: int = 7,
+    ) -> CreatedInvite:
+        """
+        Создаёт приглашение в канонической области
+        рабочего подразделения.
+
+        company_id вычисляется только внутри сервиса
+        как временный compatibility bridge.
+        """
+        if created_by.role != UserRole.ADMIN:
+            raise ValueError("Недостаточно прав для создания приглашения.")
+
+        business_unit = await self.session.scalar(
+            select(OrganizationalUnit).where(
+                OrganizationalUnit.id == business_unit_id,
+                OrganizationalUnit.is_active.is_(True),
+            )
+        )
+
+        if business_unit is None:
+            raise ValueError("Рабочее подразделение не найдено или отключено.")
+
+        legacy_company_id = await self.session.scalar(
+            select(LegacyCompanyMapping.company_id).where(
+                LegacyCompanyMapping.organizational_unit_id == business_unit.id
+            )
+        )
+
+        if legacy_company_id is None:
+            raise ValueError(
+                "Для рабочего подразделения не найден compatibility bridge."
+            )
+
+        return await self.create_invite(
+            created_by=created_by,
+            company_id=legacy_company_id,
+            role=role,
+            full_name=full_name,
+            bot_username=bot_username,
+            expires_days=expires_days,
         )
 
     async def register_by_token(

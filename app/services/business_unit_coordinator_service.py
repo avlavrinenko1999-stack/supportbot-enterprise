@@ -8,17 +8,14 @@ from app.models.account import Account
 from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
-from app.models.enums import UserRole
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
+from app.models.enums import InviteRole, UserRole
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
-from app.services.account_admin_service import (
-    AccountAdminService,
+from app.services.invite_service import (
+    CreatedInvite,
+    InviteService,
 )
-from app.services.invite_service import CreatedInvite
 
 
 @dataclass(frozen=True)
@@ -44,9 +41,8 @@ class BusinessUnitCoordinatorService:
     типа сотрудника, пока роли сотрудников окончательно
     не переведены на enterprise RoleAssignment.
 
-    Приглашения пока сохраняют обязательный company_id,
-    поэтому создание приглашения использует
-    LegacyCompanyMapping только как compatibility bridge.
+    Приглашения создаются через канонический API
+    InviteService для рабочего подразделения.
     """
 
     def __init__(
@@ -168,16 +164,6 @@ class BusinessUnitCoordinatorService:
 
         return coordinator
 
-    async def get_legacy_company_id(
-        self,
-        business_unit_id: int,
-    ) -> int | None:
-        return await self.session.scalar(
-            select(LegacyCompanyMapping.company_id).where(
-                LegacyCompanyMapping.organizational_unit_id == business_unit_id
-            )
-        )
-
     async def create_invite(
         self,
         *,
@@ -191,22 +177,15 @@ class BusinessUnitCoordinatorService:
         if not unit.is_active:
             raise ValueError("Рабочее подразделение отключено.")
 
-        legacy_company_id = await self.get_legacy_company_id(business_unit_id)
-
-        if legacy_company_id is None:
-            raise ValueError(
-                "Для рабочего подразделения не найден legacy-мост приглашений."
-            )
-
-        result = await AccountAdminService(self.session).create_invite(
-            admin=admin,
-            company_id=legacy_company_id,
+        created_invite = await InviteService(self.session).create_for_business_unit(
+            created_by=admin,
+            business_unit_id=business_unit_id,
+            role=InviteRole.COORDINATOR,
             full_name=full_name,
-            role=UserRole.COORDINATOR,
             bot_username=bot_username,
         )
 
         return BusinessUnitCoordinatorInvite(
             unit=unit,
-            created_invite=(result.created_invite),
+            created_invite=created_invite,
         )

@@ -17,7 +17,6 @@ def test_service_contract() -> None:
         "list_coordinators",
         "get_coordinator",
         "set_membership_active",
-        "get_legacy_company_id",
         "create_invite",
     }
 
@@ -50,13 +49,15 @@ def test_service_does_not_use_company_service() -> None:
     assert "Account.company_id" not in source
 
 
-def test_invite_is_explicit_compatibility_bridge() -> None:
+def test_invite_uses_canonical_business_unit_api() -> None:
     source = SERVICE_PATH.read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMapping" in source
-    assert "AccountAdminService" in source
-    assert "legacy_company_id" in source
-    assert "company_id=legacy_company_id" in source
+    assert "InviteService" in source
+    assert "create_for_business_unit" in source
+    assert "InviteRole.COORDINATOR" in source
+    assert "LegacyCompanyMapping" not in source
+    assert "AccountAdminService" not in source
+    assert "legacy_company_id" not in source
 
 
 def test_disabling_is_membership_scoped() -> None:
