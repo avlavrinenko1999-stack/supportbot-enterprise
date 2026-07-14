@@ -12,7 +12,11 @@ from app.models.legacy_company_mapping import (
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
-from app.handlers.admin.common import edit_callback_message, get_current_admin, answer_admin_panel
+from app.handlers.admin.common import (
+    edit_callback_message,
+    get_current_admin,
+    answer_admin_panel,
+)
 from app.keyboards.company_categories import (
     category_delete_confirm_menu,
     category_delete_with_tickets_menu,
@@ -57,10 +61,7 @@ async def render_business_unit_categories(
     """
     async with AsyncSessionLocal() as session:
         unit = await session.scalar(
-            select(OrganizationalUnit).where(
-                OrganizationalUnit.id
-                == business_unit_id
-            )
+            select(OrganizationalUnit).where(OrganizationalUnit.id == business_unit_id)
         )
 
         if unit is None:
@@ -80,20 +81,13 @@ async def render_business_unit_categories(
 
         category_service = CategoryService(session)
 
-        categories = (
-            await category_service
-            .list_active_for_business_unit(
-                business_unit_id
-            )
+        categories = await category_service.list_active_for_business_unit(
+            business_unit_id
         )
 
         legacy_company_id = await session.scalar(
-            select(
-                LegacyCompanyMapping.company_id
-            ).where(
-                LegacyCompanyMapping
-                .organizational_unit_id
-                == business_unit_id
+            select(LegacyCompanyMapping.company_id).where(
+                LegacyCompanyMapping.organizational_unit_id == business_unit_id
             )
         )
 
@@ -104,14 +98,11 @@ async def render_business_unit_categories(
     )
 
     state_data = {
-        "category_business_unit_id":
-            business_unit_id,
+        "category_business_unit_id": business_unit_id,
     }
 
     if legacy_company_id is not None:
-        state_data["category_company_id"] = (
-            legacy_company_id
-        )
+        state_data["category_company_id"] = legacy_company_id
 
     await state.update_data(**state_data)
 
@@ -120,10 +111,7 @@ async def render_business_unit_categories(
         business_unit_id,
     )
 
-    text = (
-        "Категории подразделения\n\n"
-        f"Подразделение: {unit.name}"
-    )
+    text = f"Категории подразделения\n\nПодразделение: {unit.name}"
 
     reply_markup = company_categories_reply_menu(
         categories,
@@ -146,33 +134,22 @@ async def render_business_unit_categories(
         )
 
 
-@router.message(
-    MenuActionFilter(
-        MenuAction.COMPANY_CATEGORIES
-    )
-)
+@router.message(MenuActionFilter(MenuAction.COMPANY_CATEGORIES))
 async def business_unit_categories_from_reply(
     message: Message,
     state: FSMContext,
 ) -> None:
-    business_unit_id = (
-        await UIContext.get_business_unit_id(
-            state
-        )
-    )
+    business_unit_id = await UIContext.get_business_unit_id(state)
 
     if business_unit_id is None:
         data = await state.get_data()
-        business_unit_id = data.get(
-            "category_business_unit_id"
-        )
+        business_unit_id = data.get("category_business_unit_id")
 
     if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Сначала выберите рабочее "
-            "подразделение.",
+            "Сначала выберите рабочее подразделение.",
         )
         return
 
@@ -183,18 +160,12 @@ async def business_unit_categories_from_reply(
     )
 
 
-@router.callback_query(
-    F.data.startswith(
-        "business_unit:categories:"
-    )
-)
+@router.callback_query(F.data.startswith("business_unit:categories:"))
 async def business_unit_categories(
     callback: CallbackQuery,
     state: FSMContext,
 ) -> None:
-    business_unit_id = int(
-        callback.data.rsplit(":", 1)[-1]
-    )
+    business_unit_id = int(callback.data.rsplit(":", 1)[-1])
 
     await render_business_unit_categories(
         callback.message,
@@ -234,7 +205,9 @@ async def company_categories(callback: CallbackQuery, state: FSMContext) -> None
 
 
 @router.callback_query(F.data.startswith("company_category:archive:"))
-async def company_categories_archive(callback: CallbackQuery, state: FSMContext) -> None:
+async def company_categories_archive(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
     company_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
@@ -266,7 +239,6 @@ async def company_categories_archive(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
 
 
-
 @router.message(MenuActionFilter(MenuAction.BACK))
 async def categories_back_to_admin_menu(message: Message, state: FSMContext) -> None:
     await answer_admin_panel(message, state)
@@ -285,7 +257,9 @@ async def categories_archive_from_reply(message: Message, state: FSMContext) -> 
         categories = await category_service.list_archived_categories(company_id)
 
     if company is None:
-        await MessageService.replace_service_message(message, state, "Компания не найдена.")
+        await MessageService.replace_service_message(
+            message, state, "Компания не найдена."
+        )
         return
 
     await PageService.set_page(state, "company_categories_archive", 1)
@@ -305,7 +279,9 @@ async def categories_archive_from_reply(message: Message, state: FSMContext) -> 
 
 
 @router.message(MenuActionFilter(MenuAction.CATEGORY_ACTIVE))
-async def categories_back_to_active_from_reply(message: Message, state: FSMContext) -> None:
+async def categories_back_to_active_from_reply(
+    message: Message, state: FSMContext
+) -> None:
     data = await state.get_data()
     company_id = int(data["category_company_id"])
 
@@ -317,7 +293,9 @@ async def categories_back_to_active_from_reply(message: Message, state: FSMConte
         categories = await category_service.list_active_categories(company_id)
 
     if company is None:
-        await MessageService.replace_service_message(message, state, "Компания не найдена.")
+        await MessageService.replace_service_message(
+            message, state, "Компания не найдена."
+        )
         return
 
     await PageService.set_page(state, "company_categories", 1)
@@ -330,6 +308,7 @@ async def categories_back_to_active_from_reply(message: Message, state: FSMConte
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:view:"))
 @router.callback_query(F.data.startswith("company_category:view:"))
 async def company_category_view(callback: CallbackQuery) -> None:
     category_id = int(callback.data.split(":")[-1])
@@ -360,7 +339,6 @@ async def company_category_view(callback: CallbackQuery) -> None:
     )
 
 
-
 @router.message(F.text.regexp(r"^[📂📦] .+"))
 async def company_category_view_from_reply(message: Message, state: FSMContext) -> None:
     raw_text = (message.text or "").strip()
@@ -373,7 +351,9 @@ async def company_category_view_from_reply(message: Message, state: FSMContext) 
         category_service = CategoryService(session)
 
         active_categories = await category_service.list_active_categories(company_id)
-        archived_categories = await category_service.list_archived_categories(company_id)
+        archived_categories = await category_service.list_archived_categories(
+            company_id
+        )
 
         category = next(
             (
@@ -416,15 +396,20 @@ async def company_category_view_from_reply(message: Message, state: FSMContext) 
     )
 
 
-
 @router.message(MenuActionFilter(MenuAction.CATEGORY_CREATE))
-async def company_category_create_start_from_reply(message: Message, state: FSMContext) -> None:
+async def company_category_create_start_from_reply(
+    message: Message, state: FSMContext
+) -> None:
     data = await state.get_data()
     company_id = await UIContext.get_company_id(state)
-    company_id = company_id or data.get("category_company_id") or data.get("selected_company_id")
+    company_id = (
+        company_id or data.get("category_company_id") or data.get("selected_company_id")
+    )
 
     if company_id is None:
-        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        await MessageService.replace_service_message(
+            message, state, "Сначала выберите компанию."
+        )
         return
 
     await state.update_data(category_company_id=int(company_id))
@@ -441,10 +426,14 @@ async def company_category_create_start_from_reply(message: Message, state: FSMC
 async def categories_back_to_company_card(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     company_id = await UIContext.get_company_id(state)
-    company_id = company_id or data.get("selected_company_id") or data.get("category_company_id")
+    company_id = (
+        company_id or data.get("selected_company_id") or data.get("category_company_id")
+    )
 
     if company_id is None:
-        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+        await MessageService.replace_service_message(
+            message, state, "Сначала выберите компанию."
+        )
         return
 
     async with AsyncSessionLocal() as session:
@@ -515,7 +504,9 @@ async def categories_prev_page(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data.startswith("company_category:create:"))
-async def company_category_create_start(callback: CallbackQuery, state: FSMContext) -> None:
+async def company_category_create_start(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
     company_id = int(callback.data.split(":")[-1])
     await state.update_data(category_company_id=company_id)
     await state.set_state(CompanyCategoryState.create_name)
@@ -567,7 +558,9 @@ async def company_category_create_finish(message: Message, state: FSMContext) ->
     )
 
 
-@router.callback_query(F.data.startswith("company_category:create_child_select_parent:"))
+@router.callback_query(
+    F.data.startswith("company_category:create_child_select_parent:")
+)
 async def company_category_child_select_parent(callback: CallbackQuery) -> None:
     company_id = int(callback.data.split(":")[-1])
     categories = await load_active_categories(company_id)
@@ -579,6 +572,7 @@ async def company_category_child_select_parent(callback: CallbackQuery) -> None:
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:create_child:"))
 @router.callback_query(F.data.startswith("company_category:create_child:"))
 async def company_category_child_create_start(
     callback: CallbackQuery,
@@ -654,6 +648,7 @@ async def company_category_child_create_finish(
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:rename:"))
 @router.callback_query(F.data.startswith("company_category:rename:"))
 async def company_category_rename_start(
     callback: CallbackQuery,
@@ -723,6 +718,7 @@ async def company_category_rename_finish(
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:archive_one:"))
 @router.callback_query(F.data.startswith("company_category:archive_one:"))
 async def company_category_archive_one(callback: CallbackQuery) -> None:
     category_id = int(callback.data.split(":")[-1])
@@ -743,6 +739,7 @@ async def company_category_archive_one(callback: CallbackQuery) -> None:
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:restore:"))
 @router.callback_query(F.data.startswith("company_category:restore:"))
 async def company_category_restore(callback: CallbackQuery) -> None:
     category_id = int(callback.data.split(":")[-1])
@@ -763,6 +760,7 @@ async def company_category_restore(callback: CallbackQuery) -> None:
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:delete:"))
 @router.callback_query(F.data.startswith("company_category:delete:"))
 async def company_category_delete_request(callback: CallbackQuery) -> None:
     category_id = int(callback.data.split(":")[-1])
@@ -800,12 +798,12 @@ async def company_category_delete_request(callback: CallbackQuery) -> None:
 
     await edit_callback_message(
         callback,
-        "Удалить категорию?\n\n"
-        f"Категория: {category.name}",
+        f"Удалить категорию?\n\nКатегория: {category.name}",
         reply_markup=category_delete_confirm_menu(category),
     )
 
 
+@router.callback_query(F.data.startswith("business_unit_category:delete_confirm:"))
 @router.callback_query(F.data.startswith("company_category:delete_confirm:"))
 async def company_category_delete_confirm(callback: CallbackQuery) -> None:
     category_id = int(callback.data.split(":")[-1])

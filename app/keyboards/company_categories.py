@@ -17,7 +17,7 @@ def company_categories_menu(
     category_buttons = [
         button(
             _category_label(category),
-            f"company_category:view:{category.id}",
+            f"business_unit_category:view:{category.id}",
         )
         for category in categories
     ]
@@ -44,7 +44,9 @@ def category_parent_select_menu(
     categories: list[Category],
 ) -> InlineKeyboardMarkup:
     parent_buttons = [
-        button(f"📂 {category.name}", f"company_category:create_child:{category.id}")
+        button(
+            f"📂 {category.name}", f"business_unit_category:create_child:{category.id}"
+        )
         for category in categories
     ]
 
@@ -60,26 +62,34 @@ def company_category_card_menu(
     category: Category,
 ) -> InlineKeyboardMarkup:
     action_buttons = [
-        button("✏️ Переименовать", f"company_category:rename:{category.id}"),
+        button("✏️ Переименовать", f"business_unit_category:rename:{category.id}"),
         button("👥 Координаторы", f"company_category:coordinators:{category.id}"),
         button("👷 Операторы", f"company_category:operators:{category.id}"),
-        button("🗑 Удалить", f"company_category:delete:{category.id}"),
+        button("🗑 Удалить", f"business_unit_category:delete:{category.id}"),
     ]
 
     if category.is_archived:
         action_buttons.append(
-            button("♻️ Восстановить", f"company_category:restore:{category.id}")
+            button("♻️ Восстановить", f"business_unit_category:restore:{category.id}")
         )
     else:
         action_buttons.append(
-            button("📦 Архивировать", f"company_category:archive_one:{category.id}")
+            button(
+                "📦 Архивировать", f"business_unit_category:archive_one:{category.id}"
+            )
         )
 
     return inline_menu(
         buttons=action_buttons,
         back_buttons=[
-            button("⬅️ К категориям компании", f"company:categories:{category.company_id}"),
-            button("⬅️ К карточке компании", f"company:view:{category.company_id}"),
+            button(
+                "⬅️ К категориям подразделения",
+                f"business_unit:categories:{category.business_unit_id}",
+            ),
+            button(
+                "⬅️ К карточке подразделения",
+                f"business_unit:view:{category.business_unit_id}",
+            ),
         ],
     )
 
@@ -89,7 +99,7 @@ def company_archived_categories_menu(
     categories: list[Category],
 ) -> InlineKeyboardMarkup:
     category_buttons = [
-        button(f"📦 {category.name}", f"company_category:view:{category.id}")
+        button(f"📦 {category.name}", f"business_unit_category:view:{category.id}")
         for category in categories
     ]
 
@@ -106,9 +116,9 @@ def category_delete_with_tickets_menu(category: Category) -> InlineKeyboardMarku
     return confirm_menu(
         yes_text="✅ Да, в архив",
         no_text="❌ Нет",
-        yes_callback=f"company_category:archive_one:{category.id}",
-        no_callback=f"company_category:view:{category.id}",
-        back_callback=f"company_category:view:{category.id}",
+        yes_callback=f"business_unit_category:archive_one:{category.id}",
+        no_callback=f"business_unit_category:view:{category.id}",
+        back_callback=f"business_unit_category:view:{category.id}",
     )
 
 
@@ -116,11 +126,10 @@ def category_delete_confirm_menu(category: Category) -> InlineKeyboardMarkup:
     return confirm_menu(
         yes_text="✅ Да, удалить",
         no_text="❌ Нет",
-        yes_callback=f"company_category:delete_confirm:{category.id}",
-        no_callback=f"company_category:view:{category.id}",
-        back_callback=f"company_category:view:{category.id}",
+        yes_callback=f"business_unit_category:delete_confirm:{category.id}",
+        no_callback=f"business_unit_category:view:{category.id}",
+        back_callback=f"business_unit_category:view:{category.id}",
     )
-
 
 
 def company_categories_reply_menu(
@@ -129,10 +138,7 @@ def company_categories_reply_menu(
     page: int = 1,
     per_page: int = 8,
 ) -> ReplyKeyboardMarkup:
-    category_buttons = [
-        _category_label(category)
-        for category in categories
-    ]
+    category_buttons = [_category_label(category) for category in categories]
 
     return list_reply_menu(
         category_buttons,
@@ -153,10 +159,7 @@ def company_archived_categories_reply_menu(
     page: int = 1,
     per_page: int = 8,
 ) -> ReplyKeyboardMarkup:
-    category_buttons = [
-        f"📦 {category.name}"
-        for category in categories
-    ]
+    category_buttons = [f"📦 {category.name}" for category in categories]
 
     return list_reply_menu(
         category_buttons,
