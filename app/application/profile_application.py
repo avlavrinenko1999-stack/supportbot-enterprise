@@ -3,7 +3,12 @@ from sqlalchemy import select
 from app.application.base import BaseApplication
 from app.database.db import AsyncSessionLocal
 from app.keyboards.profile import profile_menu
-from app.models.company import Company
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
+from app.models.organizational_unit import (
+    OrganizationalUnit,
+)
 from app.security.localization import get_permission_name, get_role_name
 from app.security.permissions import role_permissions
 from app.services.menu_service import MenuService
@@ -22,15 +27,34 @@ class ProfileApplication(BaseApplication):
                     delete_user_message=False,
                 )
 
-            company_name = "не привязана"
+            business_unit_name = "не привязано"
 
-            if account.company_id:
-                company = await session.scalar(
-                    select(Company).where(Company.id == account.company_id)
+            business_unit = await session.scalar(
+                select(OrganizationalUnit)
+                .join(
+                    AccountOrganizationalUnitMembership,
+                    AccountOrganizationalUnitMembership
+                    .organizational_unit_id
+                    == OrganizationalUnit.id,
                 )
+                .where(
+                    AccountOrganizationalUnitMembership
+                    .account_id
+                    == account.id,
+                    AccountOrganizationalUnitMembership
+                    .is_primary
+                    .is_(True),
+                    AccountOrganizationalUnitMembership
+                    .is_active
+                    .is_(True),
+                )
+            )
 
-                if company is not None:
-                    company_name = f"{company.name} #{company.id}"
+            if business_unit is not None:
+                business_unit_name = (
+                    f"{business_unit.name} "
+                    f"#{business_unit.id}"
+                )
 
             permissions = sorted(
                 get_permission_name(permission)
@@ -50,7 +74,8 @@ class ProfileApplication(BaseApplication):
                 f"Telegram ID: {account.telegram_id}\n"
                 f"ФИО: {account.full_name}\n"
                 f"Роль: {get_role_name(account.role)}\n"
-                f"Компания: {company_name}\n"
+                "Рабочее подразделение: "
+                f"{business_unit_name}\n"
                 f"Активен: {'да' if account.is_active else 'нет'}\n"
                 f"Зарегистрирован: {'да' if account.registered else 'нет'}\n\n"
                 "Разрешения:\n"
