@@ -41,6 +41,61 @@ class InviteService:
     def generate_token() -> str:
         return secrets.token_urlsafe(32)
 
+    async def _private_create_invite_record(
+        self,
+        *,
+        created_by: Account,
+        organizational_unit_id: int,
+        company_id: int | None,
+        role: InviteRole,
+        full_name: str,
+        bot_username: str,
+        expires_days: int,
+    ) -> CreatedInvite:
+        """
+        Единственная точка создания записи Invite.
+
+        company_id передаётся compatibility-адаптерами
+        и будет удалён из канонического пути отдельным
+        атомарным этапом.
+        """
+        if created_by.role != UserRole.ADMIN:
+            raise ValueError(
+                "Недостаточно прав для создания приглашения."
+            )
+
+        token = self.generate_token()
+        token_hash = self.make_token_hash(token)
+
+        invite = Invite(
+            token_hash=token_hash,
+            full_name=full_name.strip(),
+            role=role,
+            company_id=company_id,
+            organizational_unit_id=organizational_unit_id,
+            created_by_id=created_by.id,
+            expires_at=(
+                datetime.now(timezone.utc)
+                + timedelta(days=expires_days)
+            ),
+            used_at=None,
+            used_by_account_id=None,
+            is_active=True,
+        )
+
+        self.session.add(invite)
+        await self.session.commit()
+        await self.session.refresh(invite)
+
+        return CreatedInvite(
+            invite=invite,
+            token=token,
+            link=(
+                f"https://t.me/{bot_username}"
+                f"?start={token}"
+            ),
+        )
+
     async def ensure_primary_membership(
         self,
         *,
@@ -89,9 +144,9 @@ class InviteService:
         bot_username: str,
         expires_days: int = 7,
     ) -> CreatedInvite:
-        if created_by.role != UserRole.ADMIN:
-            raise ValueError("Недостаточно прав для создания приглашения.")
-
+        """
+        Compatibility-wrapper для старого Company API.
+        """
         company = await self.session.scalar(
             select(Company).where(
                 Company.id == company_id,
@@ -100,41 +155,33 @@ class InviteService:
         )
 
         if company is None:
-            raise ValueError("Компания не найдена или отключена.")
+            raise ValueError(
+                "Компания не найдена или отключена."
+            )
 
         business_unit_id = await self.session.scalar(
-            select(LegacyCompanyMapping.organizational_unit_id).where(
-                LegacyCompanyMapping.company_id == company.id
+            select(
+                LegacyCompanyMapping.organizational_unit_id
+            ).where(
+                LegacyCompanyMapping.company_id
+                == company.id
             )
         )
 
         if business_unit_id is None:
-            raise ValueError("Для компании не найдено рабочее подразделение.")
+            raise ValueError(
+                "Для компании не найдено рабочее "
+                "подразделение."
+            )
 
-        token = self.generate_token()
-        token_hash = self.make_token_hash(token)
-
-        invite = Invite(
-            token_hash=token_hash,
-            full_name=full_name.strip(),
-            role=role,
+        return await self._private_create_invite_record(
+            created_by=created_by,
+            organizational_unit_id=business_unit_id,
             company_id=company.id,
-            organizational_unit_id=(business_unit_id),
-            created_by_id=created_by.id,
-            expires_at=datetime.now(timezone.utc) + timedelta(days=expires_days),
-            used_at=None,
-            used_by_account_id=None,
-            is_active=True,
-        )
-
-        self.session.add(invite)
-        await self.session.commit()
-        await self.session.refresh(invite)
-
-        return CreatedInvite(
-            invite=invite,
-            token=token,
-            link=f"https://t.me/{bot_username}?start={token}",
+            role=role,
+            full_name=full_name,
+            bot_username=bot_username,
+            expires_days=expires_days,
         )
 
     async def create_for_business_unit(
@@ -178,8 +225,9 @@ class InviteService:
                 "Для рабочего подразделения не найден compatibility bridge."
             )
 
-        return await self.create_invite(
+        return await self._private_create_invite_record(
             created_by=created_by,
+            organizational_unit_id=business_unit.id,
             company_id=legacy_company_id,
             role=role,
             full_name=full_name,

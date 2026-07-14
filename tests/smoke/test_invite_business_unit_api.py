@@ -32,7 +32,7 @@ def test_canonical_api_validates_business_unit() -> None:
     assert "is_active" in block
 
 
-def test_company_bridge_is_internal_to_invite_service() -> None:
+def test_canonical_api_uses_private_record_factory() -> None:
     source = INVITE_SERVICE.read_text(encoding="utf-8")
 
     start = source.index("async def create_for_business_unit(")
@@ -44,7 +44,9 @@ def test_company_bridge_is_internal_to_invite_service() -> None:
 
     assert "LegacyCompanyMapping" in block
     assert "legacy_company_id" in block
+    assert "self._private_create_invite_record(" in block
     assert "company_id=legacy_company_id" in block
+    assert "self.create_invite(" not in block
 
 
 def test_coordinator_service_uses_canonical_api() -> None:

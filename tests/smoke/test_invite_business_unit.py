@@ -27,11 +27,11 @@ def test_invite_company_bridge_remains() -> None:
     assert hasattr(Invite, "company")
 
 
-def test_invite_service_dual_writes_scope() -> None:
+def test_invite_service_has_single_record_factory() -> None:
     source = SERVICE_PATH.read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMapping" in source
-    assert "business_unit_id" in source
+    assert "async def _private_create_invite_record(" in source
+    assert source.count("invite = Invite(") == 1
     assert "organizational_unit_id=" in source
     assert "company_id=company.id" in source
 
