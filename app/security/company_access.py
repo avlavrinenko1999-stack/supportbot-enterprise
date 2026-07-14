@@ -4,8 +4,14 @@ from sqlalchemy import false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.company import Company
 from app.models.enums import ScopeType, UserRole
+from app.models.legacy_company_mapping import (
+    LegacyCompanyMapping,
+)
 from app.models.role_assignment import RoleAssignment
 
 
@@ -14,8 +20,9 @@ class CompanyAccessService:
     Формирует область доступных компаний для аккаунта.
 
     При наличии активных RoleAssignment они являются источником истины.
-    Если назначений ещё нет, используется временный fallback на
-    Account.role и Account.company_id.
+    Если назначений ещё нет, используется compatibility fallback:
+    ADMIN получает platform-доступ, остальные аккаунты ограничиваются
+    Company, связанной с активным primary membership.
     """
 
     def __init__(self, session: AsyncSession):
@@ -109,7 +116,9 @@ class CompanyAccessService:
         assignments = await self._active_assignments(account.id)
 
         if not assignments:
-            return self._legacy_access_condition(account)
+            return await self._membership_access_condition(
+                account
+            )
 
         if any(
             assignment.scope_type == ScopeType.PLATFORM
@@ -162,12 +171,46 @@ class CompanyAccessService:
 
         return or_(*conditions)
 
-    @staticmethod
-    def _legacy_access_condition(account: Account):
+    async def _membership_access_condition(
+        self,
+        account: Account,
+    ):
         if account.role == UserRole.ADMIN:
             return None
 
-        if account.company_id is not None:
-            return Company.id == account.company_id
+        company_id = (
+            await self._primary_membership_company_id(
+                account.id
+            )
+        )
 
-        return false()
+        if company_id is None:
+            return false()
+
+        return Company.id == company_id
+
+    async def _primary_membership_company_id(
+        self,
+        account_id: int,
+    ) -> int | None:
+        return await self.session.scalar(
+            select(LegacyCompanyMapping.company_id)
+            .join(
+                AccountOrganizationalUnitMembership,
+                AccountOrganizationalUnitMembership
+                .organizational_unit_id
+                == LegacyCompanyMapping
+                .organizational_unit_id,
+            )
+            .where(
+                AccountOrganizationalUnitMembership
+                .account_id
+                == account_id,
+                AccountOrganizationalUnitMembership
+                .is_primary
+                .is_(True),
+                AccountOrganizationalUnitMembership
+                .is_active
+                .is_(True),
+            )
+        )

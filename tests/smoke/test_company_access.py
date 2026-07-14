@@ -21,42 +21,10 @@ def make_account(
     )
 
 
-def test_legacy_admin_has_unrestricted_company_access() -> None:
-    account = make_account(role=UserRole.ADMIN)
-
-    condition = CompanyAccessService._legacy_access_condition(
-        account
-    )
-
-    assert condition is None
 
 
-def test_legacy_company_account_is_limited_to_own_company() -> None:
-    account = make_account(
-        role=UserRole.COORDINATOR,
-        company_id=15,
-    )
-
-    condition = CompanyAccessService._legacy_access_condition(
-        account
-    )
-
-    assert condition is not None
-    assert "companies.id" in str(condition)
-    assert "company_id" not in str(condition)
 
 
-def test_legacy_account_without_company_is_denied() -> None:
-    account = make_account(
-        role=UserRole.USER,
-        company_id=None,
-    )
-
-    condition = CompanyAccessService._legacy_access_condition(
-        account
-    )
-
-    assert str(condition) == str(false())
 
 
 @pytest.mark.asyncio
@@ -139,3 +107,84 @@ async def test_holding_assignment_creates_holding_filter(
 
     assert condition is not None
     assert "companies.holding_id" in str(condition)
+
+@pytest.mark.asyncio
+async def test_membership_admin_has_unrestricted_company_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = CompanyAccessService(session=object())
+    account = make_account(role=UserRole.ADMIN)
+
+    async def fail_lookup(account_id: int) -> int | None:
+        raise AssertionError(
+            "ADMIN must not require membership lookup"
+        )
+
+    monkeypatch.setattr(
+        service,
+        "_primary_membership_company_id",
+        fail_lookup,
+    )
+
+    condition = (
+        await service._membership_access_condition(
+            account
+        )
+    )
+
+    assert condition is None
+
+
+@pytest.mark.asyncio
+async def test_membership_account_is_limited_to_mapped_company(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = CompanyAccessService(session=object())
+    account = make_account(
+        role=UserRole.COORDINATOR,
+    )
+
+    async def fake_lookup(account_id: int) -> int | None:
+        assert account_id == account.id
+        return 15
+
+    monkeypatch.setattr(
+        service,
+        "_primary_membership_company_id",
+        fake_lookup,
+    )
+
+    condition = (
+        await service._membership_access_condition(
+            account
+        )
+    )
+
+    assert condition is not None
+    assert "companies.id" in str(condition)
+
+
+@pytest.mark.asyncio
+async def test_account_without_mapped_primary_membership_is_denied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = CompanyAccessService(session=object())
+    account = make_account(role=UserRole.USER)
+
+    async def fake_lookup(account_id: int) -> int | None:
+        assert account_id == account.id
+        return None
+
+    monkeypatch.setattr(
+        service,
+        "_primary_membership_company_id",
+        fake_lookup,
+    )
+
+    condition = (
+        await service._membership_access_condition(
+            account
+        )
+    )
+
+    assert str(condition) == str(false())
