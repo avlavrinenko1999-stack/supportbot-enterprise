@@ -9,20 +9,30 @@ from app.handlers.admin.common import (
     answer_admin_panel,
     get_current_account,
 )
-from app.keyboards.company import company_card_reply_menu
+from app.keyboards.company import (
+    company_card_reply_menu,
+)
 from app.keyboards.employees import (
     employees_root_menu,
-    invite_company_results_menu,
-    invite_company_search_menu,
+    invite_business_unit_results_menu,
+    invite_business_unit_search_menu,
 )
 from app.models.account import Account
-from app.models.company import Company
-from app.models.enums import InviteRole, UserRole
-from app.security.authorization import AuthorizationService
+from app.models.enums import InviteRole
+from app.security.authorization import (
+    AuthorizationService,
+)
 from app.security.permissions import Permission
-from app.services.company_search_service import CompanySearchService
-from app.services.invite_service import InviteService
-from app.services.message_service import MessageService
+from app.services.business_unit_catalog_service import (
+    BusinessUnitCatalogItem,
+    BusinessUnitCatalogService,
+)
+from app.services.invite_service import (
+    InviteService,
+)
+from app.services.message_service import (
+    MessageService,
+)
 from app.ui.actions import (
     MenuAction,
     MenuActionFilter,
@@ -30,61 +40,45 @@ from app.ui.actions import (
 )
 from app.ui.context import UIContext
 
+
 router = Router()
 
 
 class CreateInviteState(StatesGroup):
-    company_search = State()
-    company_select = State()
+    business_unit_search = State()
+    business_unit_select = State()
     full_name = State()
 
 
-async def _available_companies_for_invite(
+async def _available_business_units_for_invite(
     account: Account,
-) -> list[Company]:
+) -> list[BusinessUnitCatalogItem]:
     async with AsyncSessionLocal() as session:
-        if account.role == UserRole.ADMIN:
-            return list(
-                await session.scalars(
-                    select(Company)
-                    .where(Company.is_active.is_(True))
-                    .order_by(Company.name)
-                )
-            )
-
-        if (
-            account.role == UserRole.COORDINATOR
-            and account.company_id
-        ):
-            company = await session.scalar(
-                select(Company).where(
-                    Company.id == account.company_id,
-                    Company.is_active.is_(True),
-                )
-            )
-            return [company] if company else []
-
-    return []
+        return await BusinessUnitCatalogService(session).list_visible_items(
+            account,
+            active=True,
+        )
 
 
-async def _show_company_search(
+async def _show_business_unit_search(
     message: Message,
     state: FSMContext,
     *,
     text: str | None = None,
 ) -> None:
-    await state.set_state(CreateInviteState.company_search)
+    await state.set_state(CreateInviteState.business_unit_search)
 
     await MessageService.replace_service_message(
         message,
         state,
         text
         or (
-            "Введите название или ИНН компании.\n\n"
-            "Поиск выполняется только среди активных компаний, "
-            "доступных для создания приглашения."
+            "Введите название, ИНН или ID "
+            "рабочего подразделения.\n\n"
+            "Поиск выполняется среди доступных "
+            "активных подразделений."
         ),
-        reply_markup=invite_company_search_menu(),
+        reply_markup=(invite_business_unit_search_menu()),
     )
 
 
@@ -93,6 +87,7 @@ async def _show_employees_menu(
     state: FSMContext,
 ) -> None:
     await state.clear()
+
     await UIContext.set_value(
         state,
         "invite_source",
@@ -107,9 +102,24 @@ async def _show_employees_menu(
     )
 
 
-@router.message(
-    MenuActionFilter(MenuAction.COMPANY_INVITE_CREATE)
-)
+def _items_by_id(
+    items: list[BusinessUnitCatalogItem],
+) -> dict[int, BusinessUnitCatalogItem]:
+    return {item.unit_id: item for item in items}
+
+
+def _parse_unit_button(
+    text: str,
+) -> int | None:
+    if not text.startswith("🏢 "):
+        return None
+
+    value = text.removeprefix("🏢 ").split(".", 1)[0].strip()
+
+    return int(value) if value.isdigit() else None
+
+
+@router.message(MenuActionFilter(MenuAction.COMPANY_INVITE_CREATE))
 async def create_invite_start(
     message: Message,
     state: FSMContext,
@@ -128,14 +138,13 @@ async def create_invite_start(
         )
         return
 
-    companies = await _available_companies_for_invite(account)
+    items = await _available_business_units_for_invite(account)
 
-    if not companies:
+    if not items:
         await MessageService.replace_service_message(
             message,
             state,
-            "Нет доступных активных компаний "
-            "для приглашения сотрудника.",
+            "Нет доступных активных подразделений для приглашения сотрудника.",
             reply_markup=employees_root_menu(),
         )
         return
@@ -144,24 +153,22 @@ async def create_invite_start(
         state,
         "invite_source",
     )
-    selected_company_id = await UIContext.get_company_id(state)
-
-    companies_by_id = {
-        company.id: company
-        for company in companies
-    }
+    selected_unit_id = await UIContext.get_business_unit_id(state)
+    by_id = _items_by_id(items)
 
     if (
-        invite_source == "company_card"
-        and selected_company_id in companies_by_id
+        invite_source
+        in {
+            "company_card",
+            "business_unit_card",
+        }
+        and selected_unit_id in by_id
     ):
-        selected_company = companies_by_id[
-            selected_company_id
-        ]
+        selected = by_id[selected_unit_id]
 
         await state.update_data(
-            company_id=selected_company.id,
-            invite_from_company_card=True,
+            business_unit_id=selected.unit_id,
+            invite_from_business_unit_card=True,
         )
         await state.set_state(CreateInviteState.full_name)
 
@@ -169,22 +176,26 @@ async def create_invite_start(
             message,
             state,
             "Введите ФИО сотрудника.\n\n"
-            f"Компания: {selected_company.name}\n"
-            "Базовая роль после регистрации: Пользователь",
-            reply_markup=await company_card_reply_menu(),
+            f"Подразделение: {selected.name}\n"
+            "Базовая роль после регистрации: "
+            "Пользователь",
+            reply_markup=(await company_card_reply_menu()),
         )
         return
 
     await state.update_data(
-        invite_from_company_card=False,
-        invite_company_result_ids=[],
+        invite_from_business_unit_card=False,
+        invite_business_unit_result_ids=[],
     )
 
-    await _show_company_search(message, state)
+    await _show_business_unit_search(
+        message,
+        state,
+    )
 
 
-@router.message(CreateInviteState.company_search)
-async def create_invite_company_search(
+@router.message(CreateInviteState.business_unit_search)
+async def create_invite_business_unit_search(
     message: Message,
     state: FSMContext,
 ) -> None:
@@ -195,17 +206,17 @@ async def create_invite_company_search(
         MenuAction.EMPLOYEES_BACK,
         MenuAction.BACK,
     }:
-        await _show_employees_menu(message, state)
+        await _show_employees_menu(
+            message,
+            state,
+        )
         return
 
     if len(raw_text) < 2:
-        await _show_company_search(
+        await _show_business_unit_search(
             message,
             state,
-            text=(
-                "Введите не менее двух символов "
-                "названия компании или её ИНН."
-            ),
+            text=("Введите не менее двух символов названия, ИНН или ID."),
         )
         return
 
@@ -224,53 +235,41 @@ async def create_invite_company_search(
         )
         return
 
-    available_companies = (
-        await _available_companies_for_invite(account)
-    )
-    allowed_company_ids = {
-        company.id
-        for company in available_companies
-    }
-
     async with AsyncSessionLocal() as session:
-        search_service = CompanySearchService(session)
-        companies = await search_service.search(
-            raw_text,
-            allowed_company_ids=allowed_company_ids,
-            limit=8,
+        service = BusinessUnitCatalogService(session)
+        available = await service.list_visible_items(
+            account,
+            active=True,
         )
+        found = service.search(
+            available,
+            raw_text,
+        )[:8]
 
-    if not companies:
-        await _show_company_search(
+    if not found:
+        await _show_business_unit_search(
             message,
             state,
-            text=(
-                "Компании не найдены.\n\n"
-                "Введите другое название или ИНН."
-            ),
+            text=("Подразделения не найдены.\n\nВведите другой запрос."),
         )
         return
 
     await state.update_data(
-        invite_company_result_ids=[
-            company.id
-            for company in companies
-        ],
-        invite_company_search_query=raw_text,
+        invite_business_unit_result_ids=[item.unit_id for item in found],
+        invite_business_unit_search_query=(raw_text),
     )
-    await state.set_state(CreateInviteState.company_select)
+    await state.set_state(CreateInviteState.business_unit_select)
 
     await MessageService.replace_service_message(
         message,
         state,
-        f"Найдено компаний: {len(companies)}.\n\n"
-        "Выберите нужную компанию.",
-        reply_markup=invite_company_results_menu(companies),
+        f"Найдено подразделений: {len(found)}.\n\nВыберите нужное подразделение.",
+        reply_markup=(invite_business_unit_results_menu(found)),
     )
 
 
-@router.message(CreateInviteState.company_select)
-async def create_invite_company_select(
+@router.message(CreateInviteState.business_unit_select)
+async def create_invite_business_unit_select(
     message: Message,
     state: FSMContext,
 ) -> None:
@@ -278,100 +277,68 @@ async def create_invite_company_select(
     action = resolve_menu_action(raw_text)
 
     if action == MenuAction.EMPLOYEE_COMPANY_SEARCH_AGAIN:
-        await _show_company_search(message, state)
+        await _show_business_unit_search(
+            message,
+            state,
+        )
         return
 
     if action in {
         MenuAction.EMPLOYEES_BACK,
         MenuAction.BACK,
     }:
-        await _show_employees_menu(message, state)
+        await _show_employees_menu(
+            message,
+            state,
+        )
         return
 
-    company_id = None
-
-    if raw_text.startswith("🏢 "):
-        id_part = (
-            raw_text
-            .removeprefix("🏢 ")
-            .split(".", 1)[0]
-            .strip()
-        )
-
-        if id_part.isdigit():
-            company_id = int(id_part)
-
+    business_unit_id = _parse_unit_button(raw_text)
     data = await state.get_data()
-    allowed_result_ids = {
+    allowed_ids = {
         int(value)
         for value in data.get(
-            "invite_company_result_ids",
+            "invite_business_unit_result_ids",
             [],
         )
     }
 
+    account = await get_current_account(message.from_user.id)
+    available = await _available_business_units_for_invite(account)
+    by_id = _items_by_id(available)
+
     if (
-        company_id is None
-        or company_id not in allowed_result_ids
+        business_unit_id is None
+        or business_unit_id not in allowed_ids
+        or business_unit_id not in by_id
     ):
         query = str(
-            data.get("invite_company_search_query", "")
+            data.get(
+                "invite_business_unit_search_query",
+                "",
+            )
         )
-
-        account = await get_current_account(
-            message.from_user.id
-        )
-        available_companies = (
-            await _available_companies_for_invite(account)
-        )
-        allowed_company_ids = {
-            company.id
-            for company in available_companies
-        }
 
         async with AsyncSessionLocal() as session:
-            search_service = CompanySearchService(session)
-            companies = await search_service.search(
+            service = BusinessUnitCatalogService(session)
+            found = service.search(
+                available,
                 query,
-                allowed_company_ids=allowed_company_ids,
-                limit=8,
-            )
+            )[:8]
 
         await MessageService.replace_service_message(
             message,
             state,
-            "Выберите компанию с помощью кнопки.",
-            reply_markup=invite_company_results_menu(
-                companies
-            ),
+            "Выберите подразделение с помощью кнопки.",
+            reply_markup=(invite_business_unit_results_menu(found)),
         )
         return
 
-    account = await get_current_account(message.from_user.id)
-    available_companies = (
-        await _available_companies_for_invite(account)
-    )
-    companies_by_id = {
-        company.id: company
-        for company in available_companies
-    }
-
-    selected_company = companies_by_id.get(company_id)
-
-    if selected_company is None:
-        await _show_company_search(
-            message,
-            state,
-            text=(
-                "Компания больше недоступна.\n\n"
-                "Выполните поиск повторно."
-            ),
-        )
-        return
+    selected = by_id[business_unit_id]
 
     await state.update_data(
-        company_id=selected_company.id,
-        invite_from_company_card=False,
+        business_unit_id=selected.unit_id,
+        invite_from_business_unit_card=False,
     )
     await state.set_state(CreateInviteState.full_name)
 
@@ -379,8 +346,9 @@ async def create_invite_company_select(
         message,
         state,
         "Введите ФИО сотрудника.\n\n"
-        f"Компания: {selected_company.name}\n"
-        "Базовая роль после регистрации: Пользователь",
+        f"Подразделение: {selected.name}\n"
+        "Базовая роль после регистрации: "
+        "Пользователь",
         reply_markup=employees_root_menu(),
     )
 
@@ -417,23 +385,17 @@ async def create_invite_finish(
         return
 
     data = await state.get_data()
-    company_id = int(data["company_id"])
+    business_unit_id = int(data["business_unit_id"])
 
-    companies = await _available_companies_for_invite(
-        account
-    )
-    allowed_company_ids = {
-        company.id
-        for company in companies
-    }
+    available = await _available_business_units_for_invite(account)
+    by_id = _items_by_id(available)
 
-    if company_id not in allowed_company_ids:
+    if business_unit_id not in by_id:
         await state.clear()
         await MessageService.replace_service_message(
             message,
             state,
-            "Эта компания недоступна "
-            "для создания приглашения.",
+            "Это подразделение недоступно для создания приглашения.",
             reply_markup=employees_root_menu(),
         )
         return
@@ -442,17 +404,22 @@ async def create_invite_finish(
 
     async with AsyncSessionLocal() as session:
         created_by = await session.scalar(
-            select(Account).where(
-                Account.id == account.id
-            )
+            select(Account).where(Account.id == account.id)
         )
 
-        service = InviteService(session)
+        if created_by is None:
+            await state.clear()
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Аккаунт администратора не найден.",
+            )
+            return
 
         try:
-            created = await service.create_invite(
+            created = await InviteService(session).create_for_business_unit(
                 created_by=created_by,
-                company_id=company_id,
+                business_unit_id=(business_unit_id),
                 role=InviteRole.USER,
                 full_name=full_name,
                 bot_username=bot_info.username,
@@ -467,25 +434,24 @@ async def create_invite_finish(
             )
             return
 
-    from_company_card = bool(
-        data.get("invite_from_company_card")
-    )
+    from_card = bool(data.get("invite_from_business_unit_card"))
+    selected = by_id[business_unit_id]
 
     await state.clear()
 
-    if from_company_card:
-        await UIContext.set_company_id(
+    if from_card:
+        await UIContext.set_business_unit_id(
             state,
-            company_id,
+            business_unit_id,
         )
         await UIContext.set_section(
             state,
-            "company",
+            "business_unit",
         )
         await UIContext.set_value(
             state,
             "invite_source",
-            "company_card",
+            "business_unit_card",
         )
         reply_markup = await company_card_reply_menu()
     else:
@@ -500,6 +466,7 @@ async def create_invite_finish(
         message,
         state,
         "Приглашение сотрудника создано.\n\n"
+        f"Подразделение: {selected.name}\n"
         f"ФИО: {full_name}\n"
         "Базовая роль: Пользователь\n"
         "Срок действия: 7 дней\n\n"
@@ -513,4 +480,7 @@ async def invites_admin_menu(
     message: Message,
     state: FSMContext,
 ) -> None:
-    await answer_admin_panel(message, state)
+    await answer_admin_panel(
+        message,
+        state,
+    )

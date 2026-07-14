@@ -193,7 +193,7 @@ ACTION_BUTTONS = {
     MenuAction.CATEGORY_CREATE: "➕ Создать категорию",
     MenuAction.COMPANY_CARD_BACK: "⬅️ К карточке подразделения",
     MenuAction.EMPLOYEES_BACK: "⬅️ Сотрудники",
-    MenuAction.EMPLOYEE_COMPANY_SEARCH_AGAIN: "🔎 Искать другую компанию",
+    MenuAction.EMPLOYEE_COMPANY_SEARCH_AGAIN: "🔎 Искать другое подразделение",
     MenuAction.COORDINATORS: "Координаторы",
     MenuAction.COORDINATOR_INVITE_CREATE: "➕ Создать приглашение координатора",
     MenuAction.LANGUAGE_SEARCH_AGAIN: "🔎 Искать другой язык",
