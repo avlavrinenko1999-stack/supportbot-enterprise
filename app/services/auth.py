@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import UserRole
+from app.services.invite_service import InviteService
 from app.repositories.invite import get_active_invite_by_hash, mark_invite_used
 from app.repositories.user import create_account, get_account_by_telegram_id
 from app.utils.security import hash_token
@@ -45,6 +46,13 @@ async def register_by_invite_token(
         full_name=invite.full_name,
         role=role,
         company_id=invite.company_id,
+    )
+
+    await session.flush()
+
+    await InviteService(session).ensure_primary_membership(
+        account_id=account.id,
+        organizational_unit_id=(invite.organizational_unit_id),
     )
 
     await mark_invite_used(session, invite)

@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.i18n import LanguageService
 from app.models.account import Account
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
@@ -34,6 +37,44 @@ class InviteService:
     @staticmethod
     def generate_token() -> str:
         return secrets.token_urlsafe(32)
+
+    async def ensure_primary_membership(
+        self,
+        *,
+        account_id: int,
+        organizational_unit_id: int,
+    ) -> AccountOrganizationalUnitMembership:
+        """
+        Создаёт или активирует основное членство аккаунта
+        в подразделении приглашения.
+
+        Метод не выполняет commit, чтобы регистрация
+        аккаунта, активация приглашения и membership
+        сохранялись одной транзакцией.
+        """
+        membership = await self.session.scalar(
+            select(AccountOrganizationalUnitMembership).where(
+                AccountOrganizationalUnitMembership.account_id == account_id,
+                AccountOrganizationalUnitMembership.organizational_unit_id
+                == organizational_unit_id,
+            )
+        )
+
+        if membership is None:
+            membership = AccountOrganizationalUnitMembership(
+                account_id=account_id,
+                organizational_unit_id=(organizational_unit_id),
+                is_primary=True,
+                is_active=True,
+            )
+            self.session.add(membership)
+        else:
+            membership.is_primary = True
+            membership.is_active = True
+
+        await self.session.flush()
+
+        return membership
 
     async def create_invite(
         self,
@@ -142,6 +183,11 @@ class InviteService:
 
         self.session.add(account)
         await self.session.flush()
+
+        await self.ensure_primary_membership(
+            account_id=account.id,
+            organizational_unit_id=(invite.organizational_unit_id),
+        )
 
         invite.used_at = now
         invite.used_by_account_id = account.id
