@@ -105,14 +105,17 @@ class BusinessUnitCardService(BaseService):
         summary = await self.units.get_summary(
             unit_id
         )
+        legacy_company_id = await self.get_legacy_company_id(
+            summary.unit.id
+        )
 
         legacy_phone = None
 
-        if summary.legacy_company_id is not None:
+        if legacy_company_id is not None:
             legacy_phone = await self.session.scalar(
                 select(Company.phone).where(
                     Company.id
-                    == summary.legacy_company_id
+                    == legacy_company_id
                 )
             )
 
@@ -120,7 +123,7 @@ class BusinessUnitCardService(BaseService):
             unit=summary.unit,
             legal_entity=summary.legal_entity,
             legacy_company_id=(
-                summary.legacy_company_id
+                legacy_company_id
             ),
             legacy_phone=legacy_phone,
             coordinators_count=(

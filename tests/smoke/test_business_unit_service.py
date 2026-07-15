@@ -13,7 +13,6 @@ def test_business_unit_summary_contract() -> None:
     } == {
         "unit",
         "legal_entity",
-        "legacy_company_id",
         "coordinators_count",
         "employees_count",
         "tickets_count",
@@ -58,20 +57,3 @@ def test_business_unit_service_uses_new_models() -> None:
         "AccountOrganizationalUnitMembership"
         in source
     )
-
-
-def test_legacy_company_is_only_compatibility_bridge() -> None:
-    source = (
-        __import__(
-            "pathlib"
-        )
-        .Path(
-            "app/services/business_unit_service.py"
-        )
-        .read_text(encoding="utf-8")
-    )
-
-    assert "from app.models.company" not in source
-    assert "select(Company" not in source
-    assert "Company." not in source
-    assert "LegacyCompanyMapping" in source

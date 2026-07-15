@@ -9,9 +9,6 @@ from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
 from app.models.enums import UserRole
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.legal_entity import LegalEntity
 from app.models.organizational_unit import (
     OrganizationalUnit,
@@ -25,14 +22,10 @@ class BusinessUnitSummary:
     """
     Агрегированная карточка рабочего подразделения.
 
-    legacy_company_id временно используется только для
-    совместимости с сущностями, которые ещё не мигрировали
-    с Company: Ticket, Category и Invite.
     """
 
     unit: OrganizationalUnit
     legal_entity: LegalEntity
-    legacy_company_id: int | None
     coordinators_count: int
     employees_count: int
     tickets_count: int
@@ -180,15 +173,6 @@ class BusinessUnitService(BaseService):
                 "не найдено."
             )
 
-        legacy_company_id = await self.session.scalar(
-            select(
-                LegacyCompanyMapping.company_id
-            ).where(
-                LegacyCompanyMapping.organizational_unit_id
-                == unit.id
-            )
-        )
-
         coordinators_count = (
             await self.session.scalar(
                 select(
@@ -253,7 +237,6 @@ class BusinessUnitService(BaseService):
         return BusinessUnitSummary(
             unit=unit,
             legal_entity=legal_entity,
-            legacy_company_id=legacy_company_id,
             coordinators_count=coordinators_count,
             employees_count=employees_count,
             tickets_count=tickets_count,
