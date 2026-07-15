@@ -91,7 +91,7 @@ def test_category_model_uses_business_unit_scope() -> None:
     assert "company_id" in model_source
 
     assert "Category.business_unit_id" in service_source
-    assert "LegacyCompanyMapping" in service_source
+    assert "LegacyCompanyMapping" not in service_source
     assert "from app.models.company import Company" not in service_source
 
 

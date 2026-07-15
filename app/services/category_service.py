@@ -5,9 +5,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.category import Category
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
@@ -34,8 +31,6 @@ class CategoryService:
     business_unit_id является канонической областью
     категории.
 
-    create_category с company_id временно сохранён для старого UI
-    и преобразует Company через LegacyCompanyMapping.
     """
 
     def __init__(self, session: AsyncSession):
@@ -201,28 +196,6 @@ class CategoryService:
 
         return category
 
-    async def create_category(
-        self,
-        *,
-        company_id: int,
-        name: str,
-        parent_id: int | None = None,
-    ) -> Category:
-        """
-        Временный адаптер старого Company UI.
-        """
-        business_unit_id = (
-            await self._require_business_unit_id(
-                company_id
-            )
-        )
-
-        return await self.create_for_business_unit(
-            business_unit_id=business_unit_id,
-            name=name,
-            parent_id=parent_id,
-        )
-
     async def rename_category(
         self,
         *,
@@ -368,25 +341,3 @@ class CategoryService:
         await self.session.commit()
 
         return CategoryDeleteResult.DELETED
-
-    async def _require_business_unit_id(
-        self,
-        company_id: int,
-    ) -> int:
-        business_unit_id = await self.session.scalar(
-            select(
-                LegacyCompanyMapping
-                .organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id
-                == company_id
-            )
-        )
-
-        if business_unit_id is None:
-            raise ValueError(
-                "Для компании не найдено рабочее "
-                "подразделение."
-            )
-
-        return business_unit_id

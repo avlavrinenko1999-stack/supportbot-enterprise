@@ -70,7 +70,7 @@ def test_category_service_queries_business_unit() -> None:
 
     assert "Category.business_unit_id" in source
     assert "OrganizationalUnit" in source
-    assert "LegacyCompanyMapping" in source
+    assert "LegacyCompanyMapping" not in source
 
     assert (
         "from app.models.company import Company"

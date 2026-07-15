@@ -45,7 +45,7 @@ def test_category_service_contract() -> None:
     required_methods = {
         "get_category",
         "get_category_stats",
-        "create_category",
+        "create_for_business_unit",
         "rename_category",
         "archive_category",
         "restore_category",
@@ -63,7 +63,6 @@ def test_category_service_contract() -> None:
 async def test_create_category() -> None:
     session = make_session()
     session.scalar.side_effect = [
-        101,
         SimpleNamespace(
             id=101,
             is_active=True,
@@ -73,12 +72,13 @@ async def test_create_category() -> None:
 
     service = CategoryService(session)
 
-    category = await service.create_category(
-        company_id=1,
+    category = await service.create_for_business_unit(
+        business_unit_id=101,
         name="  Техническая поддержка  ",
     )
 
     assert category.company_id is None
+    assert category.business_unit_id == 101
     assert category.parent_id is None
     assert category.name == "Техническая поддержка"
     assert category.is_active is True
@@ -86,21 +86,15 @@ async def test_create_category() -> None:
 
     session.add.assert_called_once_with(category)
     session.commit.assert_awaited_once()
-    session.refresh.assert_awaited_once_with(
-        category
-    )
-
+    session.refresh.assert_awaited_once_with(category)
 
 @pytest.mark.asyncio
 async def test_create_category_rejects_short_name() -> None:
     session = make_session()
-    session.scalar.side_effect = [
-        101,
-        SimpleNamespace(
-            id=101,
-            is_active=True,
-        ),
-    ]
+    session.scalar.return_value = SimpleNamespace(
+        id=101,
+        is_active=True,
+    )
 
     service = CategoryService(session)
 
@@ -108,17 +102,16 @@ async def test_create_category_rejects_short_name() -> None:
         ValueError,
         match="слишком короткое",
     ):
-        await service.create_category(
-            company_id=1,
+        await service.create_for_business_unit(
+            business_unit_id=101,
             name="X",
         )
 
     session.add.assert_not_called()
     session.commit.assert_not_awaited()
 
-
 @pytest.mark.asyncio
-async def test_create_category_requires_active_company() -> None:
+async def test_create_category_requires_active_business_unit() -> None:
     session = make_session()
     session.scalar.return_value = None
 
@@ -126,18 +119,17 @@ async def test_create_category_requires_active_company() -> None:
 
     with pytest.raises(
         ValueError,
-        match="рабочее подразделение",
+        match="Рабочее подразделение не найдено или отключено",
     ):
-        await service.create_category(
-            company_id=999,
+        await service.create_for_business_unit(
+            business_unit_id=999,
             name="Поддержка",
         )
 
     session.add.assert_not_called()
 
-
 @pytest.mark.asyncio
-async def test_create_child_rejects_other_company() -> None:
+async def test_create_child_rejects_other_business_unit() -> None:
     session = make_session()
     parent = make_category(
         category_id=5,
@@ -146,7 +138,6 @@ async def test_create_child_rejects_other_company() -> None:
     )
 
     session.scalar.side_effect = [
-        101,
         SimpleNamespace(
             id=101,
             is_active=True,
@@ -158,32 +149,26 @@ async def test_create_child_rejects_other_company() -> None:
 
     with pytest.raises(
         ValueError,
-        match=(
-            "Родительская категория принадлежит "
-            "другому рабочему подразделению"
-        ),
+        match="другому рабочему подразделению",
     ):
-        await service.create_category(
-            company_id=1,
+        await service.create_for_business_unit(
+            business_unit_id=101,
             parent_id=5,
-            name="Подкатегория",
+            name="Сеть",
         )
 
     session.add.assert_not_called()
-
 
 @pytest.mark.asyncio
 async def test_create_child_rejects_archived_parent() -> None:
     session = make_session()
     parent = make_category(
         category_id=5,
-        company_id=1,
-        is_active=False,
+        business_unit_id=101,
         is_archived=True,
     )
 
     session.scalar.side_effect = [
-        101,
         SimpleNamespace(
             id=101,
             is_active=True,
@@ -195,28 +180,25 @@ async def test_create_child_rejects_archived_parent() -> None:
 
     with pytest.raises(
         ValueError,
-        match="внутри архивной категории",
+        match="архивной категории",
     ):
-        await service.create_category(
-            company_id=1,
+        await service.create_for_business_unit(
+            business_unit_id=101,
             parent_id=5,
-            name="Подкатегория",
+            name="Сеть",
         )
 
     session.add.assert_not_called()
-
 
 @pytest.mark.asyncio
 async def test_create_category_rejects_duplicate() -> None:
     session = make_session()
     existing = make_category(
-        category_id=7,
-        company_id=1,
+        business_unit_id=101,
         name="Поддержка",
     )
 
     session.scalar.side_effect = [
-        101,
         SimpleNamespace(
             id=101,
             is_active=True,
@@ -230,13 +212,13 @@ async def test_create_category_rejects_duplicate() -> None:
         ValueError,
         match="уже существует",
     ):
-        await service.create_category(
-            company_id=1,
+        await service.create_for_business_unit(
+            business_unit_id=101,
             name="Поддержка",
         )
 
     session.add.assert_not_called()
-
+    session.commit.assert_not_awaited()
 
 @pytest.mark.asyncio
 async def test_rename_category() -> None:
