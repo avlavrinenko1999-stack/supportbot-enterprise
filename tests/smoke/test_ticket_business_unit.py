@@ -45,8 +45,7 @@ def test_organizational_unit_has_tickets_relationship() -> None:
 def test_ticket_keeps_optional_legacy_company() -> None:
     table = inspect(Ticket).local_table
 
-    assert "company_id" in table.columns
-    assert table.c.company_id.nullable is True
+    assert "company_id" not in table.columns
 
 
 def test_ticket_migration_backfills_from_mapping() -> None:

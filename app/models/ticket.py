@@ -13,11 +13,6 @@ class Ticket(Base, IDMixin, TimestampMixin):
 
     __tablename__ = "tickets"
 
-    company_id: Mapped[int | None] = mapped_column(
-        ForeignKey("companies.id"),
-        nullable=True,
-    )
-
     business_unit_id: Mapped[int] = mapped_column(
         ForeignKey(
             "organizational_units.id",
@@ -51,11 +46,6 @@ class Ticket(Base, IDMixin, TimestampMixin):
         Enum(TicketStatus),
         default=TicketStatus.NEW,
         nullable=False
-    )
-
-    company = relationship(
-        "Company",
-        back_populates="tickets"
     )
 
     business_unit = relationship(

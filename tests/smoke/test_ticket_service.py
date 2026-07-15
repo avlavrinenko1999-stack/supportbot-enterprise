@@ -17,7 +17,7 @@ def test_ticket_primary_scope_contract() -> None:
         table.c.business_unit_id.nullable
         is False
     )
-    assert table.c.company_id.nullable is True
+    assert "company_id" not in table.columns
 
 
 def test_ticket_service_contract() -> None:
