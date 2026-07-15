@@ -53,11 +53,6 @@ class Category(Base, IDMixin, TimestampMixin):
         nullable=False
     )
 
-    company = relationship(
-        "Company",
-        back_populates="categories",
-    )
-
     business_unit = relationship(
         "OrganizationalUnit",
         back_populates="categories",

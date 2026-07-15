@@ -77,7 +77,6 @@ async def test_create_category() -> None:
         name="  Техническая поддержка  ",
     )
 
-    assert category.company_id is None
     assert category.business_unit_id == 101
     assert category.parent_id is None
     assert category.name == "Техническая поддержка"
