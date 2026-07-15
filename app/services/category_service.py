@@ -34,8 +34,8 @@ class CategoryService:
     business_unit_id является канонической областью
     категории.
 
-    Методы с company_id сохранены временно для старого UI
-    и преобразуют Company через LegacyCompanyMapping.
+    create_category с company_id временно сохранён для старого UI
+    и преобразует Company через LegacyCompanyMapping.
     """
 
     def __init__(self, session: AsyncSession):
@@ -72,34 +72,6 @@ class CategoryService:
                 )
                 .order_by(Category.id)
             )
-        )
-
-    async def list_active_categories(
-        self,
-        company_id: int,
-    ) -> list[Category]:
-        business_unit_id = (
-            await self._require_business_unit_id(
-                company_id
-            )
-        )
-
-        return await self.list_active_for_business_unit(
-            business_unit_id
-        )
-
-    async def list_archived_categories(
-        self,
-        company_id: int,
-    ) -> list[Category]:
-        business_unit_id = (
-            await self._require_business_unit_id(
-                company_id
-            )
-        )
-
-        return await self.list_archived_for_business_unit(
-            business_unit_id
         )
 
     async def get_category(

@@ -43,8 +43,6 @@ def make_category(
 
 def test_category_service_contract() -> None:
     required_methods = {
-        "list_active_categories",
-        "list_archived_categories",
         "get_category",
         "get_category_stats",
         "create_category",
