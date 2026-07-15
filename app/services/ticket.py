@@ -3,9 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.account import Account
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
@@ -20,9 +17,6 @@ class TicketService(BaseService):
     Основная область принадлежности обращения —
     OrganizationalUnit.
 
-    company_id заполняется только при наличии
-    LegacyCompanyMapping и используется временно
-    старыми участками приложения.
     """
 
     MIN_SUBJECT_LENGTH = 3
@@ -162,21 +156,8 @@ class TicketService(BaseService):
                 "Автор обращения отключён."
             )
 
-        legacy_company_id = (
-            await self.session.scalar(
-                select(
-                    LegacyCompanyMapping.company_id
-                ).where(
-                    LegacyCompanyMapping
-                    .organizational_unit_id
-                    == business_unit_id
-                )
-            )
-        )
-
         ticket = Ticket(
             business_unit_id=business_unit_id,
-            company_id=legacy_company_id,
             account_id=account_id,
             operator_id=operator_id,
             category_id=category_id,
