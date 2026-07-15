@@ -231,7 +231,7 @@ class CompanyService(BaseService):
             )
 
         tickets_count = await self.session.scalar(
-            select(func.count(Ticket.id)).where(Ticket.company_id == company_id)
+            select(func.count(Ticket.id)).where(Ticket.business_unit_id == business_unit_id)
         )
 
         return CompanySummary(
