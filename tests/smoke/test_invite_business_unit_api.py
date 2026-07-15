@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 from app.services.invite_service import (
@@ -33,17 +34,39 @@ def test_canonical_api_validates_business_unit() -> None:
 
 
 def test_canonical_api_uses_private_record_factory() -> None:
-    source = INVITE_SERVICE.read_text(encoding="utf-8")
-
-    start = source.index("async def create_for_business_unit(")
-    end = source.index(
-        "async def register_by_token(",
-        start,
+    source = INVITE_SERVICE.read_text(
+        encoding="utf-8"
     )
-    block = source[start:end]
+    tree = ast.parse(source)
 
-    assert "self._private_create_invite_record(" in block
-    assert "company_id=None" in block
+    method = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(
+                node,
+                ast.AsyncFunctionDef,
+            )
+            and node.name
+            == "create_for_business_unit"
+        ),
+        None,
+    )
+
+    assert method is not None
+
+    block = ast.get_source_segment(
+        source,
+        method,
+    )
+
+    assert block is not None
+    assert (
+        "self._private_create_invite_record("
+        in block
+    )
+    assert "organizational_unit_id=" in block
+    assert "company_id" not in block
     assert "LegacyCompanyMapping" not in block
     assert "legacy_company_id" not in block
     assert "self.create_invite(" not in block
@@ -73,16 +96,38 @@ def test_legacy_invite_api_remains_available() -> None:
         "create_invite",
     )
 
-    source = INVITE_SERVICE.read_text(encoding="utf-8")
-
-    start = source.index("async def create_invite(")
-    end = source.index(
-        "async def create_for_business_unit(",
-        start,
+    source = INVITE_SERVICE.read_text(
+        encoding="utf-8"
     )
-    block = source[start:end]
+    tree = ast.parse(source)
 
+    method = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(
+                node,
+                ast.AsyncFunctionDef,
+            )
+            and node.name == "create_invite"
+        ),
+        None,
+    )
+
+    assert method is not None
+
+    block = ast.get_source_segment(
+        source,
+        method,
+    )
+
+    assert block is not None
     assert "company_id: int" in block
     assert "LegacyCompanyMapping" in block
-    assert "company_id=company.id" in block
-    assert "self._private_create_invite_record(" in block
+    assert "organizational_unit_id" in block
+    assert (
+        "self._private_create_invite_record("
+        in block
+    )
+    assert "company_id=company.id" not in block
+    assert "company_id=" not in block

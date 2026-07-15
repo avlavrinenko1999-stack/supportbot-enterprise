@@ -22,9 +22,13 @@ def test_invite_model_has_business_unit() -> None:
     )
 
 
-def test_invite_company_bridge_remains() -> None:
-    assert hasattr(Invite, "company_id")
-    assert hasattr(Invite, "company")
+def test_invite_uses_only_business_unit_scope() -> None:
+    assert hasattr(
+        Invite,
+        "organizational_unit_id",
+    )
+    assert not hasattr(Invite, "company_id")
+    assert not hasattr(Invite, "company")
 
 
 def test_invite_service_has_single_record_factory() -> None:
@@ -33,7 +37,7 @@ def test_invite_service_has_single_record_factory() -> None:
     assert "async def _private_create_invite_record(" in source
     assert source.count("invite = Invite(") == 1
     assert "organizational_unit_id=" in source
-    assert "company_id=company.id" in source
+    assert "company_id=company.id" not in source
 
 
 def test_migration_backfills_business_unit() -> None:

@@ -1,25 +1,38 @@
-from pathlib import Path
+import asyncio
 
+from sqlalchemy import text
+
+from app.database.db import AsyncSessionLocal
 from app.models.invite import Invite
 
 
-MIGRATION_PATH = Path(
-    "migrations/versions/20260714_03_make_invite_company_nullable.py"
-)
+def test_invite_orm_has_no_company_column() -> None:
+    assert "company_id" not in Invite.__table__.columns
 
 
-def test_invite_company_id_is_nullable_legacy_column() -> None:
-    column = Invite.__table__.c.company_id
+def test_invite_company_id_is_nullable_database_column() -> None:
+    async def verify() -> None:
+        async with AsyncSessionLocal() as session:
+            column = (
+                await session.execute(
+                    text(
+                        """
+                        SELECT
+                            is_nullable,
+                            data_type,
+                            column_default
+                        FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'invites'
+                          AND column_name = 'company_id'
+                        """
+                    )
+                )
+            ).mappings().one_or_none()
 
-    assert column.nullable is True
+            assert column is not None
+            assert column["is_nullable"] == "YES"
+            assert column["data_type"] == "integer"
+            assert column["column_default"] is None
 
-
-def test_invite_company_nullable_migration_contract() -> None:
-    source = MIGRATION_PATH.read_text(encoding="utf-8")
-
-    assert 'revision: str = "20260714_03"' in source
-    assert 'down_revision: str | None = "20260714_02"' in source
-    assert '"company_id"' in source
-    assert "nullable=True" in source
-    assert "nullable=False" in source
-    assert "WHERE company_id IS NULL" in source
+    asyncio.run(verify())

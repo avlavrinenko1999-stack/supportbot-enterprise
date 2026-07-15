@@ -46,7 +46,6 @@ class InviteService:
         *,
         created_by: Account,
         organizational_unit_id: int,
-        company_id: int | None,
         role: InviteRole,
         full_name: str,
         bot_username: str,
@@ -55,9 +54,8 @@ class InviteService:
         """
         Единственная точка создания записи Invite.
 
-        company_id передаётся compatibility-адаптерами
-        и будет удалён из канонического пути отдельным
-        атомарным этапом.
+        Приглашение принадлежит только рабочему
+        подразделению.
         """
         if created_by.role != UserRole.ADMIN:
             raise ValueError(
@@ -71,7 +69,6 @@ class InviteService:
             token_hash=token_hash,
             full_name=full_name.strip(),
             role=role,
-            company_id=company_id,
             organizational_unit_id=organizational_unit_id,
             created_by_id=created_by.id,
             expires_at=(
@@ -177,7 +174,6 @@ class InviteService:
         return await self._private_create_invite_record(
             created_by=created_by,
             organizational_unit_id=business_unit_id,
-            company_id=company.id,
             role=role,
             full_name=full_name,
             bot_username=bot_username,
@@ -185,43 +181,46 @@ class InviteService:
         )
 
     async def create_for_business_unit(
-        self,
-        *,
-        created_by: Account,
-        business_unit_id: int,
-        role: InviteRole,
-        full_name: str,
-        bot_username: str,
-        expires_days: int = 7,
-    ) -> CreatedInvite:
-        """
-        Создаёт приглашение в канонической области
-        рабочего подразделения.
+            self,
+            *,
+            created_by: Account,
+            business_unit_id: int,
+            role: InviteRole,
+            full_name: str,
+            bot_username: str,
+            expires_days: int = 7,
+        ) -> CreatedInvite:
+            """
+            Создаёт приглашение в канонической области
+            рабочего подразделения.
+            """
+            if created_by.role != UserRole.ADMIN:
+                raise ValueError(
+                    "Недостаточно прав для создания приглашения."
+                )
 
-        Канонический путь не использует Company.
-        """
-        if created_by.role != UserRole.ADMIN:
-            raise ValueError("Недостаточно прав для создания приглашения.")
-
-        business_unit = await self.session.scalar(
-            select(OrganizationalUnit).where(
-                OrganizationalUnit.id == business_unit_id,
-                OrganizationalUnit.is_active.is_(True),
+            business_unit = await self.session.scalar(
+                select(OrganizationalUnit).where(
+                    OrganizationalUnit.id
+                    == business_unit_id,
+                    OrganizationalUnit.is_active.is_(True),
+                )
             )
-        )
 
-        if business_unit is None:
-            raise ValueError("Рабочее подразделение не найдено или отключено.")
+            if business_unit is None:
+                raise ValueError(
+                    "Рабочее подразделение не найдено "
+                    "или отключено."
+                )
 
-        return await self._private_create_invite_record(
-            created_by=created_by,
-            organizational_unit_id=business_unit.id,
-            company_id=None,
-            role=role,
-            full_name=full_name,
-            bot_username=bot_username,
-            expires_days=expires_days,
-        )
+            return await self._private_create_invite_record(
+                created_by=created_by,
+                organizational_unit_id=business_unit.id,
+                role=role,
+                full_name=full_name,
+                bot_username=bot_username,
+                expires_days=expires_days,
+            )
 
     async def register_by_token(
         self,

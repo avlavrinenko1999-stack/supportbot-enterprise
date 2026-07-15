@@ -7,7 +7,6 @@ from app.models.base import Base
 from app.models.enums import InviteRole
 from app.models.mixins import IDMixin, TimestampMixin
 
-
 class Invite(Base, IDMixin, TimestampMixin):
     """
     Одноразовое приглашение.
@@ -31,11 +30,6 @@ class Invite(Base, IDMixin, TimestampMixin):
     role: Mapped[InviteRole] = mapped_column(
         Enum(InviteRole),
         nullable=False,
-    )
-
-    company_id: Mapped[int | None] = mapped_column(
-        ForeignKey("companies.id"),
-        nullable=True,
     )
 
     organizational_unit_id: Mapped[int] = mapped_column(
@@ -72,11 +66,6 @@ class Invite(Base, IDMixin, TimestampMixin):
         nullable=False,
     )
 
-    company = relationship(
-        "Company",
-        back_populates="invites",
-    )
-
     business_unit = relationship(
         "OrganizationalUnit",
         back_populates="invites",
@@ -98,7 +87,6 @@ class Invite(Base, IDMixin, TimestampMixin):
         "id",
         "full_name",
         "role",
-        "company_id",
         "organizational_unit_id",
         "is_active",
     )

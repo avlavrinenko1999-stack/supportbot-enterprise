@@ -109,12 +109,6 @@ class Company(Base, IDMixin, TimestampMixin):
         back_populates="companies",
     )
 
-    invites = relationship(
-        "Invite",
-        back_populates="company",
-        cascade="all, delete-orphan"
-    )
-
     categories = relationship(
         "Category",
         back_populates="company",
