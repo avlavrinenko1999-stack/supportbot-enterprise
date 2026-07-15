@@ -22,8 +22,8 @@ from app.keyboards.company_categories import (
     company_categories_reply_menu,
     company_category_card_menu,
 )
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
+from app.services.business_unit_card_service import (
+    BusinessUnitCardService,
 )
 from app.models.organizational_unit import (
     OrganizationalUnit,
@@ -56,10 +56,9 @@ async def _unit_id_by_legacy_company_id(
     company_id: int,
 ) -> int | None:
     async with AsyncSessionLocal() as session:
-        return await session.scalar(
-            select(LegacyCompanyMapping.organizational_unit_id).where(
-                LegacyCompanyMapping.company_id == company_id
-            )
+        service = BusinessUnitCardService(session)
+        return await service.get_unit_id_by_legacy_company_id(
+            company_id
         )
 
 
@@ -67,10 +66,9 @@ async def _legacy_company_id_by_unit_id(
     business_unit_id: int,
 ) -> int | None:
     async with AsyncSessionLocal() as session:
-        return await session.scalar(
-            select(LegacyCompanyMapping.company_id).where(
-                LegacyCompanyMapping.organizational_unit_id == business_unit_id
-            )
+        service = BusinessUnitCardService(session)
+        return await service.get_legacy_company_id(
+            business_unit_id
         )
 
 
