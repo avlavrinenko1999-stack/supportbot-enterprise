@@ -149,7 +149,6 @@ class CategoryService:
         business_unit_id: int,
         name: str,
         parent_id: int | None = None,
-        legacy_company_id: int | None = None,
     ) -> Category:
         business_unit = await self.session.scalar(
             select(OrganizationalUnit).where(
@@ -218,7 +217,6 @@ class CategoryService:
 
         category = Category(
             business_unit_id=business_unit_id,
-            company_id=legacy_company_id,
             parent_id=parent_id,
             name=clean_name,
             is_active=True,
@@ -249,7 +247,6 @@ class CategoryService:
 
         return await self.create_for_business_unit(
             business_unit_id=business_unit_id,
-            legacy_company_id=company_id,
             name=name,
             parent_id=parent_id,
         )

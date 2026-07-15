@@ -80,7 +80,7 @@ async def test_create_category() -> None:
         name="  Техническая поддержка  ",
     )
 
-    assert category.company_id == 1
+    assert category.company_id is None
     assert category.parent_id is None
     assert category.name == "Техническая поддержка"
     assert category.is_active is True
