@@ -160,23 +160,6 @@ class BusinessUnitService(BaseService):
             await self.session.scalars(statement)
         )
 
-    async def get_legacy_company_id(
-        self,
-        unit_id: int,
-    ) -> int | None:
-        if unit_id <= 0:
-            return None
-
-        return await self.session.scalar(
-            select(
-                LegacyCompanyMapping.company_id
-            ).where(
-                LegacyCompanyMapping
-                .organizational_unit_id
-                == unit_id
-            )
-        )
-
     async def get_summary(
         self,
         unit_id: int,
@@ -197,9 +180,12 @@ class BusinessUnitService(BaseService):
                 "не найдено."
             )
 
-        legacy_company_id = (
-            await self.get_legacy_company_id(
-                unit.id
+        legacy_company_id = await self.session.scalar(
+            select(
+                LegacyCompanyMapping.company_id
+            ).where(
+                LegacyCompanyMapping.organizational_unit_id
+                == unit.id
             )
         )
 

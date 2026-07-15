@@ -41,12 +41,6 @@ def test_business_unit_service_contract() -> None:
         BusinessUnitService,
         "list_root_summaries",
     )
-    assert hasattr(
-        BusinessUnitService,
-        "get_legacy_company_id",
-    )
-
-
 def test_business_unit_service_uses_new_models() -> None:
     source = (
         __import__(
