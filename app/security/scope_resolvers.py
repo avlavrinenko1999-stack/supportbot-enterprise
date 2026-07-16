@@ -84,27 +84,23 @@ async def _company_scope_for_business_unit(
     Временный адаптер текущей модели разрешений.
 
     Пока роли используют ScopeType.COMPANY, область
-    Business Unit преобразуется через
-    LegacyCompanyMapping.
+    Business Unit преобразуется через legacy mapping.
     """
     if business_unit_id <= 0:
         return None
 
-    from sqlalchemy import select
-
     from app.database.db import AsyncSessionLocal
-    from app.models.legacy_company_mapping import (
-        LegacyCompanyMapping,
+    from app.services.legacy_company_mapping_service import (
+        LegacyCompanyMappingService,
     )
 
     async with AsyncSessionLocal() as session:
-        company_id = await session.scalar(
-            select(
-                LegacyCompanyMapping.company_id
-            ).where(
-                LegacyCompanyMapping
-                .organizational_unit_id
-                == business_unit_id
+        mapping_service = LegacyCompanyMappingService(
+            session
+        )
+        company_id = (
+            await mapping_service.get_legacy_company_id(
+                business_unit_id
             )
         )
 

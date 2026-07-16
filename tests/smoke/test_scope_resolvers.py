@@ -92,3 +92,17 @@ async def test_company_scope_from_callback_data() -> None:
 
     assert scope is not None
     assert scope.scope_id == 81
+
+
+def test_scope_resolvers_have_no_direct_legacy_model_dependency() -> None:
+    from pathlib import Path
+
+    source = Path(
+        "app/security/scope_resolvers.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "from app.models.legacy_company_mapping import"
+        not in source
+    )
+    assert "LegacyCompanyMappingService" in source
