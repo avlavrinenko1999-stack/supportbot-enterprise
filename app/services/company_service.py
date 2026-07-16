@@ -362,3 +362,32 @@ class CompanyService(BaseService):
         await self.session.refresh(company)
 
         return company
+
+    async def set_company_active_for_unit(
+        self,
+        business_unit_id: int,
+        is_active: bool,
+    ) -> Company:
+        from app.services.legacy_company_mapping_service import (
+            LegacyCompanyMappingService,
+        )
+
+        mapping_service = LegacyCompanyMappingService(
+            self.session
+        )
+        company_id = (
+            await mapping_service.get_legacy_company_id(
+                business_unit_id
+            )
+        )
+
+        if company_id is None:
+            raise ValueError(
+                "Для подразделения не найдена "
+                "legacy-компания."
+            )
+
+        return await self.set_company_active(
+            company_id,
+            is_active,
+        )

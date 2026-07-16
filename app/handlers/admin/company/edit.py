@@ -20,7 +20,6 @@ from app.security.decorators import require_permission
 from app.security.permissions import Permission
 from app.security.scope_resolvers import (
     business_unit_scope_from_state,
-    company_scope_from_state,
 )
 from app.services.company_audit_service import CompanyAuditService, company_legal_snapshot, diff_snapshots
 from app.services.company_legal_entity_service import (
@@ -453,36 +452,66 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
 @router.message(MenuActionFilter(MenuAction.COMPANY_DISABLE))
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_disable_from_reply(message: Message, state: FSMContext) -> None:
-    company_id = await UIContext.get_company_id(state)
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
 
-    if company_id is None:
-        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+    if business_unit_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите подразделение.",
+        )
         return
 
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
-        company = await service.set_company_active(company_id, False)
+        await service.set_company_active_for_unit(
+            business_unit_id,
+            False,
+        )
 
-    await render_company_card(message, state, company.id)
+    await render_business_unit_card(
+        message,
+        state,
+        business_unit_id,
+    )
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_ENABLE))
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_enable_from_reply(message: Message, state: FSMContext) -> None:
-    company_id = await UIContext.get_company_id(state)
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
 
-    if company_id is None:
-        await MessageService.replace_service_message(message, state, "Сначала выберите компанию.")
+    if business_unit_id is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Сначала выберите подразделение.",
+        )
         return
 
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
-        company = await service.set_company_active(company_id, True)
+        await service.set_company_active_for_unit(
+            business_unit_id,
+            True,
+        )
 
-    await render_company_card(message, state, company.id)
+    await render_business_unit_card(
+        message,
+        state,
+        business_unit_id,
+    )
