@@ -369,21 +369,27 @@ async def company_registry_update(
 @router.message(MenuActionFilter(MenuAction.COMPANY_RENAME))
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_rename_start(message: Message, state: FSMContext) -> None:
-    company_id = await UIContext.get_company_id(state)
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
 
-    if company_id is None:
+    if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Сначала выберите компанию.",
+            "Сначала выберите подразделение.",
             reply_markup=companies_catalog_reply_menu(),
         )
         return
 
-    await state.update_data(rename_company_id=company_id)
+    await state.update_data(
+        rename_business_unit_id=business_unit_id
+    )
     await state.set_state(CompanyState.rename_name)
 
     await MessageService.replace_service_message(
@@ -397,7 +403,7 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
 @router.message(CompanyState.rename_name)
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_rename_finish(message: Message, state: FSMContext) -> None:
     account = await get_current_account_or_answer(message, state)
@@ -406,19 +412,42 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
         return
 
     data = await state.get_data()
-    company_id = int(data["rename_company_id"])
+    business_unit_id = int(
+        data.get("rename_business_unit_id")
+        or await UIContext.get_business_unit_id(
+            state
+        )
+        or 0
+    )
+
+    if business_unit_id <= 0:
+        await state.set_state(None)
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Подразделение не выбрано.",
+            reply_markup=companies_catalog_reply_menu(),
+        )
+        return
 
     async with AsyncSessionLocal() as session:
         service = CompanyService(session)
 
         try:
-            company = await service.rename_company(company_id, message.text or "")
+            await service.rename_company_for_unit(
+                business_unit_id,
+                message.text or "",
+            )
         except ValueError as error:
             await MessageService.replace_service_message(message, state, str(error))
             return
 
     await state.clear()
-    await render_company_card(message, state, company.id)
+    await render_business_unit_card(
+        message,
+        state,
+        business_unit_id,
+    )
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_DISABLE))

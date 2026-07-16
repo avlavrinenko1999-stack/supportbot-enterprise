@@ -269,6 +269,35 @@ class CompanyService(BaseService):
 
         return company
 
+    async def rename_company_for_unit(
+        self,
+        business_unit_id: int,
+        new_name: str,
+    ) -> Company:
+        from app.services.legacy_company_mapping_service import (
+            LegacyCompanyMappingService,
+        )
+
+        mapping_service = LegacyCompanyMappingService(
+            self.session
+        )
+        company_id = (
+            await mapping_service.get_legacy_company_id(
+                business_unit_id
+            )
+        )
+
+        if company_id is None:
+            raise ValueError(
+                "Для подразделения не найдена "
+                "legacy-компания."
+            )
+
+        return await self.rename_company(
+            company_id,
+            new_name,
+        )
+
     async def update_legal_data(
         self,
         company_id: int,
