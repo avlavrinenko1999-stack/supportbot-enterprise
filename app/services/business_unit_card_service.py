@@ -19,6 +19,9 @@ from app.services.base_service import BaseService
 from app.services.business_unit_service import (
     BusinessUnitService,
 )
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +60,9 @@ class BusinessUnitCardService(BaseService):
         self.session = session
         self.units = BusinessUnitService(session)
         self.access = BusinessUnitAccessService(session)
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def get_legacy_company_id(
         self,
@@ -88,8 +94,10 @@ class BusinessUnitCardService(BaseService):
         summary = await self.units.get_summary(
             unit_id
         )
-        legacy_company_id = await self.get_legacy_company_id(
-            summary.unit.id
+        legacy_company_id = (
+            await self.mapping.get_legacy_company_id(
+                summary.unit.id
+            )
         )
 
         legacy_phone = None
