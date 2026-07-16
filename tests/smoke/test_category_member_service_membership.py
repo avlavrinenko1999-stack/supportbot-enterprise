@@ -101,5 +101,9 @@ def test_company_contract_is_compatibility_only() -> None:
         "_get_business_unit_id",
     )
 
-    assert "LegacyCompanyMapping" in helper
-    assert "organizational_unit_id" in helper
+    assert "self.mapping" in helper
+    assert (
+        "get_unit_id_by_legacy_company_id"
+        in helper
+    )
+    assert "LegacyCompanyMapping." not in helper

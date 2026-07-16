@@ -9,14 +9,17 @@ from app.models.account_organizational_unit_membership import (
 from app.models.category import Category
 from app.models.category_member import CategoryMember
 from app.models.enums import UserRole
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
 )
 
 
 class CategoryMemberService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def list_members(
         self,
@@ -143,11 +146,10 @@ class CategoryMemberService:
         self,
         company_id: int,
     ) -> int | None:
-        return await self.session.scalar(
-            select(
-                LegacyCompanyMapping.organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id == company_id
+        return (
+            await self.mapping
+            .get_unit_id_by_legacy_company_id(
+                company_id
             )
         )
 
