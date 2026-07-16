@@ -12,9 +12,9 @@ HANDLER_PATH = Path(
 def test_category_handler_has_no_direct_mapping_dependency() -> None:
     source = HANDLER_PATH.read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMapping" not in source
-    assert "legacy_company_mapping" not in source
+    assert "from app.models.legacy_company_mapping import" not in source
     assert "BusinessUnitCardService" in source
+    assert "LegacyCompanyMappingService" in source
 
 
 def test_category_handler_delegates_legacy_conversion() -> None:

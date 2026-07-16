@@ -24,6 +24,9 @@ from app.services.business_unit_card_service import (
 from app.services.business_unit_preference_service import (
     BusinessUnitPreferenceService,
 )
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
 from app.ui.context import UIContext
@@ -171,9 +174,11 @@ async def render_company_card(
     кнопок и незавершённых пользовательских состояний.
     """
     async with AsyncSessionLocal() as session:
-        service = BusinessUnitCardService(session)
+        mapping_service = LegacyCompanyMappingService(
+            session
+        )
         business_unit_id = (
-            await service
+            await mapping_service
             .get_unit_id_by_legacy_company_id(
                 company_id
             )
