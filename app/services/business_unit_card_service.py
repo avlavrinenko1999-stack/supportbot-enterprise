@@ -132,26 +132,3 @@ class BusinessUnitCardService(BaseService):
             employees_count=summary.employees_count,
             tickets_count=summary.tickets_count,
         )
-
-    async def get_card_by_legacy_company_id(
-        self,
-        account: Account,
-        company_id: int,
-    ) -> BusinessUnitCard:
-        unit_id = (
-            await self
-            .get_unit_id_by_legacy_company_id(
-                company_id
-            )
-        )
-
-        if unit_id is None:
-            raise ValueError(
-                "Для компании не найдено рабочее "
-                "подразделение."
-            )
-
-        return await self.get_card(
-            account,
-            unit_id,
-        )
