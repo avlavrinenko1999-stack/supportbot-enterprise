@@ -84,14 +84,11 @@ async def render_business_unit_card(
                 card.unit.id
             )
         )
-        legacy_phone = None
-
-        if legacy_company_id is not None:
-            legacy_phone = (
-                await mapping_service.get_legacy_phone(
-                    legacy_company_id
-                )
+        legacy_phone = (
+            await mapping_service.get_phone_by_unit_id(
+                card.unit.id
             )
+        )
 
         await preference_service.touch_unit(
             account_id=account.id,

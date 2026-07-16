@@ -60,3 +60,18 @@ class LegacyCompanyMappingService(BaseService):
                 Company.id == company_id
             )
         )
+
+    async def get_phone_by_unit_id(
+        self,
+        unit_id: int,
+    ) -> str | None:
+        company_id = await self.get_legacy_company_id(
+            unit_id
+        )
+
+        if company_id is None:
+            return None
+
+        return await self.get_legacy_phone(
+            company_id
+        )
