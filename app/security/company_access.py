@@ -4,15 +4,12 @@ from sqlalchemy import false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
-from app.models.account_organizational_unit_membership import (
-    AccountOrganizationalUnitMembership,
-)
 from app.models.company import Company
 from app.models.enums import ScopeType, UserRole
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.role_assignment import RoleAssignment
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 class CompanyAccessService:
@@ -27,6 +24,9 @@ class CompanyAccessService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def list_visible_companies(
         self,
@@ -193,24 +193,9 @@ class CompanyAccessService:
         self,
         account_id: int,
     ) -> int | None:
-        return await self.session.scalar(
-            select(LegacyCompanyMapping.company_id)
-            .join(
-                AccountOrganizationalUnitMembership,
-                AccountOrganizationalUnitMembership
-                .organizational_unit_id
-                == LegacyCompanyMapping
-                .organizational_unit_id,
-            )
-            .where(
-                AccountOrganizationalUnitMembership
-                .account_id
-                == account_id,
-                AccountOrganizationalUnitMembership
-                .is_primary
-                .is_(True),
-                AccountOrganizationalUnitMembership
-                .is_active
-                .is_(True),
+        return (
+            await self.mapping
+            .get_primary_membership_company_id(
+                account_id
             )
         )

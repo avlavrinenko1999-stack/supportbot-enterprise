@@ -89,7 +89,7 @@ def test_membership_condition_preserves_admin_access() -> None:
     assert "Company.id == company_id" in block
 
 
-def test_company_lookup_uses_primary_active_membership() -> None:
+def test_company_lookup_delegates_membership_mapping() -> None:
     source = SERVICE_PATH.read_text(
         encoding="utf-8"
     )
@@ -98,12 +98,13 @@ def test_company_lookup_uses_primary_active_membership() -> None:
         "_primary_membership_company_id",
     )
 
+    assert "self.mapping" in block
     assert (
-        "AccountOrganizationalUnitMembership"
+        "get_primary_membership_company_id"
         in block
     )
-    assert "LegacyCompanyMapping" in block
-    assert ".is_primary" in block
-    assert ".is_active" in block
-    assert "organizational_unit_id" in block
-    assert "account_id" in block
+    assert (
+        "AccountOrganizationalUnitMembership"
+        not in block
+    )
+    assert "LegacyCompanyMapping" not in block

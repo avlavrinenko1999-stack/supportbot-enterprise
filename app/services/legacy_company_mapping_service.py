@@ -1,6 +1,9 @@
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account_organizational_unit_membership import (
+    AccountOrganizationalUnitMembership,
+)
 from app.models.company import Company
 from app.models.legacy_company_mapping import (
     LegacyCompanyMapping,
@@ -45,6 +48,37 @@ class LegacyCompanyMappingService(BaseService):
                 LegacyCompanyMapping
                 .organizational_unit_id
                 == unit_id
+            )
+        )
+
+    async def get_primary_membership_company_id(
+        self,
+        account_id: int,
+    ) -> int | None:
+        if account_id <= 0:
+            return None
+
+        return await self.session.scalar(
+            select(
+                LegacyCompanyMapping.company_id
+            )
+            .join(
+                AccountOrganizationalUnitMembership,
+                AccountOrganizationalUnitMembership
+                .organizational_unit_id
+                == LegacyCompanyMapping
+                .organizational_unit_id,
+            )
+            .where(
+                AccountOrganizationalUnitMembership
+                .account_id
+                == account_id,
+                AccountOrganizationalUnitMembership
+                .is_primary
+                .is_(True),
+                AccountOrganizationalUnitMembership
+                .is_active
+                .is_(True),
             )
         )
 
