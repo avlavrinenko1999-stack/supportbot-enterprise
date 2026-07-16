@@ -79,11 +79,6 @@ async def render_business_unit_card(
             )
             return
 
-        legacy_company_id = (
-            await mapping_service.get_legacy_company_id(
-                card.unit.id
-            )
-        )
         legacy_phone = (
             await mapping_service.get_phone_by_unit_id(
                 card.unit.id
@@ -121,12 +116,6 @@ async def render_business_unit_card(
         state,
         unit.id,
     )
-
-    if legacy_company_id is not None:
-        await UIContext.set_company_id(
-            state,
-            legacy_company_id,
-        )
 
     await UIContext.set_section(
         state,

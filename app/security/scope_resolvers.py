@@ -14,23 +14,6 @@ ScopeResolver = Callable[
 ]
 
 
-async def company_scope_from_state(
-    event: ScopeEvent,
-    state: FSMContext | None,
-) -> AccessScope | None:
-    del event
-
-    if state is None:
-        return None
-
-    company_id = await UIContext.get_company_id(state)
-
-    if company_id is None:
-        return None
-
-    return AccessScope.company(company_id)
-
-
 async def company_scope_from_reply(
     event: ScopeEvent,
     state: FSMContext | None,

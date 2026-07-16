@@ -1,54 +1,10 @@
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 
-from app.models.enums import ScopeType
 from app.security.scope_resolvers import (
     company_scope_from_callback,
     company_scope_from_reply,
-    company_scope_from_state,
 )
-
-
-@pytest.mark.asyncio
-async def test_company_scope_from_state() -> None:
-    state = SimpleNamespace(
-        get_data=AsyncMock(
-            return_value={
-                "ui_context": {
-                    "company_id": 15,
-                }
-            }
-        )
-    )
-
-    scope = await company_scope_from_state(
-        SimpleNamespace(),
-        state,
-    )
-
-    assert scope is not None
-    assert scope.scope_type == ScopeType.COMPANY
-    assert scope.scope_id == 15
-
-
-@pytest.mark.asyncio
-async def test_company_scope_from_state_returns_none_without_company() -> None:
-    state = SimpleNamespace(
-        get_data=AsyncMock(
-            return_value={
-                "ui_context": {},
-            }
-        )
-    )
-
-    scope = await company_scope_from_state(
-        SimpleNamespace(),
-        state,
-    )
-
-    assert scope is None
 
 
 @pytest.mark.asyncio
