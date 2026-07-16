@@ -22,9 +22,6 @@ from app.keyboards.company_categories import (
     company_categories_reply_menu,
     company_category_card_menu,
 )
-from app.services.business_unit_card_service import (
-    BusinessUnitCardService,
-)
 from app.services.legacy_company_mapping_service import (
     LegacyCompanyMappingService,
 )
@@ -71,7 +68,9 @@ async def _legacy_company_id_by_unit_id(
     business_unit_id: int,
 ) -> int | None:
     async with AsyncSessionLocal() as session:
-        service = BusinessUnitCardService(session)
+        service = LegacyCompanyMappingService(
+            session
+        )
         return await service.get_legacy_company_id(
             business_unit_id
         )

@@ -29,3 +29,20 @@ class LegacyCompanyMappingService(BaseService):
                 == company_id
             )
         )
+
+    async def get_legacy_company_id(
+        self,
+        unit_id: int,
+    ) -> int | None:
+        if unit_id <= 0:
+            return None
+
+        return await self.session.scalar(
+            select(
+                LegacyCompanyMapping.company_id
+            ).where(
+                LegacyCompanyMapping
+                .organizational_unit_id
+                == unit_id
+            )
+        )

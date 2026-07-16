@@ -13,7 +13,7 @@ def test_category_handler_has_no_direct_mapping_dependency() -> None:
     source = HANDLER_PATH.read_text(encoding="utf-8")
 
     assert "from app.models.legacy_company_mapping import" not in source
-    assert "BusinessUnitCardService" in source
+    assert "BusinessUnitCardService" not in source
     assert "LegacyCompanyMappingService" in source
 
 
