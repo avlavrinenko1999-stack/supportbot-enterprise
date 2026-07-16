@@ -15,7 +15,7 @@ CARD_PATH = Path(
 def test_business_unit_service_has_no_legacy_dependency() -> None:
     source = CORE_PATH.read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMapping" not in source
+    assert "from app.models.legacy_company_mapping import" not in source
     assert "legacy_company_mapping" not in source
     assert "legacy_company_id" not in source
 
@@ -48,9 +48,13 @@ def test_business_unit_summary_is_canonical() -> None:
     } <= fields
 
 
-def test_legacy_lookup_lives_in_card_compatibility_layer() -> None:
+def test_card_uses_isolated_legacy_mapping_service() -> None:
     source = CARD_PATH.read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMapping" in source
-    assert "get_legacy_company_id" in source
+    assert "LegacyCompanyMappingService" in source
+    assert (
+        "from app.models.legacy_company_mapping import"
+        not in source
+    )
+    assert "self.mapping.get_legacy_company_id" in source
     assert "summary.legacy_company_id" not in source

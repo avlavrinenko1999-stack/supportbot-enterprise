@@ -28,11 +28,6 @@ def test_business_unit_card_service_contract() -> None:
         BusinessUnitCardService,
         "get_card",
     )
-    assert hasattr(
-        BusinessUnitCardService,
-        "get_legacy_company_id",
-    )
-
 
 def test_ui_context_has_business_unit_id() -> None:
     assert hasattr(

@@ -5,9 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.company import Company
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.legal_entity import LegalEntity
 from app.models.organizational_unit import (
     OrganizationalUnit,
@@ -62,23 +59,6 @@ class BusinessUnitCardService(BaseService):
         self.access = BusinessUnitAccessService(session)
         self.mapping = LegacyCompanyMappingService(
             session
-        )
-
-    async def get_legacy_company_id(
-        self,
-        unit_id: int,
-    ) -> int | None:
-        if unit_id <= 0:
-            return None
-
-        return await self.session.scalar(
-            select(
-                LegacyCompanyMapping.company_id
-            ).where(
-                LegacyCompanyMapping
-                .organizational_unit_id
-                == unit_id
-            )
         )
 
     async def get_card(
