@@ -7,6 +7,9 @@ from app.models.legacy_company_mapping import (
 )
 from app.models.legal_entity import LegalEntity
 from app.services.base_service import BaseService
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 from app.services.legal_entity_registry_service import (
     LegalEntityRegistryService,
 )
@@ -27,6 +30,11 @@ class CompanyLegalEntityService(BaseService):
         self.session = session
         self.registry = LegalEntityRegistryService(
             session
+        )
+        self.mapping_service = (
+            LegacyCompanyMappingService(
+                session
+            )
         )
 
     async def get_mapping(
@@ -128,4 +136,30 @@ class CompanyLegalEntityService(BaseService):
                 actor_account_id=actor_account_id,
                 source="company_ui",
             )
+        )
+
+    async def fill_by_inn_for_unit(
+        self,
+        business_unit_id: int,
+        inn: str,
+        *,
+        actor_account_id: int | None = None,
+    ) -> LegalEntity:
+        company_id = (
+            await self.mapping_service
+            .get_legacy_company_id(
+                business_unit_id
+            )
+        )
+
+        if company_id is None:
+            raise ValueError(
+                "Для подразделения не найдена "
+                "legacy-компания."
+            )
+
+        return await self.fill_by_inn(
+            company_id,
+            inn,
+            actor_account_id=actor_account_id,
         )

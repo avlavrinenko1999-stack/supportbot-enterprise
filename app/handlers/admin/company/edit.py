@@ -5,7 +5,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.company.card import render_company_card
+from app.handlers.admin.company.card import (
+    render_business_unit_card,
+    render_company_card,
+)
 from app.handlers.admin.company.common import get_current_account_or_answer
 from app.handlers.admin.company.state import CompanyState
 from app.integrations.dadata import DadataClient
@@ -15,7 +18,10 @@ from app.keyboards.company import (
 )
 from app.security.decorators import require_permission
 from app.security.permissions import Permission
-from app.security.scope_resolvers import company_scope_from_state
+from app.security.scope_resolvers import (
+    business_unit_scope_from_state,
+    company_scope_from_state,
+)
 from app.services.company_audit_service import CompanyAuditService, company_legal_snapshot, diff_snapshots
 from app.services.company_legal_entity_service import (
     CompanyLegalEntityService,
@@ -182,25 +188,29 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 )
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_fill_by_inn_start(
     message: Message,
     state: FSMContext,
 ) -> None:
-    company_id = await UIContext.get_company_id(state)
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
 
-    if company_id is None:
+    if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Сначала выберите компанию.",
+            "Сначала выберите подразделение.",
             reply_markup=companies_catalog_reply_menu(),
         )
         return
 
     await state.update_data(
-        legal_company_id=company_id
+        legal_business_unit_id=business_unit_id
     )
     await state.set_state(CompanyState.legal_inn)
 
@@ -217,7 +227,7 @@ async def company_fill_by_inn_start(
 @router.message(CompanyState.legal_inn)
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_fill_by_inn_finish(
     message: Message,
@@ -228,15 +238,17 @@ async def company_fill_by_inn_finish(
     if text in COMPANY_CONTROL_TEXTS:
         await state.set_state(None)
 
-        company_id = await UIContext.get_company_id(
-            state
+        business_unit_id = (
+            await UIContext.get_business_unit_id(
+                state
+            )
         )
 
-        if company_id is not None:
-            await render_company_card(
+        if business_unit_id is not None:
+            await render_business_unit_card(
                 message,
                 state,
-                company_id,
+                business_unit_id,
             )
         return
 
@@ -250,18 +262,20 @@ async def company_fill_by_inn_finish(
         return
 
     data = await state.get_data()
-    company_id = int(
-        data.get("legal_company_id")
-        or await UIContext.get_company_id(state)
+    business_unit_id = int(
+        data.get("legal_business_unit_id")
+        or await UIContext.get_business_unit_id(
+            state
+        )
         or 0
     )
 
-    if company_id <= 0:
+    if business_unit_id <= 0:
         await state.set_state(None)
         await MessageService.replace_service_message(
             message,
             state,
-            "Компания не выбрана.",
+            "Подразделение не выбрано.",
             reply_markup=companies_catalog_reply_menu(),
         )
         return
@@ -270,8 +284,8 @@ async def company_fill_by_inn_finish(
         service = CompanyLegalEntityService(session)
 
         try:
-            await service.fill_by_inn(
-                company_id,
+            await service.fill_by_inn_for_unit(
+                business_unit_id,
                 text,
                 actor_account_id=account.id,
             )
@@ -285,10 +299,10 @@ async def company_fill_by_inn_finish(
             return
 
     await state.set_state(None)
-    await render_company_card(
+    await render_business_unit_card(
         message,
         state,
-        company_id,
+        business_unit_id,
     )
 
 
