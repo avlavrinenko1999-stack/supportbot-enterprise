@@ -3,11 +3,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company_audit_event import CompanyAuditEvent
 from app.services.base_service import BaseService
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 class CompanyAuditService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def create_event(
         self,
@@ -54,6 +60,26 @@ class CompanyAuditService(BaseService):
                 .order_by(CompanyAuditEvent.created_at.desc())
                 .limit(limit)
             )
+        )
+
+    async def list_business_unit_events(
+        self,
+        business_unit_id: int,
+        *,
+        limit: int = 20,
+    ) -> list[CompanyAuditEvent]:
+        company_id = (
+            await self.mapping.get_legacy_company_id(
+                business_unit_id
+            )
+        )
+
+        if company_id is None:
+            return []
+
+        return await self.list_company_events(
+            company_id,
+            limit=limit,
         )
 
 

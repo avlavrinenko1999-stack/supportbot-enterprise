@@ -7,7 +7,9 @@ from app.keyboards.company import company_card_reply_menu
 from app.services.company_audit_service import CompanyAuditService
 from app.security.decorators import require_permission
 from app.security.permissions import Permission
-from app.security.scope_resolvers import company_scope_from_state
+from app.security.scope_resolvers import (
+    business_unit_scope_from_state,
+)
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
 from app.ui.context import UIContext
@@ -84,26 +86,35 @@ def format_audit_payload_pretty(payload: dict | None) -> list[str]:
 @router.message(MenuActionFilter(MenuAction.COMPANY_AUDIT_HISTORY))
 @require_permission(
     Permission.COMPANY_AUDIT_VIEW,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_audit_history(
     message: Message,
     state: FSMContext,
 ) -> None:
-    company_id = await UIContext.get_company_id(state)
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
 
-    if company_id is None:
+    if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Сначала выберите компанию.",
+            "Сначала выберите подразделение.",
             reply_markup=await company_card_reply_menu(),
         )
         return
 
     async with AsyncSessionLocal() as session:
         audit_service = CompanyAuditService(session)
-        events = await audit_service.list_company_events(company_id, limit=20)
+        events = (
+            await audit_service.list_business_unit_events(
+                business_unit_id,
+                limit=20,
+            )
+        )
 
     if not events:
         await MessageService.replace_service_message(
