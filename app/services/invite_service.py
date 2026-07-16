@@ -14,11 +14,11 @@ from app.models.account_organizational_unit_membership import (
 from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.organizational_unit import (
     OrganizationalUnit,
+)
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
 )
 
 
@@ -32,6 +32,9 @@ class CreatedInvite:
 class InviteService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     @staticmethod
     def make_token_hash(token: str) -> str:
@@ -156,12 +159,10 @@ class InviteService:
                 "Компания не найдена или отключена."
             )
 
-        business_unit_id = await self.session.scalar(
-            select(
-                LegacyCompanyMapping.organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id
-                == company.id
+        business_unit_id = (
+            await self.mapping
+            .get_unit_id_by_legacy_company_id(
+                company.id
             )
         )
 
