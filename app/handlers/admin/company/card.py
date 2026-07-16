@@ -59,6 +59,9 @@ async def render_business_unit_card(
                 session
             )
         )
+        mapping_service = LegacyCompanyMappingService(
+            session
+        )
 
         try:
             card = await card_service.get_card(
@@ -77,7 +80,9 @@ async def render_business_unit_card(
             return
 
         legacy_company_id = (
-            card.legacy_company_id
+            await mapping_service.get_legacy_company_id(
+                card.unit.id
+            )
         )
 
         await preference_service.touch_unit(

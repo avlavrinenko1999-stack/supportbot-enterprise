@@ -58,5 +58,6 @@ def test_card_uses_isolated_legacy_mapping_service() -> None:
     )
     assert "self.mapping.get_legacy_company_id" in source
     assert "self.mapping.get_legacy_phone" in source
+    assert "legacy_company_id=" not in source
     assert "Company.phone" not in source
     assert "summary.legacy_company_id" not in source
