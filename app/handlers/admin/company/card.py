@@ -84,6 +84,14 @@ async def render_business_unit_card(
                 card.unit.id
             )
         )
+        legacy_phone = None
+
+        if legacy_company_id is not None:
+            legacy_phone = (
+                await mapping_service.get_legacy_phone(
+                    legacy_company_id
+                )
+            )
 
         await preference_service.touch_unit(
             account_id=account.id,
@@ -156,7 +164,7 @@ async def render_business_unit_card(
         f"Синхронизация: "
         f"{legal_entity.last_registry_sync_at or 'ещё не выполнялась'}\n\n"
         f"Телефон подразделения: "
-        f"{card.legacy_phone or 'не заполнен'}\n\n"
+        f"{legacy_phone or 'не заполнен'}\n\n"
         f"Координаторов: "
         f"{card.coordinators_count}\n"
         f"Сотрудников: "

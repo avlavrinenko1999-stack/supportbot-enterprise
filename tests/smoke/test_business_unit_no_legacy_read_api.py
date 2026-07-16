@@ -48,16 +48,10 @@ def test_business_unit_summary_is_canonical() -> None:
     } <= fields
 
 
-def test_card_uses_isolated_legacy_mapping_service() -> None:
+def test_card_service_has_no_legacy_mapping_dependency() -> None:
     source = CARD_PATH.read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMappingService" in source
-    assert (
-        "from app.models.legacy_company_mapping import"
-        not in source
-    )
-    assert "self.mapping.get_legacy_company_id" in source
-    assert "self.mapping.get_legacy_phone" in source
-    assert "legacy_company_id=" not in source
+    assert "LegacyCompanyMappingService" not in source
+    assert "legacy_company_id" not in source
+    assert "legacy_phone" not in source
     assert "Company.phone" not in source
-    assert "summary.legacy_company_id" not in source

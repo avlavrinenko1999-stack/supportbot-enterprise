@@ -15,7 +15,6 @@ def test_business_unit_card_contract() -> None:
     } == {
         "unit",
         "legal_entity",
-        "legacy_phone",
         "coordinators_count",
         "employees_count",
         "tickets_count",
