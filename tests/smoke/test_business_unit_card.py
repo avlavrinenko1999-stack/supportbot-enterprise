@@ -30,10 +30,6 @@ def test_business_unit_card_service_contract() -> None:
     )
     assert hasattr(
         BusinessUnitCardService,
-        "get_unit_id_by_legacy_company_id",
-    )
-    assert hasattr(
-        BusinessUnitCardService,
         "get_legacy_company_id",
     )
 

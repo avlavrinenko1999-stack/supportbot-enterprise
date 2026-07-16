@@ -58,23 +58,6 @@ class BusinessUnitCardService(BaseService):
         self.units = BusinessUnitService(session)
         self.access = BusinessUnitAccessService(session)
 
-    async def get_unit_id_by_legacy_company_id(
-        self,
-        company_id: int,
-    ) -> int | None:
-        if company_id <= 0:
-            return None
-
-        return await self.session.scalar(
-            select(
-                LegacyCompanyMapping
-                .organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id
-                == company_id
-            )
-        )
-
     async def get_legacy_company_id(
         self,
         unit_id: int,
