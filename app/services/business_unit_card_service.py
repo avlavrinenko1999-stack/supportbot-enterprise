@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
-from app.models.company import Company
 from app.models.legal_entity import LegalEntity
 from app.models.organizational_unit import (
     OrganizationalUnit,
@@ -83,10 +81,9 @@ class BusinessUnitCardService(BaseService):
         legacy_phone = None
 
         if legacy_company_id is not None:
-            legacy_phone = await self.session.scalar(
-                select(Company.phone).where(
-                    Company.id
-                    == legacy_company_id
+            legacy_phone = (
+                await self.mapping.get_legacy_phone(
+                    legacy_company_id
                 )
             )
 

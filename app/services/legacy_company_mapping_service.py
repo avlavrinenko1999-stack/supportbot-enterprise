@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.company import Company
 from app.models.legacy_company_mapping import (
     LegacyCompanyMapping,
 )
@@ -44,5 +45,18 @@ class LegacyCompanyMappingService(BaseService):
                 LegacyCompanyMapping
                 .organizational_unit_id
                 == unit_id
+            )
+        )
+
+    async def get_legacy_phone(
+        self,
+        company_id: int,
+    ) -> str | None:
+        if company_id <= 0:
+            return None
+
+        return await self.session.scalar(
+            select(Company.phone).where(
+                Company.id == company_id
             )
         )
