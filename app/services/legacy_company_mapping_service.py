@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
@@ -74,4 +74,50 @@ class LegacyCompanyMappingService(BaseService):
 
         return await self.get_legacy_phone(
             company_id
+        )
+
+    async def resolve_assignment_seed_unit_ids(
+        self,
+        *,
+        company_ids: set[int],
+        holding_ids: set[int],
+        organization_ids: set[int],
+    ) -> set[int]:
+        conditions = []
+
+        if company_ids:
+            conditions.append(
+                LegacyCompanyMapping.company_id.in_(
+                    company_ids
+                )
+            )
+
+        if holding_ids:
+            conditions.append(
+                Company.holding_id.in_(holding_ids)
+            )
+
+        if organization_ids:
+            conditions.append(
+                Company.organization_id.in_(
+                    organization_ids
+                )
+            )
+
+        if not conditions:
+            return set()
+
+        return set(
+            await self.session.scalars(
+                select(
+                    LegacyCompanyMapping
+                    .organizational_unit_id
+                )
+                .join(
+                    Company,
+                    Company.id
+                    == LegacyCompanyMapping.company_id,
+                )
+                .where(or_(*conditions))
+            )
         )

@@ -8,15 +8,14 @@ from app.models.account import Account
 from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
-from app.models.company import Company
 from app.models.enums import ScopeType, UserRole
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
 from app.models.role_assignment import RoleAssignment
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 class BusinessUnitAccessService:
@@ -50,6 +49,9 @@ class BusinessUnitAccessService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def list_visible_units(
         self,
@@ -351,42 +353,12 @@ class BusinessUnitAccessService:
             )
         }
 
-        conditions = []
-
-        if company_ids:
-            conditions.append(
-                LegacyCompanyMapping.company_id.in_(
-                    company_ids
-                )
-            )
-
-        if holding_ids:
-            conditions.append(
-                Company.holding_id.in_(holding_ids)
-            )
-
-        if organization_ids:
-            conditions.append(
-                Company.organization_id.in_(
-                    organization_ids
-                )
-            )
-
-        if not conditions:
-            return set()
-
-        return set(
-            await self.session.scalars(
-                select(
-                    LegacyCompanyMapping
-                    .organizational_unit_id
-                )
-                .join(
-                    Company,
-                    Company.id
-                    == LegacyCompanyMapping.company_id,
-                )
-                .where(or_(*conditions))
+        return (
+            await self.mapping
+            .resolve_assignment_seed_unit_ids(
+                company_ids=company_ids,
+                holding_ids=holding_ids,
+                organization_ids=organization_ids,
             )
         )
 

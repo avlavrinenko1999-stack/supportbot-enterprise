@@ -48,10 +48,11 @@ def test_company_is_only_legacy_scope_bridge() -> None:
         "app/security/business_unit_access.py"
     ).read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMapping" in source
+    assert "LegacyCompanyMappingService" in source
     assert "ScopeType.COMPANY" in source
-    assert "Company.holding_id" in source
-    assert "Company.organization_id" in source
+    assert "resolve_assignment_seed_unit_ids" in source
+    assert "Company.holding_id" not in source
+    assert "Company.organization_id" not in source
 
     assert "select(Company)" not in source
     assert "list_visible_companies" not in source
