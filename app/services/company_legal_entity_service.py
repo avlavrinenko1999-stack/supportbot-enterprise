@@ -117,6 +117,30 @@ class CompanyLegalEntityService(BaseService):
             source="company_ui",
         )
 
+    async def refresh_from_registry_for_unit(
+        self,
+        business_unit_id: int,
+        *,
+        actor_account_id: int | None = None,
+    ) -> LegalEntity:
+        company_id = (
+            await self.mapping_service
+            .get_legacy_company_id(
+                business_unit_id
+            )
+        )
+
+        if company_id is None:
+            raise ValueError(
+                "Для подразделения не найдена "
+                "legacy-компания."
+            )
+
+        return await self.refresh_from_registry(
+            company_id,
+            actor_account_id=actor_account_id,
+        )
+
     async def fill_by_inn(
         self,
         company_id: int,

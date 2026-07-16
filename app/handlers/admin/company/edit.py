@@ -313,7 +313,7 @@ async def company_fill_by_inn_finish(
 )
 @require_permission(
     Permission.COMPANY_MANAGE,
-    scope_resolver=company_scope_from_state,
+    scope_resolver=business_unit_scope_from_state,
 )
 async def company_registry_update(
     message: Message,
@@ -327,13 +327,17 @@ async def company_registry_update(
     if account is None:
         return
 
-    company_id = await UIContext.get_company_id(state)
+    business_unit_id = (
+        await UIContext.get_business_unit_id(
+            state
+        )
+    )
 
-    if company_id is None:
+    if business_unit_id is None:
         await MessageService.replace_service_message(
             message,
             state,
-            "Сначала выберите компанию.",
+            "Сначала выберите подразделение.",
             reply_markup=companies_catalog_reply_menu(),
         )
         return
@@ -342,8 +346,8 @@ async def company_registry_update(
         service = CompanyLegalEntityService(session)
 
         try:
-            await service.refresh_from_registry(
-                company_id,
+            await service.refresh_from_registry_for_unit(
+                business_unit_id,
                 actor_account_id=account.id,
             )
         except ValueError as error:
@@ -355,10 +359,10 @@ async def company_registry_update(
             )
             return
 
-    await render_company_card(
+    await render_business_unit_card(
         message,
         state,
-        company_id,
+        business_unit_id,
     )
 
 
