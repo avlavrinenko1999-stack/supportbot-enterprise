@@ -57,7 +57,9 @@ def test_company_summary_uses_membership() -> None:
     )
     block = _summary_source(source)
 
-    assert "LegacyCompanyMapping" in block
+    assert "self.mapping" in block
+    assert "get_unit_id_by_legacy_company_id" in block
+    assert "LegacyCompanyMapping." not in block
     assert (
         "AccountOrganizationalUnitMembership"
         in block

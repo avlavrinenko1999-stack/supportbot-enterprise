@@ -11,11 +11,11 @@ from app.models.account_organizational_unit_membership import (
 )
 from app.models.company import Company
 from app.models.enums import UserRole
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.ticket import Ticket
 from app.services.base_service import BaseService
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,9 @@ class CompanySummary:
 class CompanyService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     @staticmethod
     def normalize_company_name(name: str | None) -> str:
@@ -162,11 +165,10 @@ class CompanyService(BaseService):
         if company is None:
             raise ValueError("Компания не найдена.")
 
-        business_unit_id = await self.session.scalar(
-            select(
-                LegacyCompanyMapping.organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id == company_id
+        business_unit_id = (
+            await self.mapping
+            .get_unit_id_by_legacy_company_id(
+                company_id
             )
         )
 
@@ -274,15 +276,8 @@ class CompanyService(BaseService):
         business_unit_id: int,
         new_name: str,
     ) -> Company:
-        from app.services.legacy_company_mapping_service import (
-            LegacyCompanyMappingService,
-        )
-
-        mapping_service = LegacyCompanyMappingService(
-            self.session
-        )
         company_id = (
-            await mapping_service.get_legacy_company_id(
+            await self.mapping.get_legacy_company_id(
                 business_unit_id
             )
         )
@@ -368,15 +363,8 @@ class CompanyService(BaseService):
         business_unit_id: int,
         is_active: bool,
     ) -> Company:
-        from app.services.legacy_company_mapping_service import (
-            LegacyCompanyMappingService,
-        )
-
-        mapping_service = LegacyCompanyMappingService(
-            self.session
-        )
         company_id = (
-            await mapping_service.get_legacy_company_id(
+            await self.mapping.get_legacy_company_id(
                 business_unit_id
             )
         )
