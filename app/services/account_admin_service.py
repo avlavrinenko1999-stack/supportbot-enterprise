@@ -11,10 +11,10 @@ from app.models.account_organizational_unit_membership import (
 from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.services.invite_service import CreatedInvite, InviteService
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 USER_ROLE_TO_INVITE_ROLE = {
@@ -33,6 +33,9 @@ class AccountInviteResult:
 class AccountAdminService:
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def list_company_accounts(
         self,
@@ -46,11 +49,10 @@ class AccountAdminService:
         Каноническая принадлежность сотрудника определяется
         через AccountOrganizationalUnitMembership.
         """
-        business_unit_id = await self.session.scalar(
-            select(
-                LegacyCompanyMapping.organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id == company_id
+        business_unit_id = (
+            await self.mapping
+            .get_unit_id_by_legacy_company_id(
+                company_id
             )
         )
 
@@ -126,11 +128,10 @@ class AccountAdminService:
         Поиск приглашения выполняется в канонической
         области рабочего подразделения.
         """
-        business_unit_id = await self.session.scalar(
-            select(
-                LegacyCompanyMapping.organizational_unit_id
-            ).where(
-                LegacyCompanyMapping.company_id == company_id
+        business_unit_id = (
+            await self.mapping
+            .get_unit_id_by_legacy_company_id(
+                company_id
             )
         )
 
@@ -243,10 +244,9 @@ class AccountAdminService:
                 "рабочее подразделение."
             )
 
-        company_id = await self.session.scalar(
-            select(LegacyCompanyMapping.company_id).where(
-                LegacyCompanyMapping.organizational_unit_id
-                == business_unit_id
+        company_id = (
+            await self.mapping.get_legacy_company_id(
+                business_unit_id
             )
         )
 

@@ -19,7 +19,8 @@ def test_pending_invite_lookup_uses_business_unit() -> None:
     block = source[start:end]
 
     assert "company_id: int" in block
-    assert "LegacyCompanyMapping" in block
+    assert "self.mapping" in block
+    assert "get_unit_id_by_legacy_company_id" in block
     assert "organizational_unit_id" in block
     assert "Invite.organizational_unit_id" in block
     assert "Invite.company_id" not in block

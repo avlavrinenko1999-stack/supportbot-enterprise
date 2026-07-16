@@ -25,7 +25,8 @@ def test_reissue_invite_uses_primary_membership() -> None:
     assert "account_id" in block
     assert "is_primary" in block
     assert "is_active" in block
-    assert "LegacyCompanyMapping" in block
+    assert "self.mapping" in block
+    assert "get_legacy_company_id" in block
     assert "organizational_unit_id" in block
     assert "account.company_id" not in block
 

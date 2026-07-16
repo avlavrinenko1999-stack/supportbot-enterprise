@@ -19,7 +19,8 @@ def test_company_account_listing_uses_membership() -> None:
     block = source[start:end]
 
     assert "company_id: int" in block
-    assert "LegacyCompanyMapping" in block
+    assert "self.mapping" in block
+    assert "get_unit_id_by_legacy_company_id" in block
     assert (
         "AccountOrganizationalUnitMembership"
         in block
