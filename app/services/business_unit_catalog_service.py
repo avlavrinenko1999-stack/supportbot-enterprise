@@ -1,13 +1,9 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
 from app.models.legal_entity import LegalEntity
 from app.models.organizational_unit import (
     OrganizationalUnit,
@@ -16,6 +12,9 @@ from app.security.business_unit_access import (
     BusinessUnitAccessService,
 )
 from app.services.base_service import BaseService
+from app.services.legacy_company_mapping_service import (
+    LegacyCompanyMappingService,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +53,9 @@ class BusinessUnitCatalogService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
         self.access = BusinessUnitAccessService(session)
+        self.mapping = LegacyCompanyMappingService(
+            session
+        )
 
     async def list_visible_items(
         self,
@@ -82,21 +84,11 @@ class BusinessUnitCatalogService(BaseService):
             for unit in unit_list
         }
 
-        company_ids_by_unit = dict(
-            (
-                await self.session.execute(
-                    select(
-                        LegacyCompanyMapping
-                        .organizational_unit_id,
-                        LegacyCompanyMapping.company_id,
-                    ).where(
-                        LegacyCompanyMapping
-                        .organizational_unit_id.in_(
-                            unit_ids
-                        )
-                    )
-                )
-            ).all()
+        company_ids_by_unit = (
+            await self.mapping
+            .get_company_ids_by_unit_ids(
+                unit_ids
+            )
         )
 
         items: list[BusinessUnitCatalogItem] = []
@@ -161,36 +153,10 @@ class BusinessUnitCatalogService(BaseService):
             for unit in visible_units
         }
 
-        rows = (
-            await self.session.execute(
-                select(
-                    LegacyCompanyMapping.company_id,
-                    OrganizationalUnit,
-                    LegalEntity,
-                )
-                .join(
-                    OrganizationalUnit,
-                    OrganizationalUnit.id
-                    == LegacyCompanyMapping
-                    .organizational_unit_id,
-                )
-                .join(
-                    LegalEntity,
-                    LegalEntity.id
-                    == LegacyCompanyMapping
-                    .legal_entity_id,
-                )
-                .where(
-                    LegacyCompanyMapping.company_id.in_(
-                        company_order
-                    ),
-                    LegacyCompanyMapping
-                    .organizational_unit_id.in_(
-                        visible_unit_ids
-                    ),
-                )
-            )
-        ).all()
+        rows = await self.mapping.get_catalog_rows(
+            company_ids=company_order,
+            unit_ids=visible_unit_ids,
+        )
 
         by_company_id = {
             company_id: BusinessUnitCatalogItem(

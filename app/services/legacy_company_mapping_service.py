@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -6,8 +8,12 @@ from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
 from app.models.company import Company
+from app.models.legal_entity import LegalEntity
 from app.models.legacy_company_mapping import (
     LegacyCompanyMapping,
+)
+from app.models.organizational_unit import (
+    OrganizationalUnit,
 )
 from app.services.base_service import BaseService
 
@@ -40,6 +46,99 @@ class LegacyCompanyMappingService(BaseService):
                     .organizational_unit
                 ),
             )
+        )
+
+    async def get_company_ids_by_unit_ids(
+        self,
+        unit_ids: Iterable[int],
+    ) -> dict[int, int]:
+        normalized_unit_ids = {
+            unit_id
+            for unit_id in unit_ids
+            if unit_id > 0
+        }
+
+        if not normalized_unit_ids:
+            return {}
+
+        return dict(
+            (
+                await self.session.execute(
+                    select(
+                        LegacyCompanyMapping
+                        .organizational_unit_id,
+                        LegacyCompanyMapping.company_id,
+                    ).where(
+                        LegacyCompanyMapping
+                        .organizational_unit_id.in_(
+                            normalized_unit_ids
+                        )
+                    )
+                )
+            ).all()
+        )
+
+    async def get_catalog_rows(
+        self,
+        *,
+        company_ids: Iterable[int],
+        unit_ids: Iterable[int],
+    ) -> list[
+        tuple[
+            int,
+            OrganizationalUnit,
+            LegalEntity,
+        ]
+    ]:
+        normalized_company_ids = {
+            company_id
+            for company_id in company_ids
+            if company_id > 0
+        }
+        normalized_unit_ids = {
+            unit_id
+            for unit_id in unit_ids
+            if unit_id > 0
+        }
+
+        if (
+            not normalized_company_ids
+            or not normalized_unit_ids
+        ):
+            return []
+
+        return list(
+            (
+                await self.session.execute(
+                    select(
+                        LegacyCompanyMapping.company_id,
+                        OrganizationalUnit,
+                        LegalEntity,
+                    )
+                    .join(
+                        OrganizationalUnit,
+                        OrganizationalUnit.id
+                        == LegacyCompanyMapping
+                        .organizational_unit_id,
+                    )
+                    .join(
+                        LegalEntity,
+                        LegalEntity.id
+                        == LegacyCompanyMapping
+                        .legal_entity_id,
+                    )
+                    .where(
+                        LegacyCompanyMapping
+                        .company_id.in_(
+                            normalized_company_ids
+                        ),
+                        LegacyCompanyMapping
+                        .organizational_unit_id.in_(
+                            normalized_unit_ids
+                        ),
+                    )
+                )
+            ).all()
         )
 
     async def get_unit_id_by_legacy_company_id(
