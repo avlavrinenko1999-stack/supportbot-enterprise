@@ -3,6 +3,9 @@ from pathlib import Path
 
 
 SERVICE_PATH = Path(
+    "app/services/company_summary_service.py"
+)
+LEGACY_SERVICE_PATH = Path(
     "app/services/company_service.py"
 )
 
@@ -100,3 +103,15 @@ def test_company_service_has_no_account_company_reads() -> None:
     ]
 
     assert reads == []
+
+
+def test_company_service_no_longer_owns_summary() -> None:
+    source = LEGACY_SERVICE_PATH.read_text(
+        encoding="utf-8"
+    )
+
+    assert "CompanySummary" not in source
+    assert "get_company_summary" not in source
+    assert "AccountOrganizationalUnitMembership" not in source
+    assert "UserRole" not in source
+    assert "Ticket" not in source

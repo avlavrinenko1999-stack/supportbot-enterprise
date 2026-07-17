@@ -21,8 +21,8 @@ def test_company_service_uses_mapping_service() -> None:
 
     assert "LegacyCompanyMappingService" in source
     assert "self.mapping" in source
-    assert "get_unit_id_by_legacy_company_id" in source
     assert "get_legacy_company_id" in source
+    assert "get_unit_id_by_legacy_company_id" not in source
 
 
 def test_company_service_has_no_local_mapping_imports() -> None:
