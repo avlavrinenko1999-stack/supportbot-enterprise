@@ -200,3 +200,45 @@ def test_legacy_company_preference_service_is_removed() -> None:
             "company_preference_service"
             not in source
         )
+
+
+def test_legacy_company_preference_model_is_removed() -> None:
+    model_path = Path(
+        "app/models/account_company_preference.py"
+    )
+
+    assert not model_path.exists()
+    assert (
+        "account_company_preferences"
+        not in Base.metadata.tables
+    )
+
+    account_relationships = inspect(
+        Account
+    ).relationships
+
+    assert (
+        "company_preferences"
+        not in account_relationships
+    )
+
+    models_source = Path(
+        "app/models/__init__.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        "AccountCompanyPreference"
+        not in models_source
+    )
+
+    for path in Path("app").rglob("*.py"):
+        source = path.read_text(encoding="utf-8")
+
+        assert (
+            "AccountCompanyPreference"
+            not in source
+        )
+        assert (
+            "account_company_preference"
+            not in source
+        )
