@@ -180,3 +180,23 @@ def test_new_preference_service_has_no_company_dependency() -> None:
 
     assert "OrganizationalUnit" in source
     assert "business_unit_id" in source
+
+
+def test_legacy_company_preference_service_is_removed() -> None:
+    service_path = Path(
+        "app/services/company_preference_service.py"
+    )
+
+    assert not service_path.exists()
+
+    for path in Path("app").rglob("*.py"):
+        source = path.read_text(encoding="utf-8")
+
+        assert (
+            "CompanyPreferenceService"
+            not in source
+        )
+        assert (
+            "company_preference_service"
+            not in source
+        )
