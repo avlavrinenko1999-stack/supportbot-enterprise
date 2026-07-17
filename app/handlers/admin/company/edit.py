@@ -21,14 +21,20 @@ from app.security.permissions import Permission
 from app.security.scope_resolvers import (
     business_unit_scope_from_state,
 )
-from app.services.company_audit_service import CompanyAuditService, company_legal_snapshot, diff_snapshots
+from app.services.company_audit_service import (
+    CompanyAuditService,
+    company_legal_snapshot,
+    diff_snapshots,
+)
 from app.services.company_legal_entity_service import (
     CompanyLegalEntityService,
 )
 from app.services.company_crud_service import (
     CompanyCrudService,
 )
-from app.services.company_service import CompanyService
+from app.services.company_creation_service import (
+    CompanyCreationService,
+)
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
 from app.ui.actions import MenuAction, MenuActionFilter
@@ -70,7 +76,9 @@ async def company_create_start(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == "company:create")
-async def company_create_start_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
+async def company_create_start_from_inline(
+    callback: CallbackQuery, state: FSMContext
+) -> None:
     await state.set_state(CompanyState.create_name)
     await MessageService.send_service_message(
         callback.message,
@@ -111,7 +119,7 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
+        service = CompanyCreationService(session)
 
         duplicate = await service.find_duplicate_by_legal_data(legal_data)
 
@@ -185,9 +193,7 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
     await render_company_card(message, state, company.id)
 
 
-@router.message(
-    MenuActionFilter(MenuAction.COMPANY_FILL_BY_INN)
-)
+@router.message(MenuActionFilter(MenuAction.COMPANY_FILL_BY_INN))
 @require_permission(
     Permission.COMPANY_MANAGE,
     scope_resolver=business_unit_scope_from_state,
@@ -196,11 +202,7 @@ async def company_fill_by_inn_start(
     message: Message,
     state: FSMContext,
 ) -> None:
-    business_unit_id = (
-        await UIContext.get_business_unit_id(
-            state
-        )
-    )
+    business_unit_id = await UIContext.get_business_unit_id(state)
 
     if business_unit_id is None:
         await MessageService.replace_service_message(
@@ -211,9 +213,7 @@ async def company_fill_by_inn_start(
         )
         return
 
-    await state.update_data(
-        legal_business_unit_id=business_unit_id
-    )
+    await state.update_data(legal_business_unit_id=business_unit_id)
     await state.set_state(CompanyState.legal_inn)
 
     await MessageService.replace_service_message(
@@ -240,11 +240,7 @@ async def company_fill_by_inn_finish(
     if text in COMPANY_CONTROL_TEXTS:
         await state.set_state(None)
 
-        business_unit_id = (
-            await UIContext.get_business_unit_id(
-                state
-            )
-        )
+        business_unit_id = await UIContext.get_business_unit_id(state)
 
         if business_unit_id is not None:
             await render_business_unit_card(
@@ -266,9 +262,7 @@ async def company_fill_by_inn_finish(
     data = await state.get_data()
     business_unit_id = int(
         data.get("legal_business_unit_id")
-        or await UIContext.get_business_unit_id(
-            state
-        )
+        or await UIContext.get_business_unit_id(state)
         or 0
     )
 
@@ -308,11 +302,7 @@ async def company_fill_by_inn_finish(
     )
 
 
-@router.message(
-    MenuActionFilter(
-        MenuAction.COMPANY_REGISTRY_UPDATE
-    )
-)
+@router.message(MenuActionFilter(MenuAction.COMPANY_REGISTRY_UPDATE))
 @require_permission(
     Permission.COMPANY_MANAGE,
     scope_resolver=business_unit_scope_from_state,
@@ -329,11 +319,7 @@ async def company_registry_update(
     if account is None:
         return
 
-    business_unit_id = (
-        await UIContext.get_business_unit_id(
-            state
-        )
-    )
+    business_unit_id = await UIContext.get_business_unit_id(state)
 
     if business_unit_id is None:
         await MessageService.replace_service_message(
@@ -374,11 +360,7 @@ async def company_registry_update(
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_rename_start(message: Message, state: FSMContext) -> None:
-    business_unit_id = (
-        await UIContext.get_business_unit_id(
-            state
-        )
-    )
+    business_unit_id = await UIContext.get_business_unit_id(state)
 
     if business_unit_id is None:
         await MessageService.replace_service_message(
@@ -389,9 +371,7 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await state.update_data(
-        rename_business_unit_id=business_unit_id
-    )
+    await state.update_data(rename_business_unit_id=business_unit_id)
     await state.set_state(CompanyState.rename_name)
 
     await MessageService.replace_service_message(
@@ -416,9 +396,7 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     business_unit_id = int(
         data.get("rename_business_unit_id")
-        or await UIContext.get_business_unit_id(
-            state
-        )
+        or await UIContext.get_business_unit_id(state)
         or 0
     )
 
@@ -458,11 +436,7 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_disable_from_reply(message: Message, state: FSMContext) -> None:
-    business_unit_id = (
-        await UIContext.get_business_unit_id(
-            state
-        )
-    )
+    business_unit_id = await UIContext.get_business_unit_id(state)
 
     if business_unit_id is None:
         await MessageService.replace_service_message(
@@ -492,11 +466,7 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_enable_from_reply(message: Message, state: FSMContext) -> None:
-    business_unit_id = (
-        await UIContext.get_business_unit_id(
-            state
-        )
-    )
+    business_unit_id = await UIContext.get_business_unit_id(state)
 
     if business_unit_id is None:
         await MessageService.replace_service_message(
