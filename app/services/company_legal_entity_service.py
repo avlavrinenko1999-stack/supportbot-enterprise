@@ -1,10 +1,7 @@
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from typing import TYPE_CHECKING
 
-from app.models.legacy_company_mapping import (
-    LegacyCompanyMapping,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.legal_entity import LegalEntity
 from app.services.base_service import BaseService
 from app.services.legacy_company_mapping_service import (
@@ -13,6 +10,11 @@ from app.services.legacy_company_mapping_service import (
 from app.services.legal_entity_registry_service import (
     LegalEntityRegistryService,
 )
+
+if TYPE_CHECKING:
+    from app.models.legacy_company_mapping import (
+        LegacyCompanyMapping,
+    )
 
 
 class CompanyLegalEntityService(BaseService):
@@ -40,31 +42,15 @@ class CompanyLegalEntityService(BaseService):
     async def get_mapping(
         self,
         company_id: int,
-    ) -> LegacyCompanyMapping | None:
-        if company_id <= 0:
-            return None
-
-        return await self.session.scalar(
-            select(LegacyCompanyMapping)
-            .where(
-                LegacyCompanyMapping.company_id
-                == company_id
-            )
-            .options(
-                selectinload(
-                    LegacyCompanyMapping.legal_entity
-                ),
-                selectinload(
-                    LegacyCompanyMapping
-                    .organizational_unit
-                ),
-            )
+    ) -> "LegacyCompanyMapping | None":
+        return await self.mapping_service.get_mapping(
+            company_id
         )
 
     async def require_mapping(
         self,
         company_id: int,
-    ) -> LegacyCompanyMapping:
+    ) -> "LegacyCompanyMapping":
         mapping = await self.get_mapping(company_id)
 
         if mapping is None:
