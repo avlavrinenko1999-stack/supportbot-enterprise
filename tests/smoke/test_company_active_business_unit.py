@@ -5,7 +5,7 @@ HANDLER_PATH = Path(
     "app/handlers/admin/company/edit.py"
 )
 SERVICE_PATH = Path(
-    "app/services/company_service.py"
+    "app/services/company_crud_service.py"
 )
 
 

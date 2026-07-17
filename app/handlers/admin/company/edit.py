@@ -25,6 +25,9 @@ from app.services.company_audit_service import CompanyAuditService, company_lega
 from app.services.company_legal_entity_service import (
     CompanyLegalEntityService,
 )
+from app.services.company_crud_service import (
+    CompanyCrudService,
+)
 from app.services.company_service import CompanyService
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
@@ -430,7 +433,7 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
+        service = CompanyCrudService(session)
 
         try:
             await service.rename_company_for_unit(
@@ -470,7 +473,7 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
+        service = CompanyCrudService(session)
         await service.set_company_active_for_unit(
             business_unit_id,
             False,
@@ -504,7 +507,7 @@ async def company_enable_from_reply(message: Message, state: FSMContext) -> None
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
+        service = CompanyCrudService(session)
         await service.set_company_active_for_unit(
             business_unit_id,
             True,
