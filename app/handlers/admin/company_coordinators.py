@@ -22,7 +22,7 @@ from app.services.account_admin_service import AccountAdminService
 from app.services.business_unit_coordinator_service import (
     BusinessUnitCoordinatorService,
 )
-from app.services.company_service import CompanyService
+from app.services.company_search_service import CompanySearchService
 from app.services.message_service import MessageService
 
 router = Router()
@@ -38,7 +38,7 @@ async def company_coordinators(callback: CallbackQuery) -> None:
     company_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
-        company_service = CompanyService(session)
+        company_service = CompanySearchService(session)
         account_admin_service = AccountAdminService(session)
 
         company = await company_service.get_company(company_id)
@@ -72,7 +72,7 @@ async def company_coordinator_create_start(
     company_id = int(callback.data.split(":")[-1])
 
     async with AsyncSessionLocal() as session:
-        service = CompanyService(session)
+        service = CompanySearchService(session)
         company = await service.get_company(company_id)
 
     if company is None:

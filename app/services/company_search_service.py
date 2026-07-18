@@ -10,6 +10,19 @@ class CompanySearchService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_company(
+        self,
+        company_id: int,
+    ) -> Company | None:
+        return await self.session.scalar(
+            select(Company).where(Company.id == company_id)
+        )
+
+    async def list_companies(
+        self,
+    ) -> list[Company]:
+        return list(await self.session.scalars(select(Company).order_by(Company.id)))
+
     async def search(
         self,
         query: str,
@@ -27,9 +40,7 @@ class CompanySearchService:
 
         predicates = [
             func.lower(Company.name).contains(lower_query),
-            func.lower(
-                func.coalesce(Company.legal_name, "")
-            ).contains(lower_query),
+            func.lower(func.coalesce(Company.legal_name, "")).contains(lower_query),
         ]
 
         if inn_query:
@@ -49,8 +60,6 @@ class CompanySearchService:
             if not allowed_company_ids:
                 return []
 
-            statement = statement.where(
-                Company.id.in_(allowed_company_ids)
-            )
+            statement = statement.where(Company.id.in_(allowed_company_ids))
 
         return list(await self.session.scalars(statement))

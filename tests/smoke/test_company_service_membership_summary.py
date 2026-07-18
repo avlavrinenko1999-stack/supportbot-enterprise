@@ -2,12 +2,8 @@ import ast
 from pathlib import Path
 
 
-SERVICE_PATH = Path(
-    "app/services/company_summary_service.py"
-)
-LEGACY_SERVICE_PATH = Path(
-    "app/services/company_service.py"
-)
+SERVICE_PATH = Path("app/services/company_summary_service.py")
+LEGACY_SERVICE_PATH = Path("app/services/company_service.py")
 
 
 def _summary_method(
@@ -55,32 +51,22 @@ def _summary_source(source: str) -> str:
 
 
 def test_company_summary_uses_membership() -> None:
-    source = SERVICE_PATH.read_text(
-        encoding="utf-8"
-    )
+    source = SERVICE_PATH.read_text(encoding="utf-8")
     block = _summary_source(source)
 
     assert "self.mapping" in block
     assert "get_unit_id_by_legacy_company_id" in block
     assert "LegacyCompanyMapping." not in block
-    assert (
-        "AccountOrganizationalUnitMembership"
-        in block
-    )
+    assert "AccountOrganizationalUnitMembership" in block
     assert "organizational_unit_id" in block
     assert "is_active" in block
 
 
 def test_company_summary_keeps_role_counts() -> None:
-    source = SERVICE_PATH.read_text(
-        encoding="utf-8"
-    )
+    source = SERVICE_PATH.read_text(encoding="utf-8")
     block = _summary_source(source)
 
-    assert (
-        "UserRole.COORDINATOR"
-        in block
-    )
+    assert "UserRole.COORDINATOR" in block
     assert "UserRole.OPERATOR" in block
     assert "UserRole.OBSERVER" in block
     assert "UserRole.USER" in block
@@ -88,9 +74,7 @@ def test_company_summary_keeps_role_counts() -> None:
 
 
 def test_company_service_has_no_account_company_reads() -> None:
-    source = SERVICE_PATH.read_text(
-        encoding="utf-8"
-    )
+    source = SERVICE_PATH.read_text(encoding="utf-8")
     tree = ast.parse(source)
 
     reads = [
@@ -105,13 +89,5 @@ def test_company_service_has_no_account_company_reads() -> None:
     assert reads == []
 
 
-def test_company_service_no_longer_owns_summary() -> None:
-    source = LEGACY_SERVICE_PATH.read_text(
-        encoding="utf-8"
-    )
-
-    assert "CompanySummary" not in source
-    assert "get_company_summary" not in source
-    assert "AccountOrganizationalUnitMembership" not in source
-    assert "UserRole" not in source
-    assert "Ticket" not in source
+def test_legacy_company_service_is_removed() -> None:
+    assert not LEGACY_SERVICE_PATH.exists()

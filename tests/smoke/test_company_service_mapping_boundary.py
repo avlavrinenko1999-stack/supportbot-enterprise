@@ -1,57 +1,38 @@
 from pathlib import Path
 
 
-SERVICE_PATH = Path(
-    "app/services/company_service.py"
-)
+ROOT = Path(__file__).resolve().parents[2]
+REMOVED_SERVICE_PATH = ROOT / "app/services/company_service.py"
+SEARCH_SERVICE_PATH = ROOT / "app/services/company_search_service.py"
+COORDINATOR_HANDLER_PATH = ROOT / "app/handlers/admin/company_coordinators.py"
 
 
-def test_company_service_has_no_direct_mapping_model() -> None:
-    source = SERVICE_PATH.read_text(encoding="utf-8")
+def test_legacy_company_service_is_removed() -> None:
+    assert not REMOVED_SERVICE_PATH.exists()
+
+
+def test_company_search_service_owns_read_methods() -> None:
+    source = SEARCH_SERVICE_PATH.read_text(encoding="utf-8")
+
+    assert "class CompanySearchService" in source
+    assert "async def get_company(" in source
+    assert "async def list_companies(" in source
+
+
+def test_company_search_service_has_no_mapping_dependency() -> None:
+    source = SEARCH_SERVICE_PATH.read_text(encoding="utf-8")
+
+    assert "LegacyCompanyMappingService" not in source
+    assert "legacy_company_mapping" not in source
+    assert "self.mapping" not in source
+
+
+def test_coordinator_handler_uses_search_service() -> None:
+    source = COORDINATOR_HANDLER_PATH.read_text(encoding="utf-8")
 
     assert (
-        "from app.models.legacy_company_mapping import"
-        not in source
+        "from app.services.company_search_service import CompanySearchService" in source
     )
-    assert "LegacyCompanyMapping." not in source
-
-
-def test_company_service_uses_mapping_service() -> None:
-    source = SERVICE_PATH.read_text(encoding="utf-8")
-
-    assert "LegacyCompanyMappingService" in source
-    assert "self.mapping" in source
-    assert "get_legacy_company_id" not in source
-    assert "get_unit_id_by_legacy_company_id" not in source
-
-
-def test_company_service_has_no_local_mapping_imports() -> None:
-    source = SERVICE_PATH.read_text(encoding="utf-8")
-
-    assert source.count(
-        "from app.services."
-        "legacy_company_mapping_service import"
-    ) == 1
-    assert "mapping_service =" not in source
-
-
-def test_company_service_no_longer_owns_crud() -> None:
-    source = SERVICE_PATH.read_text(
-        encoding="utf-8"
-    )
-
-    assert "rename_company_for_unit" not in source
-    assert "set_company_active_for_unit" not in source
-    assert "update_phone" not in source
-
-
-def test_company_crud_service_owns_unit_mapping() -> None:
-    source = Path(
-        "app/services/company_crud_service.py"
-    ).read_text(encoding="utf-8")
-
-    assert "LegacyCompanyMappingService" in source
-    assert "get_legacy_company_id" in source
-    assert "rename_company_for_unit" in source
-    assert "set_company_active_for_unit" in source
-    assert "update_phone_for_unit" in source
+    assert "CompanySearchService(session)" in source
+    assert "CompanyService" not in source
+    assert "app.services.company_service" not in source

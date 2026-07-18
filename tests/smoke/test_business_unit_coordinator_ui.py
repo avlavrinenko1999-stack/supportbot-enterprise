@@ -86,4 +86,5 @@ def test_legacy_routes_remain_available() -> None:
 
     assert "company:coordinators:" in source
     assert "company_coordinator:create:" in source
-    assert "CompanyService" in source
+    assert "CompanySearchService" in source
+    assert "CompanyService" not in source
