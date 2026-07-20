@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -17,6 +18,13 @@ class Organization(Base, IDMixin, TimestampMixin):
     """
 
     __tablename__ = "organizations"
+
+    external_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        default=uuid4,
+        unique=True,
+        nullable=False,
+    )
 
     name: Mapped[str] = mapped_column(
         String(255),
@@ -86,6 +94,7 @@ class Organization(Base, IDMixin, TimestampMixin):
 
     repr_cols = (
         "id",
+        "external_id",
         "name",
         "organization_type",
     )

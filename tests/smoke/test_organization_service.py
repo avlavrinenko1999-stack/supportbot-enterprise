@@ -81,6 +81,7 @@ async def test_create_root_organization_with_audit() -> None:
     )
     assert organization.parent_id is None
     assert organization.is_active is True
+    assert organization.external_id is not None
 
     entities = [
         call.args[0]

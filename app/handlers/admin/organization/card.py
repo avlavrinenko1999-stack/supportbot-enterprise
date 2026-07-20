@@ -27,7 +27,7 @@ router = Router()
 
 def organization_card_text(
     *,
-    organization_id: int,
+    organization_external_id: object,
     name: str,
     type_label: str,
     is_active: bool,
@@ -46,7 +46,7 @@ def organization_card_text(
 
     return (
         "Организация\n\n"
-        f"ID: {organization_id}\n"
+        f"ID: {organization_external_id}\n"
         f"Название: {name}\n"
         f"Тип: {type_label}\n"
         f"Статус: {status}\n"
@@ -139,7 +139,9 @@ async def render_organization_card(
         message,
         state,
         organization_card_text(
-            organization_id=organization.id,
+            organization_external_id=(
+                organization.external_id
+            ),
             name=organization.name,
             type_label=type_label,
             is_active=organization.is_active,

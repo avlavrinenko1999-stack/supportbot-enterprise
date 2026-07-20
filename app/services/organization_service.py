@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -167,6 +169,7 @@ class OrganizationService(BaseService):
                 )
 
         organization = Organization(
+            external_id=uuid4(),
             name=clean_name,
             organization_type=normalized_type,
             parent_id=(

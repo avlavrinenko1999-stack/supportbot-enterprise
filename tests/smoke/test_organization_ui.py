@@ -148,7 +148,9 @@ def test_organization_card_has_catalog_back() -> None:
 
 def test_organization_card_uses_classic_company_layout() -> None:
     text = organization_card_text(
-        organization_id=42,
+        organization_external_id=(
+            "550e8400-e29b-41d4-a716-446655440000"
+        ),
         name="Север",
         type_label="Клиент",
         is_active=False,
@@ -165,7 +167,7 @@ def test_organization_card_uses_classic_company_layout() -> None:
 
     assert text == (
         "Организация\n\n"
-        "ID: 42\n"
+        "ID: 550e8400-e29b-41d4-a716-446655440000\n"
         "Название: Север\n"
         "Тип: Клиент\n"
         "Статус: отключена\n"
