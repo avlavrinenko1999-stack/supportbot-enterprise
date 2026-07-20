@@ -54,6 +54,7 @@ from app.services.invite_service import InviteService
 from app.services.language_pack_service import LanguagePackService
 from app.services.role_assignment_service import RoleAssignmentService
 from app.services.web_identity_service import WebIdentityService
+from app.services.vidal_service import VidalService
 from app.services.organization_audit_service import OrganizationAuditService
 from app.services.organization_registry_service import OrganizationRegistryService
 from app.services.organization_service import OrganizationService
@@ -1232,7 +1233,13 @@ async def vidal_search(request: web.Request, account: Account) -> web.Response:
     query = request.query.get("q", "").strip()
     if len(query) < 2:
         return error_page("Введите не менее двух символов для поиска.", account=account)
-    raise web.HTTPFound(f"https://www.vidal.ru/drugs?t=all&q={quote(query)}")
+    try:
+        results = await VidalService.search(query)
+    except (aiohttp.ClientError, TimeoutError):
+        return error_page("Справочник Vidal временно недоступен. Повторите поиск позже.", status=502, account=account)
+    items = [f'''<article class="data-card glass vidal-result"><div class="card-icon">💊</div><div><h3>{esc(item.name)}</h3><p>{esc(item.release_form or "Форма выпуска не указана")}</p><p>{esc(item.company or "Производитель не указан")}</p><p>{esc(item.registration or "Регистрационные сведения не указаны")}</p><span class="status-pill">{esc(item.availability or "Статус отпуска не указан")}</span><div><a class="button secondary-link" href="{esc(item.url)}" target="_blank" rel="noopener noreferrer">Официальная карточка Vidal ↗</a></div></div></article>''' for item in results]
+    content = '<div class="action-bar"><a class="button secondary-link" href="/vidal">⬅️ Справочник Vidal</a></div>' + search_form("/vidal/search", query, "Название препарата") + cards(items, "Препараты не найдены")
+    return page(f"Vidal · {query}", content, account=account, active="vidal")
 
 
 @authenticated

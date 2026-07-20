@@ -20,6 +20,7 @@ def test_vidal_requires_exact_platform_administrator_role() -> None:
 
 
 def test_vidal_search_uses_official_directory() -> None:
-    assert 'https://www.vidal.ru/drugs?t=all&q=' in APPLICATION
+    assert "results = await VidalService.search(query)" in APPLICATION
+    assert "Официальная карточка Vidal" in APPLICATION
     assert 'target="_blank" rel="noopener noreferrer"' in APPLICATION
     assert "Информация предназначена для специалистов" in APPLICATION
