@@ -469,17 +469,51 @@ async def organizations(request: web.Request, account: Account) -> web.Response:
     if not await can(account, Permission.ORGANIZATION_VIEW):
         return error_page("Недостаточно прав.", status=403, account=account)
     query = request.query.get("q", "").strip()
+
+    search = search_form(
+        "/organizations",
+        query,
+        "ИНН или часть наименования",
+    )
+    if not query:
+        return page(
+            "Организации",
+            search
+            + '<section class="empty glass">Введите ИНН или часть '
+            "наименования организации.</section>",
+            account=account,
+            active="organizations",
+        )
+    if len(query) < 2:
+        return page(
+            "Организации",
+            search
+            + '<section class="empty glass">Запрос должен содержать '
+            "не менее двух символов.</section>",
+            account=account,
+            active="organizations",
+        )
+
     async with AsyncSessionLocal() as db:
         values = await OrganizationAccessService(db).list_visible_organizations(account)
-    if query:
-        digits = "".join(filter(str.isdigit, query))
-        values = [item for item in values if query.casefold() in item.name.casefold() or (digits and digits in (item.inn or ""))]
+    digits = "".join(filter(str.isdigit, query))
+    values = [
+        item
+        for item in values
+        if query.casefold() in item.name.casefold()
+        or (digits and digits in (item.inn or ""))
+    ][:8]
     items = [
         f'<a class="data-card glass" href="/organizations/{item.id}"><div class="card-icon">🏢</div>'
         f'<div><h3>{esc(item.name)}</h3><p>ИНН {esc(item.inn or "не указан")} · {"Активна" if item.is_active else "Архив"}</p></div></a>'
-        for item in values[:100]
+        for item in values
     ]
-    return page("Организации", search_form("/organizations", query, "ИНН или наименование") + cards(items), account=account, active="organizations")
+    return page(
+        "Организации",
+        search + cards(items, "Совпадений среди доступных организаций нет"),
+        account=account,
+        active="organizations",
+    )
 
 
 @authenticated
