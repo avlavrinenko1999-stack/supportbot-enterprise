@@ -43,6 +43,7 @@ def organizations_catalog_reply_menu(
 
     buttons.extend(
         [
+            "➕ Создать организацию",
             "🔎 Найти организацию",
             "⬅️ Назад",
         ]
@@ -70,6 +71,7 @@ def organization_card_reply_menu(
         [
             "✏️ Переименовать организацию",
             lifecycle_action,
+            "📜 История организации",
             "⬅️ Каталог организаций",
         ],
         input_field_placeholder=(

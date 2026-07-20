@@ -9,6 +9,7 @@ from app.security.permission_mapping import (
     permission_codes,
 )
 from app.security.permissions import Permission
+from app.handlers.admin.organization.audit import format_payload
 
 
 def test_organization_audit_model_is_registered() -> None:
@@ -56,7 +57,6 @@ def test_organization_permissions_are_mapped() -> None:
             "organization.read",
         }
     )
-
     assert permission_codes(
         Permission.ORGANIZATION_MANAGE
     ) == frozenset(
@@ -64,7 +64,6 @@ def test_organization_permissions_are_mapped() -> None:
             "organization.manage",
         }
     )
-
     assert permission_codes(
         Permission.ORGANIZATION_AUDIT_VIEW
     ) == frozenset(
@@ -73,3 +72,12 @@ def test_organization_permissions_are_mapped() -> None:
             "audit.read.platform",
         }
     )
+
+
+def test_audit_payload_is_readable() -> None:
+    assert format_payload(
+        {"old_name": "Старая", "new_name": "Новая"}
+    ) == [
+        "Старое название: Старая",
+        "Новое название: Новая",
+    ]

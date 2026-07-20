@@ -78,9 +78,6 @@ async def render_organization_card(
         holdings_count = len(
             organization.holdings
         )
-        companies_count = len(
-            organization.companies
-        )
 
     status = (
         "активна"
@@ -114,8 +111,7 @@ async def render_organization_card(
         f"Статус: {status}\n"
         f"Родитель: {parent_name}\n"
         f"Дочерних организаций: {children_count}\n"
-        f"Холдингов: {holdings_count}\n"
-        f"Компаний: {companies_count}",
+        f"Холдингов: {holdings_count}",
         reply_markup=organization_card_reply_menu(
             is_active=organization.is_active
         ),

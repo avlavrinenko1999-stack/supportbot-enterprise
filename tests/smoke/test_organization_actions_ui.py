@@ -17,7 +17,21 @@ def keyboard_texts(markup) -> list[str]:
 
 
 def test_organization_router_contains_action_routers() -> None:
-    assert len(router.sub_routers) == 4
+    assert len(router.sub_routers) == 6
+
+
+def test_organization_create_action() -> None:
+    assert (
+        resolve_menu_action("➕ Создать организацию")
+        == MenuAction.ORGANIZATION_CREATE
+    )
+
+
+def test_organization_audit_action() -> None:
+    assert (
+        resolve_menu_action("📜 История организации")
+        == MenuAction.ORGANIZATION_AUDIT
+    )
 
 
 def test_organization_search_action() -> None:
@@ -92,4 +106,7 @@ def test_archived_card_contains_restore() -> None:
 
 def test_fsm_contains_only_text_input_states() -> None:
     assert OrganizationState.search_query is not None
+    assert OrganizationState.create_type is not None
+    assert OrganizationState.create_parent is not None
+    assert OrganizationState.create_name is not None
     assert OrganizationState.rename_name is not None

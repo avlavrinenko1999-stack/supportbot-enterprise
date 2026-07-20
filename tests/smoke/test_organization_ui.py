@@ -23,7 +23,7 @@ def keyboard_texts(markup) -> list[str]:
 
 def test_organization_router_is_registered() -> None:
     assert router is not None
-    assert len(router.sub_routers) == 4
+    assert len(router.sub_routers) == 6
 
 
 def test_admin_menu_contains_organizations() -> None:
