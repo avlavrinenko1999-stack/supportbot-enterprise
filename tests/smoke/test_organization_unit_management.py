@@ -12,6 +12,7 @@ def test_organizational_unit_has_recursive_management_fields() -> None:
     assert "organization_id" in columns
     assert "description" in columns
     assert "owner_account_id" in columns
+    assert columns.owner_account_id.nullable is False
     assert OrganizationalUnit.parent.property.back_populates == "children"
 
 

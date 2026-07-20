@@ -77,9 +77,9 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         nullable=True,
     )
 
-    owner_account_id: Mapped[int | None] = mapped_column(
+    owner_account_id: Mapped[int] = mapped_column(
         Integer,
-        nullable=True,
+        nullable=False,
         index=True,
     )
 
@@ -177,7 +177,7 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
             ["owner_account_id"],
             ["accounts.id"],
             name="fk_organizational_units_owner",
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
             ["tenant_id"],
