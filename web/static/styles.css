@@ -219,6 +219,25 @@ th { color: rgba(255,255,255,.5); font-size: 11px; text-transform: uppercase; le
 .form-grid label { display: grid; gap: 7px; color: rgba(255,255,255,.62); font-size: 13px; }
 .form-grid input, .form-grid select { width: 100%; color: #fff; background: rgba(15,17,20,.2); border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 13px 15px; outline: none; }
 .form-grid select option { color: #222; }
+.organization-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
+.organization-card { padding: 0; overflow: hidden; }
+.organization-heading { display: flex; gap: 17px; align-items: center; padding: 25px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.organization-heading h2 { margin: 5px 0; }
+.organization-heading p { margin: 0; color: rgba(255,255,255,.55); }
+.status-pill { display: inline-block; padding: 4px 8px; border-radius: 99px; color: rgba(255,255,255,.72); background: rgba(255,255,255,.1); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.card-section { padding: 8px 25px 22px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.card-section h3 { margin: 17px 0; color: rgba(255,255,255,.55); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; }
+.organization-counters { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: rgba(255,255,255,.08); }
+.organization-counters span { padding: 18px 25px; background: rgba(40,43,47,.45); color: rgba(255,255,255,.6); }
+.organization-counters b { display: block; margin-top: 5px; color: #fff; font-size: 24px; }
+.organization-actions { padding: 13px; border-radius: 23px; }
+.organization-actions h3 { margin: 8px 10px 13px; font-size: 13px; color: rgba(255,255,255,.55); }
+.organization-actions form { margin: 0; }
+.org-action { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 11px; padding: 10px 12px; border: 0; border-radius: 13px; color: #fff; background: transparent; text-align: left; cursor: pointer; font-size: 18px; }
+.org-action span { font-size: 14px; }
+.org-action:hover { background: rgba(255,255,255,.13); }
+.org-action.navigation { margin-top: 5px; border-top: 1px solid rgba(255,255,255,.1); border-radius: 0 0 13px 13px; }
+.content-section { margin-top: 18px; }
 
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: 76px 1fr; gap: 10px; padding: 10px; }
@@ -245,4 +264,7 @@ th { color: rgba(255,255,255,.5); font-size: 11px; text-transform: uppercase; le
   dl { grid-template-columns: 1fr; gap: 5px; }
   dd { margin-bottom: 9px; }
   .form-grid { grid-template-columns: 1fr; }
+  .organization-layout { grid-template-columns: 1fr; }
+  .organization-actions { position: static; }
+  .organization-counters { grid-template-columns: 1fr; }
 }

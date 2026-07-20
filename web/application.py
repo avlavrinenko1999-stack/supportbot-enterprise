@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import aiohttp
 from aiohttp import web
@@ -28,18 +29,23 @@ from app.models.enums import (
 from app.models.invite import Invite
 from app.models.mail_settings import MailSettings
 from app.models.message import Message
-from app.models.organization import Organization
 from app.models.organizational_unit import OrganizationalUnit
 from app.models.role_assignment import RoleAssignment
 from app.models.ticket import Ticket
 from app.security.authorization import AuthorizationService
+from app.security.access_scope import AccessScope
 from app.security.business_unit_access import BusinessUnitAccessService
 from app.security.holding_access import HoldingAccessService
 from app.security.organization_access import OrganizationAccessService
 from app.security.permissions import Permission
 from app.services.employee_service import EmployeeService
+from app.services.company_structure_pdf_service import CompanyStructurePdfService
 from app.services.invite_service import InviteService
 from app.services.web_identity_service import WebIdentityService
+from app.services.organization_audit_service import OrganizationAuditService
+from app.services.organization_registry_service import OrganizationRegistryService
+from app.services.organization_service import OrganizationService
+from app.keyboards.organization import organization_type_label
 
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
@@ -523,16 +529,232 @@ async def organization_card(request: web.Request, account: Account) -> web.Respo
         access = OrganizationAccessService(db)
         if not await access.can_access_organization(account, organization_id):
             return error_page("Организация недоступна.", status=403, account=account)
-        organization = await db.scalar(select(Organization).where(Organization.id == organization_id))
+        organization = await OrganizationService(db).get_organization(
+            organization_id,
+            include_children=True,
+        )
         holdings = list(await db.scalars(select(Holding).where(Holding.organization_id == organization_id).order_by(Holding.name)))
         units = list(await db.scalars(select(OrganizationalUnit).where(OrganizationalUnit.organization_id == organization_id).order_by(OrganizationalUnit.name)))
-    content = f'''<section class="detail-grid"><article class="panel glass"><h2>{esc(organization.name)}</h2>
-<dl><dt>ID 1С</dt><dd>{esc(organization.external_id)}</dd><dt>Тип</dt><dd>{esc(organization.organization_type.value)}</dd>
-<dt>ИНН</dt><dd>{esc(organization.inn or "—")}</dd><dt>КПП</dt><dd>{esc(organization.kpp or "—")}</dd>
-<dt>ОГРН</dt><dd>{esc(organization.ogrn or "—")}</dd><dt>Юридический адрес</dt><dd>{esc(organization.legal_address or "—")}</dd></dl></article>
-<article class="panel glass"><h2>Подразделения</h2>{''.join(f'<div class="list-row">🏗️ {esc(unit.name)}</div>' for unit in units) or '<p>Нет подразделений</p>'}</article>
-<article class="panel glass"><h2>Холдинги</h2>{''.join(f'<a class="list-row" href="/holdings/{holding.id}">🏛️ {esc(holding.name)}</a>' for holding in holdings) or '<p>Нет холдингов</p>'}</article></section>'''
+        manage_allowed = await AuthorizationService.can_async(
+            account,
+            Permission.ORGANIZATION_MANAGE,
+            scope=AccessScope.organization(organization_id),
+            session=db,
+        )
+        audit_allowed = await AuthorizationService.can_async(
+            account,
+            Permission.ORGANIZATION_AUDIT_VIEW,
+            scope=AccessScope.organization(organization_id),
+            session=db,
+        )
+    session = session_for(request)
+    csrf = esc(session.csrf_token)
+    action_items = [
+        '<a class="org-action" href="#units">🏗 <span>Подразделения</span></a>',
+        f'<a class="org-action" href="/organizations/{organization_id}/structure">🗺 <span>Структура компании</span></a>',
+    ]
+    if manage_allowed:
+        action_items.extend(
+            [
+                f'<a class="org-action" href="/organizations/{organization_id}/registry">🏢 <span>Заполнить по ИНН</span></a>',
+                f'<form method="post" action="/organizations/{organization_id}/registry/update"><input type="hidden" name="csrf" value="{csrf}"><button class="org-action" type="submit">🔄 <span>Обновить из реестра</span></button></form>',
+                f'<a class="org-action" href="/organizations/{organization_id}/rename">✏️ <span>Переименовать</span></a>',
+                f'<form method="post" action="/organizations/{organization_id}/lifecycle"><input type="hidden" name="csrf" value="{csrf}"><button class="org-action" type="submit">{"📦" if organization.is_active else "✅"} <span>{"Архивировать" if organization.is_active else "Восстановить"}</span></button></form>',
+            ]
+        )
+    if audit_allowed:
+        action_items.append(
+            f'<a class="org-action" href="/organizations/{organization_id}/audit">📜 <span>История организации</span></a>'
+        )
+    action_items.extend(
+        [
+            '<a class="org-action navigation" href="/organizations">⬅️ <span>Поиск организаций</span></a>',
+            '<a class="org-action navigation" href="/">⌂ <span>На главную</span></a>',
+        ]
+    )
+    synchronized = (
+        organization.last_registry_sync_at.strftime("%d.%m.%Y %H:%M")
+        if organization.last_registry_sync_at
+        else "ещё не выполнялась"
+    )
+    content = f'''<section class="organization-layout"><article class="organization-card panel glass">
+<div class="organization-heading"><div class="hero-icon">🏢</div><div><span class="status-pill">{"активна" if organization.is_active else "отключена"}</span><h2>{esc(organization.name)}</h2><p>{esc(organization_type_label(organization.organization_type))}</p></div></div>
+<div class="card-section"><h3>Организация</h3><dl><dt>ID</dt><dd>{esc(organization.external_id)}</dd><dt>Название</dt><dd>{esc(organization.name)}</dd><dt>Тип</dt><dd>{esc(organization_type_label(organization.organization_type))}</dd><dt>Статус</dt><dd>{"активна" if organization.is_active else "отключена"}</dd><dt>Родитель</dt><dd>{esc(organization.parent.name if organization.parent else "нет")}</dd></dl></div>
+<div class="card-section"><h3>Юридические данные</h3><dl><dt>Название</dt><dd>{esc(organization.legal_name or "не заполнено")}</dd><dt>ИНН</dt><dd>{esc(organization.inn or "не заполнен")}</dd><dt>КПП</dt><dd>{esc(organization.kpp or "не заполнен")}</dd><dt>ОГРН</dt><dd>{esc(organization.ogrn or "не заполнен")}</dd><dt>Юр. статус</dt><dd>{esc(organization.legal_status or "не заполнен")}</dd><dt>Синхронизация</dt><dd>{esc(synchronized)}</dd></dl></div>
+<div class="organization-counters"><span>Дочерних организаций <b>{len(organization.children)}</b></span><span>Холдингов <b>{len(holdings)}</b></span></div></article>
+<aside class="organization-actions glass"><h3>Действия</h3>{''.join(action_items)}</aside></section>
+<section id="units" class="panel glass content-section"><h2>Подразделения</h2>{''.join(f'<div class="list-row">🏗️ {esc(unit.name)}</div>' for unit in units) or '<p>Нет подразделений</p>'}</section>
+<article class="panel glass content-section"><h2>Холдинги</h2>{''.join(f'<a class="list-row" href="/holdings/{holding.id}">🏛️ {esc(holding.name)}</a>' for holding in holdings) or '<p>Нет холдингов</p>'}</article>'''
     return page("Карточка организации", content, account=account, active="organizations")
+
+
+async def require_organization_action(
+    account: Account,
+    organization_id: int,
+    permission: Permission,
+):
+    db = AsyncSessionLocal()
+    access = OrganizationAccessService(db)
+    if not await access.can_access_organization(account, organization_id):
+        await db.close()
+        return None
+    allowed = await AuthorizationService.can_async(
+        account,
+        permission,
+        scope=AccessScope.organization(organization_id),
+        session=db,
+    )
+    if not allowed:
+        await db.close()
+        return None
+    return db
+
+
+@authenticated
+async def organization_rename_page(request: web.Request, account: Account) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    db = await require_organization_action(
+        account,
+        organization_id,
+        Permission.ORGANIZATION_MANAGE,
+    )
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        organization = await OrganizationService(db).require_organization(organization_id)
+    session = session_for(request)
+    content = f'''<section class="panel glass form-panel"><h2>Переименование</h2>
+<form method="post" action="/organizations/{organization_id}/rename"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}">
+<div class="form-grid"><label>Новое название<input name="name" value="{esc(organization.name)}" required minlength="2" maxlength="255"></label></div>
+<div class="action-bar"><button class="button" type="submit">Сохранить</button><a class="button secondary-link" href="/organizations/{organization_id}">Отмена</a></div></form></section>'''
+    return page("Переименовать организацию", content, account=account, active="organizations")
+
+
+@authenticated
+async def organization_rename_update(request: web.Request, account: Account) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    db = await require_organization_action(account, organization_id, Permission.ORGANIZATION_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        try:
+            await OrganizationService(db).rename_organization(
+                organization_id,
+                str(form.get("name", "")),
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
+            return error_page(str(error), account=account)
+    raise web.HTTPFound(f"/organizations/{organization_id}")
+
+
+@authenticated
+async def organization_lifecycle(request: web.Request, account: Account) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    db = await require_organization_action(account, organization_id, Permission.ORGANIZATION_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        service = OrganizationService(db)
+        organization = await service.require_organization(organization_id)
+        await service.set_organization_active(
+            organization_id,
+            not organization.is_active,
+            actor_account_id=account.id,
+        )
+    raise web.HTTPFound(f"/organizations/{organization_id}")
+
+
+@authenticated
+async def organization_registry_page(request: web.Request, account: Account) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    db = await require_organization_action(account, organization_id, Permission.ORGANIZATION_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        organization = await OrganizationService(db).require_organization(organization_id)
+    session = session_for(request)
+    content = f'''<section class="panel glass form-panel"><h2>Заполнение по ИНН</h2><p>Юридические данные будут загружены из DaData.</p>
+<form method="post" action="/organizations/{organization_id}/registry"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}">
+<div class="form-grid"><label>ИНН<input name="inn" value="{esc(organization.inn or '')}" inputmode="numeric" required minlength="10" maxlength="12"></label></div>
+<div class="action-bar"><button class="button" type="submit">Загрузить данные</button><a class="button secondary-link" href="/organizations/{organization_id}">Отмена</a></div></form></section>'''
+    return page("Юридические данные", content, account=account, active="organizations")
+
+
+async def sync_organization_from_request(
+    request: web.Request,
+    account: Account,
+    *,
+    use_form_inn: bool,
+) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    db = await require_organization_action(account, organization_id, Permission.ORGANIZATION_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        try:
+            await OrganizationRegistryService(db).sync_organization(
+                organization_id,
+                inn=str(form.get("inn", "")) if use_form_inn else None,
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
+            return error_page(str(error), account=account)
+    raise web.HTTPFound(f"/organizations/{organization_id}")
+
+
+@authenticated
+async def organization_registry_fill(request: web.Request, account: Account) -> web.Response:
+    return await sync_organization_from_request(request, account, use_form_inn=True)
+
+
+@authenticated
+async def organization_registry_update(request: web.Request, account: Account) -> web.Response:
+    return await sync_organization_from_request(request, account, use_form_inn=False)
+
+
+@authenticated
+async def organization_audit_page(request: web.Request, account: Account) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    db = await require_organization_action(account, organization_id, Permission.ORGANIZATION_AUDIT_VIEW)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        organization = await OrganizationService(db).require_organization(organization_id)
+        events = await OrganizationAuditService(db).list_organization_events(organization_id, limit=30)
+    rows = "".join(
+        f'<article class="message glass"><b>{esc(event.title)}</b><time>{event.created_at:%d.%m.%Y %H:%M}</time><p>{esc(event.details or event.event_type)}</p></article>'
+        for event in events
+    )
+    content = f'<div class="action-bar"><a class="button secondary-link" href="/organizations/{organization_id}">К карточке</a></div><section class="message-list">{rows or "<p>Изменений пока нет.</p>"}</section>'
+    return page(f"История · {organization.name}", content, account=account, active="organizations")
+
+
+@authenticated
+async def organization_structure(request: web.Request, account: Account) -> web.Response:
+    organization_id = int(request.match_info["id"])
+    db = await require_organization_action(account, organization_id, Permission.ORGANIZATION_VIEW)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        content, filename = await CompanyStructurePdfService(db).generate(organization_id)
+    return web.Response(
+        body=content,
+        content_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}",
+            "Cache-Control": "no-store, max-age=0",
+        },
+    )
 
 
 @authenticated
@@ -913,6 +1135,14 @@ def create_application() -> web.Application:
     application.router.add_get("/", dashboard)
     application.router.add_get("/organizations", organizations)
     application.router.add_get("/organizations/{id:\\d+}", organization_card)
+    application.router.add_get("/organizations/{id:\\d+}/rename", organization_rename_page)
+    application.router.add_post("/organizations/{id:\\d+}/rename", organization_rename_update)
+    application.router.add_post("/organizations/{id:\\d+}/lifecycle", organization_lifecycle)
+    application.router.add_get("/organizations/{id:\\d+}/registry", organization_registry_page)
+    application.router.add_post("/organizations/{id:\\d+}/registry", organization_registry_fill)
+    application.router.add_post("/organizations/{id:\\d+}/registry/update", organization_registry_update)
+    application.router.add_get("/organizations/{id:\\d+}/audit", organization_audit_page)
+    application.router.add_get("/organizations/{id:\\d+}/structure", organization_structure)
     application.router.add_get("/holdings", holdings_page)
     application.router.add_get("/holdings/{id:\\d+}", holding_card)
     application.router.add_get("/employees", employees_page)
