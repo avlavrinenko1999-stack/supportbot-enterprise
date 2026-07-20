@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database.db import AsyncSessionLocal
 from app.models.account import Account
+from app.models.access_audit_event import AccessAuditEvent
 from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
@@ -32,18 +33,26 @@ from app.models.message import Message
 from app.models.organization import Organization
 from app.models.organizational_unit import OrganizationalUnit
 from app.models.role_assignment import RoleAssignment
+from app.models.role import Role
 from app.models.ticket import Ticket
 from app.security.authorization import AuthorizationService
+from app.security.access_audit_access import AccessAuditAccessService
 from app.security.access_scope import AccessScope
 from app.security.business_unit_access import BusinessUnitAccessService
 from app.security.holding_access import HoldingAccessService
 from app.security.organization_access import OrganizationAccessService
 from app.security.permissions import Permission
+from app.security.permissions import role_permissions
+from app.security.localization import get_permission_name, get_role_name
+from app.security.role_grant_policy import ROLE_LABELS, RoleGrantPolicy
+from app.i18n import installed_languages, language_label, search_languages
 from app.services.employee_service import EmployeeService
 from app.services.company_structure_pdf_service import CompanyStructurePdfService
 from app.services.holding_audit_service import HoldingAuditService
 from app.services.holding_service import HoldingService
 from app.services.invite_service import InviteService
+from app.services.language_pack_service import LanguagePackService
+from app.services.role_assignment_service import RoleAssignmentService
 from app.services.web_identity_service import WebIdentityService
 from app.services.organization_audit_service import OrganizationAuditService
 from app.services.organization_registry_service import OrganizationRegistryService
@@ -1037,6 +1046,7 @@ async def employees_page(request: web.Request, account: Account) -> web.Response
     if not await can(account, Permission.EMPLOYEE_VIEW):
         return error_page("Недостаточно прав.", status=403, account=account)
     query = request.query.get("q", "").strip()
+    role_filter = request.query.get("role", "").strip()
     async with AsyncSessionLocal() as db:
         unit_ids = await visible_unit_ids(db, account)
         statement = select(Account).where(Account.registered.is_(True))
@@ -1059,6 +1069,8 @@ async def employees_page(request: web.Request, account: Account) -> web.Response
             if query.isdigit():
                 conditions += [Account.id == int(query), Account.telegram_id == int(query)]
             statement = statement.where(or_(*conditions))
+        if statement is not None and role_filter in {role.value for role in UserRole}:
+            statement = statement.where(Account.role == UserRole(role_filter))
         if statement is not None:
             values = list(
                 await db.scalars(
@@ -1068,11 +1080,17 @@ async def employees_page(request: web.Request, account: Account) -> web.Response
     items = [f'<a class="data-card glass" href="/employees/{item.id}"><div class="card-icon">👤</div><div><h3>{esc(item.full_name)}</h3><p>{esc(item.role.value)} · {"Активен" if item.is_active else "Отключён"}</p></div></a>' for item in values]
     invite_action = ""
     if await can(account, Permission.ROLE_ASSIGN):
-        invite_action = (
-            '<div class="action-bar"><a class="button" '
-            'href="/admin/invitations/new">Пригласить по email</a></div>'
-        )
-    return page("Сотрудники", invite_action + search_form("/employees", query, "ФИО, ID, email или Telegram ID") + cards(items), account=account, active="employees")
+        invite_action = '<a class="button" href="/admin/invitations/new">➕ Создать приглашение</a>'
+    navigation = (
+        '<div class="action-bar"><a class="button secondary-link" href="/employees">Все сотрудники</a>'
+        '<a class="button secondary-link" href="/employees?role=coordinator">Координаторы</a>'
+        '<a class="button secondary-link" href="/employees?role=operator">Операторы</a>'
+        '<a class="button secondary-link" href="/employees?role=observer">Наблюдатели</a>'
+        '<a class="button secondary-link" href="/employees?role=user">Пользователи</a>'
+        '<a class="button secondary-link" href="/employees">🔎 Найти сотрудника</a>'
+        f'{invite_action}<a class="button secondary-link" href="/">⬅️ Назад</a></div>'
+    )
+    return page("Сотрудники", navigation + search_form("/employees", query, "ФИО, ID, email или Telegram ID") + cards(items), account=account, active="employees")
 
 
 @authenticated
@@ -1083,7 +1101,7 @@ async def employee_card(request: web.Request, account: Account) -> web.Response:
         item = await EmployeeService(db).get(int(request.match_info["id"]))
     if item is None:
         return error_page("Сотрудник не найден.", status=404, account=account)
-    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(item.full_name)}</h2><dl><dt>ID</dt><dd>{item.id}</dd><dt>Email</dt><dd>{esc(item.email or "—")}</dd><dt>Telegram ID</dt><dd>{esc(item.telegram_id or "—")}</dd><dt>Роль</dt><dd>{esc(item.role.value)}</dd><dt>Язык</dt><dd>{esc(item.language)}</dd><dt>Статус</dt><dd>{"Активен" if item.is_active else "Отключён"}</dd></dl></section>'
+    content = f'<div class="action-bar"><a class="button secondary-link" href="/employees">⬅️ Сотрудники</a><a class="button secondary-link" href="/">⬅️ Назад</a></div><section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(item.full_name)}</h2><dl><dt>ID</dt><dd>{item.id}</dd><dt>Email</dt><dd>{esc(item.email or "—")}</dd><dt>Telegram ID</dt><dd>{esc(item.telegram_id or "—")}</dd><dt>Роль</dt><dd>{esc(get_role_name(item.role))}</dd><dt>Язык</dt><dd>{esc(item.language)}</dd><dt>Статус</dt><dd>{"Активен" if item.is_active else "Отключён"}</dd></dl></section>'
     return page("Карточка сотрудника", content, account=account, active="employees")
 
 
@@ -1140,15 +1158,153 @@ async def reports_page(request: web.Request, account: Account) -> web.Response:
 async def access_page(request: web.Request, account: Account) -> web.Response:
     if not await can(account, Permission.ROLE_ASSIGN):
         return error_page("Недостаточно прав.", status=403, account=account)
+    show_history = request.query.get("history") == "1"
     async with AsyncSessionLocal() as db:
-        values = list(await db.scalars(select(RoleAssignment).where(RoleAssignment.is_active.is_(True)).options(selectinload(RoleAssignment.account), selectinload(RoleAssignment.role)).order_by(RoleAssignment.created_at.desc()).limit(100)))
-    rows = ''.join(f'<tr><td>{item.id}</td><td>{esc(item.account.full_name)}</td><td>{esc(item.role.name)}</td><td>{esc(item.scope_type.value)}</td><td>{esc(item.scope_id or "Вся платформа")}</td></tr>' for item in values)
-    actions = (
-        '<div class="action-bar"><a class="button" href="/admin/invitations/new">'
-        'Пригласить по email</a><a class="button secondary-link" '
-        'href="/admin/mail">Настройки почты</a></div>'
+        platform = await AuthorizationService.can_async(account, Permission.ROLE_ASSIGN, scope=AccessScope.platform(), session=db)
+        statement = select(RoleAssignment).options(selectinload(RoleAssignment.account), selectinload(RoleAssignment.role))
+        if show_history:
+            statement = statement.where(RoleAssignment.is_active.is_(False))
+        else:
+            statement = statement.where(RoleAssignment.is_active.is_(True), RoleAssignment.revoked_at.is_(None))
+        if not platform:
+            unit_ids = await visible_unit_ids(db, account)
+            statement = statement.where(RoleAssignment.scope_type == ScopeType.BUSINESS_UNIT, RoleAssignment.scope_id.in_(unit_ids))
+        values = list(await db.scalars(statement.order_by(RoleAssignment.created_at.desc()).limit(100)))
+    session = session_for(request)
+    rows = ''.join(
+        f'<tr><td>{item.id}</td><td>{esc(item.account.full_name)}</td><td>{esc(item.role.name)}</td><td>{esc(item.scope_type.value)}</td><td>{esc(item.scope_id or "Вся платформа")}</td><td>'
+        + (f'<form method="post" action="/access/assignments/{item.id}/revoke"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><button class="button danger" type="submit">Отозвать</button></form>' if item.is_active else esc(item.revoked_at or "Отозвано"))
+        + '</td></tr>' for item in values
     )
-    return page("Доступы", actions + f'<section class="table-wrap glass"><table><thead><tr><th>ID</th><th>Сотрудник</th><th>Роль</th><th>Область</th><th>Объект</th></tr></thead><tbody>{rows}</tbody></table></section>', account=account, active="access")
+    actions = (
+        '<div class="action-bar"><a class="button" href="/access/assign">➕ Назначить роль</a>'
+        '<a class="button secondary-link" href="/access">📋 Активные назначения</a>'
+        '<a class="button secondary-link" href="/access?history=1">🕘 История назначений</a>'
+        '<a class="button secondary-link" href="/access/roles">🛡 Роли</a>'
+        '<a class="button secondary-link" href="/access/permissions">🔑 Разрешения</a>'
+        '<a class="button secondary-link" href="/access/audit">📜 Журнал доступа</a>'
+        '<a class="button secondary-link" href="/admin/invitations/new">Пригласить по email</a>'
+        '<a class="button secondary-link" href="/admin/mail">Настройки почты</a></div>'
+    )
+    return page("Доступы", actions + f'<section class="table-wrap glass"><table><thead><tr><th>ID</th><th>Сотрудник</th><th>Роль</th><th>Область</th><th>Объект</th><th>Действие</th></tr></thead><tbody>{rows}</tbody></table></section>', account=account, active="access")
+
+
+async def access_target_allowed(db, actor: Account, target_id: int) -> bool:
+    target = await db.get(Account, target_id)
+    if target is None or not target.registered:
+        return False
+    if await has_platform_access(db, actor):
+        return True
+    unit_ids = await visible_unit_ids(db, actor)
+    membership = await db.scalar(select(AccountOrganizationalUnitMembership.id).where(AccountOrganizationalUnitMembership.account_id == target_id, AccountOrganizationalUnitMembership.organizational_unit_id.in_(unit_ids), AccountOrganizationalUnitMembership.is_active.is_(True)))
+    return membership is not None
+
+
+@authenticated
+async def access_assign_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.ROLE_ASSIGN):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    query = request.query.get("q", "").strip()
+    target_text = request.query.get("account_id", "")
+    if not target_text.isdigit():
+        results = []
+        if len(query) >= 2:
+            async with AsyncSessionLocal() as db:
+                unit_ids = await visible_unit_ids(db, account)
+                statement = select(Account).where(Account.registered.is_(True), or_(Account.full_name.ilike(f"%{query}%"), Account.email.ilike(f"%{query}%")))
+                if query.isdigit():
+                    statement = statement.where(or_(Account.id == int(query), Account.telegram_id == int(query), Account.full_name.ilike(f"%{query}%")))
+                if not await has_platform_access(db, account):
+                    statement = statement.join(AccountOrganizationalUnitMembership).where(AccountOrganizationalUnitMembership.organizational_unit_id.in_(unit_ids), AccountOrganizationalUnitMembership.is_active.is_(True))
+                results = list(await db.scalars(statement.distinct().order_by(Account.full_name).limit(8)))
+        items = [f'<a class="data-card glass" href="/access/assign?account_id={item.id}"><div class="card-icon">👤</div><div><h3>{esc(item.full_name)}</h3><p>#{item.id} · {esc(item.email or "без email")}</p></div></a>' for item in results]
+        prompt = cards(items, "Введите не менее двух символов для поиска сотрудника" if len(query) < 2 else "Сотрудник не найден")
+        return page("Назначить роль", '<div class="action-bar"><a class="button secondary-link" href="/access">⬅️ Доступы</a></div>' + search_form("/access/assign", query, "ФИО, ID, email или Telegram ID") + prompt, account=account, active="access")
+    target_id = int(target_text)
+    async with AsyncSessionLocal() as db:
+        if not await access_target_allowed(db, account, target_id):
+            return error_page("Сотрудник недоступен.", status=403, account=account)
+        target = await db.get(Account, target_id)
+        units = await BusinessUnitAccessService(db).list_visible_units(account, active=True)
+        roles = await RoleGrantPolicy(db).list_grantable_business_unit_roles(account)
+    role_options = ''.join(f'<option value="{esc(role.code)}">{esc(ROLE_LABELS.get(role.code, role.name))}</option>' for role in roles)
+    unit_options = ''.join(f'<option value="{unit.id}">{esc(unit.name)} #{unit.id}</option>' for unit in units)
+    session = session_for(request)
+    content = f'''<div class="action-bar"><a class="button secondary-link" href="/access/assign">Выбрать другого сотрудника</a><a class="button secondary-link" href="/access">⬅️ Доступы</a></div><section class="panel glass form-panel"><h2>{esc(target.full_name)}</h2><form method="post" action="/access/assign"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input type="hidden" name="account_id" value="{target.id}"><div class="form-grid"><label>Роль<select name="role_code" required>{role_options}</select></label><label>Подразделение<select name="unit_id" required>{unit_options}</select></label><label>Основание<input name="reason" maxlength="1024" value="Назначено через веб-интерфейс"></label></div><button class="button" type="submit">Назначить роль</button></form></section>'''
+    return page("Назначить роль", content, account=account, active="access")
+
+
+@authenticated
+async def access_assign_submit(request: web.Request, account: Account) -> web.Response:
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    try:
+        target_id = int(str(form.get("account_id", "")))
+        unit_id = int(str(form.get("unit_id", "")))
+    except ValueError:
+        return error_page("Сотрудник или подразделение не выбраны.", account=account)
+    role_code = str(form.get("role_code", ""))
+    scope = AccessScope.business_unit(unit_id)
+    async with AsyncSessionLocal() as db:
+        if not await access_target_allowed(db, account, target_id) or not await RoleGrantPolicy(db).can_grant(account, role_code=role_code, scope=scope):
+            return error_page("Недостаточно прав для назначения.", status=403, account=account)
+        try:
+            assignment = await RoleAssignmentService(db).assign_role(account_id=target_id, role_code=role_code, scope=scope, granted_by_account_id=account.id, grant_reason=str(form.get("reason", "")))
+        except ValueError as error:
+            return error_page(str(error), account=account)
+    raise web.HTTPFound(f"/access#assignment-{assignment.id}")
+
+
+@authenticated
+async def access_assignment_revoke(request: web.Request, account: Account) -> web.Response:
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    assignment_id = int(request.match_info["id"])
+    async with AsyncSessionLocal() as db:
+        assignment = await db.scalar(select(RoleAssignment).where(RoleAssignment.id == assignment_id).options(selectinload(RoleAssignment.role)))
+        if assignment is None or not assignment.is_active:
+            return error_page("Назначение не найдено.", status=404, account=account)
+        scope = AccessScope(assignment.scope_type, assignment.scope_id)
+        if not await RoleGrantPolicy(db).can_grant(account, role_code=assignment.role.code, scope=scope):
+            return error_page("Недостаточно прав для отзыва.", status=403, account=account)
+        try:
+            await RoleAssignmentService(db).revoke_assignment(assignment_id, revoked_by_account_id=account.id, revoke_reason="Отозвано через веб-интерфейс")
+        except ValueError as error:
+            return error_page(str(error), account=account)
+    raise web.HTTPFound("/access")
+
+
+@authenticated
+async def access_audit_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.ROLE_ASSIGN):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with AsyncSessionLocal() as db:
+        statement = select(AccessAuditEvent).options(selectinload(AccessAuditEvent.actor), selectinload(AccessAuditEvent.target_account)).order_by(AccessAuditEvent.created_at.desc(), AccessAuditEvent.id.desc()).limit(100)
+        statement = await AccessAuditAccessService(db).apply_filter(statement, account)
+        events = list(await db.scalars(statement))
+    labels = {"role_assignment_created": "Роль назначена", "role_assignment_revoked": "Роль отозвана"}
+    rows = ''.join(f'<article class="message glass"><b>{esc(labels.get(event.event_type, event.event_type))}</b><time>{event.created_at:%d.%m.%Y %H:%M}</time><p>Исполнитель: {esc(event.actor.full_name if event.actor else "система")} · Сотрудник: {esc(event.target_account.full_name if event.target_account else "—")} · Роль: {esc(event.role_code or "—")} · Область: {esc(event.scope_type.value if event.scope_type else "—")} #{esc(event.scope_id or "—")}</p></article>' for event in events)
+    return page("Журнал доступа", '<div class="action-bar"><a class="button secondary-link" href="/access">⬅️ Доступы</a></div><section class="message-list">' + (rows or '<p>Событий пока нет.</p>') + '</section>', account=account, active="access")
+
+
+@authenticated
+async def access_roles_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.ROLE_ASSIGN):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with AsyncSessionLocal() as db:
+        roles = list(await db.scalars(select(Role).where(Role.is_active.is_(True)).order_by(Role.name)))
+    items = [f'<article class="data-card glass"><div class="card-icon">🛡</div><div><h3>{esc(role.name)}</h3><p>{esc(role.code)} · {esc(role.description or "Без описания")}</p></div></article>' for role in roles]
+    return page("Роли", '<div class="action-bar"><a class="button secondary-link" href="/access">⬅️ Доступы</a></div>' + cards(items), account=account, active="access")
+
+
+@authenticated
+async def access_permissions_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.ROLE_ASSIGN):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    items = [f'<article class="data-card glass"><div class="card-icon">🔑</div><div><h3>{esc(permission.value)}</h3><p>{esc(get_permission_name(permission))}</p></div></article>' for permission in Permission]
+    return page("Разрешения", '<div class="action-bar"><a class="button secondary-link" href="/access">⬅️ Доступы</a></div>' + cards(items), account=account, active="access")
 
 
 @authenticated
@@ -1318,16 +1474,19 @@ async def invitation_create(request: web.Request, account: Account) -> web.Respo
 
 @authenticated
 async def profile_page(request: web.Request, account: Account) -> web.Response:
-    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(account.full_name)}</h2><dl><dt>ID</dt><dd>{account.id}</dd><dt>Email</dt><dd>{esc(account.email or "—")}</dd><dt>Telegram ID</dt><dd>{esc(account.telegram_id or "—")}</dd><dt>Роль</dt><dd>{esc(account.role.value)}</dd><dt>Язык</dt><dd>{esc(account.language)}</dd></dl></section>'
+    permissions = sorted(get_permission_name(permission) for permission in role_permissions(account.role))
+    permissions_html = ''.join(f'<li>✅ {esc(permission)}</li>' for permission in permissions) or '<li>Нет разрешений</li>'
+    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(account.full_name)}</h2><dl><dt>ID</dt><dd>{account.id}</dd><dt>Email</dt><dd>{esc(account.email or "—")}</dd><dt>Telegram ID</dt><dd>{esc(account.telegram_id or "—")}</dd><dt>Роль</dt><dd>{esc(get_role_name(account.role))}</dd><dt>Язык</dt><dd>{esc(account.language)}</dd><dt>Активен</dt><dd>{"да" if account.is_active else "нет"}</dd><dt>Зарегистрирован</dt><dd>{"да" if account.registered else "нет"}</dd></dl><div class="card-section"><h3>Разрешения</h3><ul>{permissions_html}</ul></div></section>'
     return page("Профиль", content, account=account, active="profile")
 
 
 @authenticated
 async def language_page(request: web.Request, account: Account) -> web.Response:
-    token = request.cookies.get(SESSION_COOKIE, "")
-    session = WEB_SESSIONS[token]
-    options = [("ru", "Русский"), ("en", "English")]
-    content = '<section class="panel glass"><h2>Язык интерфейса</h2><form method="post" action="/language">' + f'<input type="hidden" name="csrf" value="{esc(session.csrf_token)}">' + ''.join(f'<label class="radio"><input type="radio" name="language" value="{code}" {"checked" if account.language == code else ""}><span>{label}</span></label>' for code, label in options) + '<button class="button" type="submit">Сохранить</button></form></section>'
+    session = session_for(request)
+    query = request.query.get("q", "").strip()
+    available = search_languages(query) if query else list(installed_languages().items())
+    options = ''.join(f'<form method="post" action="/language" class="data-card glass"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input type="hidden" name="language" value="{esc(code)}"><div class="card-icon">{"✅" if account.language == code else "🌐"}</div><div><h3>{esc(language_label(code))}</h3><p>{esc(code)}</p></div><button class="button" type="submit">Выбрать</button></form>' for code, _meta in available)
+    content = f'''<section class="panel glass"><h2>🌐 Language</h2><p>Введите название любого языка, например: English, Русский, Deutsch или Chinese Simplified. Если пакет ещё не установлен, сервер создаст его автоматически.</p><form class="search glass" method="post" action="/language"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input name="query" value="{esc(query)}" placeholder="Type your language" required><button type="submit">Найти и выбрать</button></form></section><section class="data-grid">{options or '<div class="empty glass">Установленные языки не найдены. Введите название языка.</div>'}</section>'''
     return page("Language", content, account=account, active="language")
 
 
@@ -1338,9 +1497,21 @@ async def language_update(request: web.Request, account: Account) -> web.Respons
     session = WEB_SESSIONS.get(token)
     if session is None or not secrets.compare_digest(str(form.get("csrf", "")), session.csrf_token):
         return error_page("Проверка безопасности не пройдена.", status=403, account=account)
-    language = str(form.get("language", ""))
-    if language not in {"ru", "en"}:
-        return error_page("Язык не поддерживается.", account=account)
+    language = str(form.get("language", "")).strip()
+    query = str(form.get("query", "")).strip()
+    if not language and not query:
+        return error_page("Введите название языка.", account=account)
+    try:
+        if not language:
+            meta = LanguagePackService.resolve_language(query)
+            language = meta["code"]
+            if not LanguagePackService.is_installed(language):
+                meta = await LanguagePackService.install_language_pack(query)
+                language = meta["code"]
+        elif language not in installed_languages():
+            return error_page("Языковой пакет не установлен.", account=account)
+    except Exception as error:
+        return error_page(f"Не удалось установить язык: {error}", status=502, account=account)
     async with AsyncSessionLocal() as db:
         stored = await db.get(Account, account.id)
         stored.language = language
@@ -1390,6 +1561,12 @@ def create_application() -> web.Application:
     application.router.add_get("/tickets/{id:\\d+}", ticket_card)
     application.router.add_get("/reports", reports_page)
     application.router.add_get("/access", access_page)
+    application.router.add_get("/access/assign", access_assign_page)
+    application.router.add_post("/access/assign", access_assign_submit)
+    application.router.add_post("/access/assignments/{id:\\d+}/revoke", access_assignment_revoke)
+    application.router.add_get("/access/audit", access_audit_page)
+    application.router.add_get("/access/roles", access_roles_page)
+    application.router.add_get("/access/permissions", access_permissions_page)
     application.router.add_get("/admin/mail", mail_settings_page)
     application.router.add_post("/admin/mail", mail_settings_update)
     application.router.add_get("/admin/invitations/new", invitation_page)
