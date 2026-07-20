@@ -3,9 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from app.database.db import AsyncSessionLocal
-from app.handlers.admin.company.common import (
-    get_current_account_or_answer,
-)
+from app.handlers.admin.common import get_current_account_or_answer
 from app.keyboards.organization import (
     organization_button_text,
     organizations_catalog_reply_menu,

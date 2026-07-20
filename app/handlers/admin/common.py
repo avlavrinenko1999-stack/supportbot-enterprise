@@ -11,6 +11,7 @@ from app.services.message_service import MessageService
 
 
 
+from aiogram.fsm.context import FSMContext
 async def get_current_account(telegram_id: int) -> Account | None:
     async with AsyncSessionLocal() as session:
         account = await session.scalar(
@@ -71,3 +72,21 @@ async def answer_admin_panel(message: Message, state) -> None:
         delete_user_message=False,
         reply_markup=admin_main_menu(),
     )
+
+
+async def get_current_account_or_answer(
+    message: Message,
+    state: FSMContext,
+):
+    account = await get_current_account(message.from_user.id)
+
+    if account is None:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "У вас нет доступа к этому действию.",
+            delete_user_message=False,
+        )
+        return None
+
+    return account

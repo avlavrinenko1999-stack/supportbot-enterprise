@@ -6,7 +6,7 @@ from app.database.db import AsyncSessionLocal
 from app.handlers.admin.company.card import (
     render_business_unit_card,
 )
-from app.handlers.admin.company.common import get_current_account_or_answer
+from app.handlers.admin.common import get_current_account_or_answer
 from app.handlers.admin.company.state import CompanyState
 from app.integrations.dadata import DadataClient
 from app.keyboards.company import (
