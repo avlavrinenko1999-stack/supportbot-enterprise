@@ -9,7 +9,6 @@ def admin_main_menu(language: str = "ru") -> ReplyKeyboardMarkup:
         [
             "Организации",
             "Холдинги",
-            "Компании",
             "Сотрудники",
             "Тикеты",
             "Отчёты",

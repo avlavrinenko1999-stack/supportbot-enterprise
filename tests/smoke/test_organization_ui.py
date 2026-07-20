@@ -27,9 +27,10 @@ def test_organization_router_is_registered() -> None:
 
 
 def test_admin_menu_contains_organizations() -> None:
-    assert "Организации" in keyboard_texts(
-        admin_main_menu()
-    )
+    texts = keyboard_texts(admin_main_menu())
+
+    assert "Организации" in texts
+    assert "Компании" not in texts
 
 
 def test_organization_actions_are_registered() -> None:
