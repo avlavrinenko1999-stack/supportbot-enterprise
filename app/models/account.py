@@ -20,6 +20,23 @@ class Account(Base, IDMixin, TimestampMixin):
         nullable=True
     )
 
+    email: Mapped[str | None] = mapped_column(
+        String(320),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
+
+    password_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     full_name: Mapped[str] = mapped_column(
         String(255),
         nullable=False

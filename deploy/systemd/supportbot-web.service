@@ -7,6 +7,7 @@ Type=simple
 WorkingDirectory=/opt/supportbot_v2
 Environment=WEB_HOST=0.0.0.0
 Environment=WEB_PORT=8080
+Environment=WEB_PUBLIC_URL=http://185.164.172.211:8080
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/opt/supportbot_v2/venv/bin/python -m web.server
 Restart=always

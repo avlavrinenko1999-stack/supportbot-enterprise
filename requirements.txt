@@ -38,6 +38,7 @@ deep-translator==1.11.4
 langcodes==3.5.1
 Unidecode==1.4.0
 reportlab==5.0.0
+cryptography==46.0.7
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest==9.1.1

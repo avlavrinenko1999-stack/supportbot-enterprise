@@ -11,6 +11,7 @@ from .internal_note import InternalNote
 from .invite import Invite
 from .legal_entity import LegalEntity
 from .legal_entity_audit_event import LegalEntityAuditEvent
+from .mail_settings import MailSettings
 from .organization import Organization
 from .organizational_unit import OrganizationalUnit
 from .organization_audit_event import OrganizationAuditEvent
@@ -29,6 +30,7 @@ __all__ = [
     "OrganizationalUnit",
     "LegalEntity",
     "LegalEntityAuditEvent",
+    "MailSettings",
     "Tenant",
     "Organization",
     "OrganizationAuditEvent",

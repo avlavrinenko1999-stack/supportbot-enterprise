@@ -1,5 +1,6 @@
 import hashlib
 import html
+import os
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -18,7 +19,14 @@ from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
 from app.models.holding import Holding
-from app.models.enums import ScopeType, TicketStatus, UserRole
+from app.models.enums import (
+    InviteRole,
+    ScopeType,
+    TicketStatus,
+    UserRole,
+)
+from app.models.invite import Invite
+from app.models.mail_settings import MailSettings
 from app.models.message import Message
 from app.models.organization import Organization
 from app.models.organizational_unit import OrganizationalUnit
@@ -30,12 +38,15 @@ from app.security.holding_access import HoldingAccessService
 from app.security.organization_access import OrganizationAccessService
 from app.security.permissions import Permission
 from app.services.employee_service import EmployeeService
+from app.services.invite_service import InviteService
+from app.services.web_identity_service import WebIdentityService
 
 
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
 SESSION_COOKIE = "supportbot_session"
 LOGIN_TTL = timedelta(minutes=10)
 SESSION_TTL = timedelta(hours=12)
+WEB_PUBLIC_URL = os.getenv("WEB_PUBLIC_URL", "http://127.0.0.1:8080").rstrip("/")
 
 
 @dataclass(slots=True)
@@ -162,8 +173,10 @@ async def account_middleware(request: web.Request, handler):
     request["account"] = await current_account(request)
     public = request.path in {
         "/login",
+        "/auth/email",
         "/auth/request",
         "/auth/verify",
+        "/register",
         "/styles.css",
         "/app.js",
     }
@@ -193,11 +206,68 @@ async def login_page(request: web.Request) -> web.Response:
     if request["account"]:
         raise web.HTTPFound("/")
     content = """<section class="login-card glass"><div class="login-logo">S</div>
-<h2>Вход в кабинет</h2><p>Введите Telegram ID. Одноразовый код придёт от бота.</p>
+<h2>Вход в кабинет</h2><p>Используйте email и пароль или получите код в Telegram.</p>
+<form method="post" action="/auth/email"><label>Email</label>
+<input type="email" name="email" required autocomplete="username">
+<label>Пароль</label><input type="password" name="password" required autocomplete="current-password">
+<button type="submit">Войти</button></form><div class="form-divider">или</div>
 <form method="post" action="/auth/request"><label>Telegram ID</label>
-<input name="telegram_id" inputmode="numeric" required autocomplete="username">
-<button type="submit">Получить код</button></form></section>"""
+<input name="telegram_id" inputmode="numeric" required>
+<button type="submit" class="secondary">Получить код в Telegram</button></form></section>"""
     return page("Вход", content)
+
+
+def establish_session(account_id: int) -> tuple[str, WebSession]:
+    token = secrets.token_urlsafe(32)
+    session = WebSession(
+        account_id=account_id,
+        csrf_token=secrets.token_urlsafe(24),
+        expires_at=now() + SESSION_TTL,
+    )
+    WEB_SESSIONS[token] = session
+    return token, session
+
+
+def login_response(account_id: int) -> web.Response:
+    token, _ = establish_session(account_id)
+    response = web.HTTPFound("/")
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        httponly=True,
+        samesite="Strict",
+        max_age=int(SESSION_TTL.total_seconds()),
+        path="/",
+    )
+    return response
+
+
+async def email_login(request: web.Request) -> web.Response:
+    form = await request.post()
+    try:
+        email = WebIdentityService.normalize_email(str(form.get("email", "")))
+    except ValueError:
+        return error_page("Неверный email или пароль.", status=403)
+    password = str(form.get("password", ""))
+    async with AsyncSessionLocal() as db:
+        account = await db.scalar(
+            select(Account).where(
+                func.lower(Account.email) == email,
+                Account.is_active.is_(True),
+                Account.registered.is_(True),
+                Account.email_verified_at.is_not(None),
+            )
+        )
+        valid = account is not None and WebIdentityService.verify_password(
+            password,
+            account.password_hash,
+        )
+        if valid:
+            account.last_login = now()
+            await db.commit()
+    if not valid:
+        return error_page("Неверный email или пароль.", status=403)
+    return login_response(account.id)
 
 
 async def request_code(request: web.Request) -> web.Response:
@@ -261,22 +331,103 @@ async def verify_code(request: web.Request) -> web.Response:
         return error_page("Неверный код.", status=403)
 
     LOGIN_CHALLENGES.pop(challenge_id, None)
-    token = secrets.token_urlsafe(32)
-    WEB_SESSIONS[token] = WebSession(
-        account_id=challenge.account_id,
-        csrf_token=secrets.token_urlsafe(24),
-        expires_at=now() + SESSION_TTL,
+    return login_response(challenge.account_id)
+
+
+async def registration_page(request: web.Request) -> web.Response:
+    token = request.query.get("token", "")
+    token_hash = InviteService.make_token_hash(token)
+    async with AsyncSessionLocal() as db:
+        invite = await db.scalar(
+            select(Invite).where(
+                Invite.token_hash == token_hash,
+                Invite.is_active.is_(True),
+                Invite.used_at.is_(None),
+                Invite.expires_at > now(),
+                Invite.delivery_channel == "email",
+            )
+        )
+    if invite is None:
+        return error_page("Приглашение недействительно или уже использовано.", status=403)
+    content = f'''<section class="login-card glass"><div class="login-logo">S</div>
+<h2>Регистрация</h2><p>{esc(invite.full_name)}<br>{esc(invite.email)}</p>
+<form method="post" action="/register"><input type="hidden" name="token" value="{esc(token)}">
+<label>Пароль</label><input type="password" name="password" minlength="10" required autocomplete="new-password">
+<label>Повторите пароль</label><input type="password" name="password_repeat" minlength="10" required autocomplete="new-password">
+<button type="submit">Создать аккаунт</button></form></section>'''
+    return page("Регистрация", content)
+
+
+async def registration_submit(request: web.Request) -> web.Response:
+    form = await request.post()
+    token = str(form.get("token", ""))
+    password = str(form.get("password", ""))
+    if password != str(form.get("password_repeat", "")):
+        return error_page("Пароли не совпадают.")
+    try:
+        password_hash = WebIdentityService.hash_password(password)
+    except ValueError as error:
+        return error_page(str(error))
+
+    token_hash = InviteService.make_token_hash(token)
+    async with AsyncSessionLocal() as db:
+        invite = await db.scalar(
+            select(Invite)
+            .where(Invite.token_hash == token_hash)
+            .with_for_update()
+        )
+        if (
+            invite is None
+            or not invite.is_active
+            or invite.used_at is not None
+            or invite.expires_at <= now()
+            or invite.delivery_channel != "email"
+            or not invite.email
+        ):
+            return error_page("Приглашение недействительно или уже использовано.", status=403)
+        existing = await db.scalar(
+            select(Account).where(func.lower(Account.email) == invite.email.casefold())
+        )
+        if existing is not None:
+            return error_page("Аккаунт с таким email уже существует.", status=409)
+        account = Account(
+            telegram_id=None,
+            email=invite.email.casefold(),
+            password_hash=password_hash,
+            email_verified_at=now(),
+            full_name=invite.full_name,
+            role=UserRole(invite.role.value),
+            is_active=True,
+            registered=True,
+            last_login=now(),
+            language="ru",
+        )
+        db.add(account)
+        await db.flush()
+        membership = AccountOrganizationalUnitMembership(
+            account_id=account.id,
+            organizational_unit_id=invite.organizational_unit_id,
+            is_primary=True,
+            is_active=True,
+        )
+        db.add(membership)
+        invite.used_at = now()
+        invite.used_by_account_id = account.id
+        await db.commit()
+        account_id = account.id
+    return login_response(account_id)
+
+
+def session_for(request: web.Request) -> WebSession | None:
+    return WEB_SESSIONS.get(request.cookies.get(SESSION_COOKIE, ""))
+
+
+def valid_csrf(request: web.Request, form) -> bool:
+    session = session_for(request)
+    return session is not None and secrets.compare_digest(
+        str(form.get("csrf", "")),
+        session.csrf_token,
     )
-    response = web.HTTPFound("/")
-    response.set_cookie(
-        SESSION_COOKIE,
-        token,
-        httponly=True,
-        samesite="Strict",
-        max_age=int(SESSION_TTL.total_seconds()),
-        path="/",
-    )
-    return response
 
 
 async def logout(request: web.Request) -> web.Response:
@@ -414,7 +565,10 @@ async def employees_page(request: web.Request, account: Account) -> web.Response
                     AccountOrganizationalUnitMembership.is_active.is_(True),
                 )
         if statement is not None and query:
-            conditions = [Account.full_name.ilike(f"%{query}%")]
+            conditions = [
+                Account.full_name.ilike(f"%{query}%"),
+                Account.email.ilike(f"%{query}%"),
+            ]
             if query.isdigit():
                 conditions += [Account.id == int(query), Account.telegram_id == int(query)]
             statement = statement.where(or_(*conditions))
@@ -425,7 +579,13 @@ async def employees_page(request: web.Request, account: Account) -> web.Response
                 )
             )
     items = [f'<a class="data-card glass" href="/employees/{item.id}"><div class="card-icon">👤</div><div><h3>{esc(item.full_name)}</h3><p>{esc(item.role.value)} · {"Активен" if item.is_active else "Отключён"}</p></div></a>' for item in values]
-    return page("Сотрудники", search_form("/employees", query, "ФИО, ID или Telegram ID") + cards(items), account=account, active="employees")
+    invite_action = ""
+    if await can(account, Permission.EMPLOYEE_INVITE):
+        invite_action = (
+            '<div class="action-bar"><a class="button" '
+            'href="/admin/invitations/new">Пригласить по email</a></div>'
+        )
+    return page("Сотрудники", invite_action + search_form("/employees", query, "ФИО, ID, email или Telegram ID") + cards(items), account=account, active="employees")
 
 
 @authenticated
@@ -436,7 +596,7 @@ async def employee_card(request: web.Request, account: Account) -> web.Response:
         item = await EmployeeService(db).get(int(request.match_info["id"]))
     if item is None:
         return error_page("Сотрудник не найден.", status=404, account=account)
-    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(item.full_name)}</h2><dl><dt>ID</dt><dd>{item.id}</dd><dt>Telegram ID</dt><dd>{esc(item.telegram_id)}</dd><dt>Роль</dt><dd>{esc(item.role.value)}</dd><dt>Язык</dt><dd>{esc(item.language)}</dd><dt>Статус</dt><dd>{"Активен" if item.is_active else "Отключён"}</dd></dl></section>'
+    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(item.full_name)}</h2><dl><dt>ID</dt><dd>{item.id}</dd><dt>Email</dt><dd>{esc(item.email or "—")}</dd><dt>Telegram ID</dt><dd>{esc(item.telegram_id or "—")}</dd><dt>Роль</dt><dd>{esc(item.role.value)}</dd><dt>Язык</dt><dd>{esc(item.language)}</dd><dt>Статус</dt><dd>{"Активен" if item.is_active else "Отключён"}</dd></dl></section>'
     return page("Карточка сотрудника", content, account=account, active="employees")
 
 
@@ -496,12 +656,176 @@ async def access_page(request: web.Request, account: Account) -> web.Response:
     async with AsyncSessionLocal() as db:
         values = list(await db.scalars(select(RoleAssignment).where(RoleAssignment.is_active.is_(True)).options(selectinload(RoleAssignment.account), selectinload(RoleAssignment.role)).order_by(RoleAssignment.created_at.desc()).limit(100)))
     rows = ''.join(f'<tr><td>{item.id}</td><td>{esc(item.account.full_name)}</td><td>{esc(item.role.name)}</td><td>{esc(item.scope_type.value)}</td><td>{esc(item.scope_id or "Вся платформа")}</td></tr>' for item in values)
-    return page("Доступы", f'<section class="table-wrap glass"><table><thead><tr><th>ID</th><th>Сотрудник</th><th>Роль</th><th>Область</th><th>Объект</th></tr></thead><tbody>{rows}</tbody></table></section>', account=account, active="access")
+    actions = (
+        '<div class="action-bar"><a class="button" href="/admin/invitations/new">'
+        'Пригласить по email</a><a class="button secondary-link" '
+        'href="/admin/mail">Настройки почты</a></div>'
+    )
+    return page("Доступы", actions + f'<section class="table-wrap glass"><table><thead><tr><th>ID</th><th>Сотрудник</th><th>Роль</th><th>Область</th><th>Объект</th></tr></thead><tbody>{rows}</tbody></table></section>', account=account, active="access")
+
+
+@authenticated
+async def mail_settings_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.ROLE_ASSIGN):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with AsyncSessionLocal() as db:
+        mail = await db.get(MailSettings, 1)
+    session = session_for(request)
+    values = {
+        "host": mail.smtp_host if mail else "",
+        "port": mail.smtp_port if mail else 587,
+        "username": mail.smtp_username if mail else "",
+        "from_email": mail.from_email if mail else "",
+        "from_name": mail.from_name if mail else "SupportBot Enterprise",
+        "starttls": bool(mail.use_starttls) if mail else True,
+        "active": bool(mail.is_active) if mail else True,
+    }
+    content = f'''<section class="panel glass form-panel"><h2>SMTP-сервер</h2>
+<p>Пароль сохраняется на сервере в зашифрованном виде.</p>
+<form method="post" action="/admin/mail"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}">
+<div class="form-grid"><label>SMTP host<input name="host" value="{esc(values['host'])}" required></label>
+<label>Порт<input type="number" name="port" value="{values['port']}" min="1" max="65535" required></label>
+<label>Пользователь<input name="username" value="{esc(values['username'])}"></label>
+<label>Пароль<input type="password" name="password" placeholder="Оставьте пустым, чтобы не менять"></label>
+<label>Email отправителя<input type="email" name="from_email" value="{esc(values['from_email'])}" required></label>
+<label>Имя отправителя<input name="from_name" value="{esc(values['from_name'])}" required></label></div>
+<label class="radio"><input type="checkbox" name="starttls" {'checked' if values['starttls'] else ''}><span>Использовать STARTTLS</span></label>
+<label class="radio"><input type="checkbox" name="active" {'checked' if values['active'] else ''}><span>Отправка включена</span></label>
+<button class="button" type="submit">Сохранить</button></form></section>'''
+    return page("Настройки почты", content, account=account, active="access")
+
+
+@authenticated
+async def mail_settings_update(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.ROLE_ASSIGN):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    try:
+        port = int(str(form.get("port", "")))
+        if not 1 <= port <= 65535:
+            raise ValueError
+        from_email = WebIdentityService.normalize_email(str(form.get("from_email", "")))
+    except ValueError:
+        return error_page("Проверьте порт и email отправителя.", account=account)
+    host = str(form.get("host", "")).strip()
+    from_name = " ".join(str(form.get("from_name", "")).split())
+    if not host or not from_name:
+        return error_page("Заполните обязательные поля.", account=account)
+    async with AsyncSessionLocal() as db:
+        mail = await db.get(MailSettings, 1)
+        if mail is None:
+            mail = MailSettings(
+                id=1,
+                smtp_host=host,
+                smtp_port=port,
+                from_email=from_email,
+                from_name=from_name,
+            )
+            db.add(mail)
+        mail.smtp_host = host
+        mail.smtp_port = port
+        mail.smtp_username = str(form.get("username", "")).strip() or None
+        mail.from_email = from_email
+        mail.from_name = from_name
+        mail.use_starttls = form.get("starttls") == "on"
+        mail.is_active = form.get("active") == "on"
+        password = str(form.get("password", ""))
+        if password:
+            mail.smtp_password_encrypted = WebIdentityService.encrypt_secret(password)
+        await db.commit()
+    raise web.HTTPFound("/admin/mail")
+
+
+@authenticated
+async def invitation_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.EMPLOYEE_INVITE):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with AsyncSessionLocal() as db:
+        units = await BusinessUnitAccessService(db).list_visible_units(
+            account,
+            active=True,
+        )
+    session = session_for(request)
+    unit_options = "".join(
+        f'<option value="{unit.id}">{esc(unit.name)}</option>' for unit in units
+    )
+    role_options = "".join(
+        f'<option value="{role.value}">{esc(role.value)}</option>'
+        for role in InviteRole
+    )
+    content = f'''<section class="panel glass form-panel"><h2>Email-приглашение</h2>
+<form method="post" action="/admin/invitations"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}">
+<div class="form-grid"><label>ФИО<input name="full_name" required minlength="2" maxlength="255"></label>
+<label>Email<input type="email" name="email" required></label>
+<label>Роль<select name="role" required>{role_options}</select></label>
+<label>Подразделение<select name="unit_id" required>{unit_options}</select></label></div>
+<button class="button" type="submit">Создать и отправить</button></form></section>'''
+    return page("Приглашение сотрудника", content, account=account, active="access")
+
+
+@authenticated
+async def invitation_create(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.EMPLOYEE_INVITE):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    try:
+        email = WebIdentityService.normalize_email(str(form.get("email", "")))
+        role = InviteRole(str(form.get("role", "")))
+        unit_id = int(str(form.get("unit_id", "")))
+    except (ValueError, TypeError):
+        return error_page("Проверьте email, роль и подразделение.", account=account)
+    full_name = " ".join(str(form.get("full_name", "")).split())
+    if len(full_name) < 2 or len(full_name) > 255:
+        return error_page("Проверьте ФИО.", account=account)
+    async with AsyncSessionLocal() as db:
+        unit_access = BusinessUnitAccessService(db)
+        if not await unit_access.can_access_unit(account, unit_id):
+            return error_page("Подразделение недоступно.", status=403, account=account)
+        duplicate = await db.scalar(
+            select(Account.id).where(func.lower(Account.email) == email)
+        )
+        if duplicate is not None:
+            return error_page("Аккаунт с таким email уже существует.", status=409, account=account)
+        token = InviteService.generate_token()
+        invite = Invite(
+            token_hash=InviteService.make_token_hash(token),
+            full_name=full_name,
+            email=email,
+            delivery_channel="email",
+            role=role,
+            organizational_unit_id=unit_id,
+            created_by_id=account.id,
+            expires_at=now() + timedelta(days=7),
+            is_active=True,
+        )
+        db.add(invite)
+        await db.flush()
+        link = f"{WEB_PUBLIC_URL}/register?token={token}"
+        try:
+            await WebIdentityService(db).send_email(
+                recipient=email,
+                subject="Приглашение в SupportBot Enterprise",
+                text=(
+                    f"Здравствуйте, {full_name}!\n\n"
+                    "Вас пригласили в SupportBot Enterprise. "
+                    "Для регистрации перейдите по ссылке:\n"
+                    f"{link}\n\nСсылка действует 7 дней."
+                ),
+            )
+        except (OSError, ValueError) as error:
+            await db.rollback()
+            return error_page(f"Не удалось отправить письмо: {error}", status=502, account=account)
+        await db.commit()
+    return page("Приглашение отправлено", f'<section class="panel glass"><h2>Готово</h2><p>Приглашение отправлено на {esc(email)}.</p><a class="button" href="/employees">К сотрудникам</a></section>', account=account, active="access")
 
 
 @authenticated
 async def profile_page(request: web.Request, account: Account) -> web.Response:
-    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(account.full_name)}</h2><dl><dt>ID</dt><dd>{account.id}</dd><dt>Telegram ID</dt><dd>{esc(account.telegram_id)}</dd><dt>Роль</dt><dd>{esc(account.role.value)}</dd><dt>Язык</dt><dd>{esc(account.language)}</dd></dl></section>'
+    content = f'<section class="panel glass"><div class="hero-icon">👤</div><h2>{esc(account.full_name)}</h2><dl><dt>ID</dt><dd>{account.id}</dd><dt>Email</dt><dd>{esc(account.email or "—")}</dd><dt>Telegram ID</dt><dd>{esc(account.telegram_id or "—")}</dd><dt>Роль</dt><dd>{esc(account.role.value)}</dd><dt>Язык</dt><dd>{esc(account.language)}</dd></dl></section>'
     return page("Профиль", content, account=account, active="profile")
 
 
@@ -540,8 +864,11 @@ def create_application() -> web.Application:
     application.router.add_get("/styles.css", lambda _: web.FileResponse(STATIC_ROOT / "styles.css"))
     application.router.add_get("/app.js", lambda _: web.FileResponse(STATIC_ROOT / "app.js"))
     application.router.add_get("/login", login_page)
+    application.router.add_post("/auth/email", email_login)
     application.router.add_post("/auth/request", request_code)
     application.router.add_post("/auth/verify", verify_code)
+    application.router.add_get("/register", registration_page)
+    application.router.add_post("/register", registration_submit)
     application.router.add_get("/logout", logout)
     application.router.add_get("/", dashboard)
     application.router.add_get("/organizations", organizations)
@@ -554,6 +881,10 @@ def create_application() -> web.Application:
     application.router.add_get("/tickets/{id:\\d+}", ticket_card)
     application.router.add_get("/reports", reports_page)
     application.router.add_get("/access", access_page)
+    application.router.add_get("/admin/mail", mail_settings_page)
+    application.router.add_post("/admin/mail", mail_settings_update)
+    application.router.add_get("/admin/invitations/new", invitation_page)
+    application.router.add_post("/admin/invitations", invitation_create)
     application.router.add_get("/profile", profile_page)
     application.router.add_get("/language", language_page)
     application.router.add_post("/language", language_update)

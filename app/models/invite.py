@@ -27,6 +27,18 @@ class Invite(Base, IDMixin, TimestampMixin):
         nullable=False,
     )
 
+    email: Mapped[str | None] = mapped_column(
+        String(320),
+        nullable=True,
+        index=True,
+    )
+
+    delivery_channel: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="telegram",
+    )
+
     role: Mapped[InviteRole] = mapped_column(
         Enum(InviteRole),
         nullable=False,
