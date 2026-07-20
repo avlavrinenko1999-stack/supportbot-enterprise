@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, Enum, ForeignKey, String
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -44,6 +46,20 @@ class Organization(Base, IDMixin, TimestampMixin):
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    legal_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
+    kpp: Mapped[str | None] = mapped_column(String(9), nullable=True)
+    ogrn: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    legal_address: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    legal_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    legal_status_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    registration_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    liquidation_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_registry_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     parent = relationship(

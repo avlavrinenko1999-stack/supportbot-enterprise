@@ -69,6 +69,8 @@ def organization_card_reply_menu(
 
     return reply_keyboard(
         [
+            "🏢 Заполнить организацию по ИНН",
+            "🔄 Обновить организацию из реестра",
             "✏️ Переименовать организацию",
             lifecycle_action,
             "📜 История организации",

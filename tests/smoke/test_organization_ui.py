@@ -26,7 +26,7 @@ def keyboard_texts(markup) -> list[str]:
 
 def test_organization_router_is_registered() -> None:
     assert router is not None
-    assert len(router.sub_routers) == 6
+    assert len(router.sub_routers) == 7
 
 
 def test_admin_menu_contains_organizations() -> None:
@@ -115,6 +115,12 @@ def test_organization_card_uses_classic_company_layout() -> None:
         parent_name="Платформа",
         children_count=3,
         holdings_count=2,
+        legal_name="ООО Север",
+        inn="1234567890",
+        kpp="123456789",
+        ogrn="1234567890123",
+        legal_status="✅ Действующая",
+        last_registry_sync_at="2026-07-20 01:00:00+00:00",
     )
 
     assert text == (
@@ -124,6 +130,13 @@ def test_organization_card_uses_classic_company_layout() -> None:
         "Тип: Клиент\n"
         "Статус: отключена\n"
         "Родитель: Платформа\n\n"
+        "Юридические данные\n"
+        "Название: ООО Север\n"
+        "ИНН: 1234567890\n"
+        "КПП: 123456789\n"
+        "ОГРН: 1234567890123\n"
+        "Юр. статус: ✅ Действующая\n"
+        "Синхронизация: 2026-07-20 01:00:00+00:00\n\n"
         "Дочерних организаций: 3\n"
         "Холдингов: 2"
     )

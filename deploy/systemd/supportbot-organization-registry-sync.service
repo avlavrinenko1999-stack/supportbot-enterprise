@@ -1,0 +1,11 @@
+[Unit]
+Description=SupportBot organization legal data sync via DaData
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/supportbot_v2
+EnvironmentFile=/opt/supportbot_v2/.env
+ExecStart=/opt/supportbot_v2/venv/bin/python -m app.jobs.update_organization_legal_data
+User=root

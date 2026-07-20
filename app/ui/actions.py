@@ -16,6 +16,8 @@ class MenuAction(StrEnum):
     ORGANIZATION_ARCHIVE = "organization_archive"
     ORGANIZATION_RESTORE = "organization_restore"
     ORGANIZATION_AUDIT = "organization_audit"
+    ORGANIZATION_FILL_BY_INN = "organization_fill_by_inn"
+    ORGANIZATION_REGISTRY_UPDATE = "organization_registry_update"
 
     HOLDINGS = "holdings"
     HOLDINGS_ALL = "holdings_all"
@@ -118,6 +120,8 @@ ACTION_BUTTONS = {
     MenuAction.ORGANIZATION_ARCHIVE: "📦 Архивировать организацию",
     MenuAction.ORGANIZATION_RESTORE: "✅ Восстановить организацию",
     MenuAction.ORGANIZATION_AUDIT: "📜 История организации",
+    MenuAction.ORGANIZATION_FILL_BY_INN: "🏢 Заполнить организацию по ИНН",
+    MenuAction.ORGANIZATION_REGISTRY_UPDATE: "🔄 Обновить организацию из реестра",
     MenuAction.HOLDINGS: "Холдинги",
     MenuAction.HOLDINGS_ALL: "📋 Все холдинги",
     MenuAction.HOLDING_CATALOG: "⬅️ Каталог холдингов",

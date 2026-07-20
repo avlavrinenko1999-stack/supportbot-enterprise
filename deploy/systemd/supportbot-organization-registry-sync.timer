@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly SupportBot organization registry sync at 01:00 MSK
+
+[Timer]
+OnCalendar=*-*-* 01:00:00 Europe/Moscow
+Persistent=true
+RandomizedDelaySec=0
+Unit=supportbot-organization-registry-sync.service
+
+[Install]
+WantedBy=timers.target

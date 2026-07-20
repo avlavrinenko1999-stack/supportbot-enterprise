@@ -18,6 +18,9 @@ from app.handlers.admin.organization.edit import (
 from app.handlers.admin.organization.search import (
     router as search_router,
 )
+from app.handlers.admin.organization.registry import (
+    router as registry_router,
+)
 
 router = Router()
 
@@ -25,5 +28,6 @@ router.include_router(catalog_router)
 router.include_router(search_router)
 router.include_router(create_router)
 router.include_router(edit_router)
+router.include_router(registry_router)
 router.include_router(audit_router)
 router.include_router(card_router)

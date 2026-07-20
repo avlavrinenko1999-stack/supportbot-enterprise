@@ -7,3 +7,4 @@ class OrganizationState(StatesGroup):
     create_parent = State()
     create_name = State()
     rename_name = State()
+    legal_inn = State()

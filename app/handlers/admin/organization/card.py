@@ -34,6 +34,12 @@ def organization_card_text(
     parent_name: str,
     children_count: int,
     holdings_count: int,
+    legal_name: str | None,
+    inn: str | None,
+    kpp: str | None,
+    ogrn: str | None,
+    legal_status: str | None,
+    last_registry_sync_at: object | None,
 ) -> str:
     """Формирует карточку в классическом формате карточки компании."""
     status = "активна" if is_active else "отключена"
@@ -45,6 +51,14 @@ def organization_card_text(
         f"Тип: {type_label}\n"
         f"Статус: {status}\n"
         f"Родитель: {parent_name}\n\n"
+        "Юридические данные\n"
+        f"Название: {legal_name or 'не заполнено'}\n"
+        f"ИНН: {inn or 'не заполнен'}\n"
+        f"КПП: {kpp or 'не заполнен'}\n"
+        f"ОГРН: {ogrn or 'не заполнен'}\n"
+        f"Юр. статус: {legal_status or 'не заполнен'}\n"
+        "Синхронизация: "
+        f"{last_registry_sync_at or 'ещё не выполнялась'}\n\n"
         f"Дочерних организаций: {children_count}\n"
         f"Холдингов: {holdings_count}"
     )
@@ -132,6 +146,14 @@ async def render_organization_card(
             parent_name=parent_name,
             children_count=children_count,
             holdings_count=holdings_count,
+            legal_name=organization.legal_name,
+            inn=organization.inn,
+            kpp=organization.kpp,
+            ogrn=organization.ogrn,
+            legal_status=organization.legal_status,
+            last_registry_sync_at=(
+                organization.last_registry_sync_at
+            ),
         ),
         reply_markup=organization_card_reply_menu(
             is_active=organization.is_active
