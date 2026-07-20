@@ -128,6 +128,8 @@ def page(
             ("profile", "👤", "Профиль"),
             ("language", "🌐", "Language"),
         ]
+        if getattr(account, "web_platform_admin", False):
+            items.insert(6, ("vidal", "💊", "Vidal"))
         links = "".join(
             f'<a class="nav-item {"active" if key == active else ""}" '
             f'href="/{key}"><span>{icon}</span>{label}</a>'
@@ -192,13 +194,16 @@ async def current_account(request: web.Request) -> Account | None:
             WEB_SESSIONS.pop(token, None)
         return None
     async with AsyncSessionLocal() as db:
-        return await db.scalar(
+        account = await db.scalar(
             select(Account).where(
                 Account.id == session.account_id,
                 Account.is_active.is_(True),
                 Account.registered.is_(True),
             )
         )
+        if account is not None:
+            account.web_platform_admin = await is_platform_admin(db, account)
+        return account
 
 
 @web.middleware
@@ -233,6 +238,35 @@ def authenticated(
 
 async def can(account: Account, permission: Permission) -> bool:
     return await AuthorizationService.can_async(account, permission)
+
+
+async def is_platform_admin(db, account: Account) -> bool:
+    current_time = now()
+    assignment_count = await db.scalar(
+        select(func.count(RoleAssignment.id)).where(
+            RoleAssignment.account_id == account.id,
+            RoleAssignment.is_active.is_(True),
+            RoleAssignment.revoked_at.is_(None),
+        )
+    ) or 0
+    if assignment_count == 0:
+        return account.role == UserRole.ADMIN
+    platform_admin_id = await db.scalar(
+        select(RoleAssignment.id)
+        .join(Role, Role.id == RoleAssignment.role_id)
+        .where(
+            RoleAssignment.account_id == account.id,
+            RoleAssignment.scope_type == ScopeType.PLATFORM,
+            RoleAssignment.scope_id.is_(None),
+            RoleAssignment.is_active.is_(True),
+            RoleAssignment.revoked_at.is_(None),
+            Role.is_active.is_(True),
+            Role.code == "platform_admin",
+            or_(RoleAssignment.valid_from.is_(None), RoleAssignment.valid_from <= current_time),
+            or_(RoleAssignment.valid_to.is_(None), RoleAssignment.valid_to > current_time),
+        )
+    )
+    return platform_admin_id is not None
 
 
 async def login_page(request: web.Request) -> web.Response:
@@ -483,6 +517,8 @@ async def dashboard(request: web.Request, account: Account) -> web.Response:
         ("profile", "👤", "Профиль", None),
         ("language", "🌐", "Language", None),
     ]
+    if getattr(account, "web_platform_admin", False):
+        sections.insert(6, ("vidal", "💊", "Справочник Vidal", None))
     allowed = []
     for path, icon, label, permission in sections:
         if permission is None or await can(account, permission):
@@ -1169,6 +1205,36 @@ async def reports_page(request: web.Request, account: Account) -> web.Response:
     return page("Отчёты", content, account=account, active="reports")
 
 
+async def require_platform_admin(account: Account) -> bool:
+    async with AsyncSessionLocal() as db:
+        return await is_platform_admin(db, account)
+
+
+@authenticated
+async def vidal_page(request: web.Request, account: Account) -> web.Response:
+    if not await require_platform_admin(account):
+        return error_page("Справочник Vidal доступен только администратору платформы.", status=403, account=account)
+    query = request.query.get("q", "").strip()
+    search = search_form("/vidal/search", query, "Название препарата, действующее вещество или АТХ-код")
+    sections = '''<section class="data-grid vidal-sections">
+<a class="data-card glass" href="https://www.vidal.ru/drugs" target="_blank" rel="noopener noreferrer"><div class="card-icon">💊</div><div><h3>Препараты</h3><p>Официальный справочник лекарственных средств</p></div></a>
+<a class="data-card glass" href="https://www.vidal.ru/drugs/molecules" target="_blank" rel="noopener noreferrer"><div class="card-icon">🧬</div><div><h3>Активные вещества</h3><p>Поиск по действующему веществу</p></div></a>
+<a class="data-card glass" href="https://www.vidal.ru/drugs/atc" target="_blank" rel="noopener noreferrer"><div class="card-icon">🧪</div><div><h3>АТХ</h3><p>Анатомо-терапевтическая классификация</p></div></a>
+<a class="data-card glass" href="https://www.vidal.ru/drugs/interaction/new" target="_blank" rel="noopener noreferrer"><div class="card-icon">⚕️</div><div><h3>Взаимодействия</h3><p>Проверка взаимодействия препаратов</p></div></a></section>'''
+    notice = '<section class="panel glass content-section"><h2>Важная информация</h2><p>Поиск открывает актуальные данные официального справочника Vidal. Информация предназначена для специалистов и не заменяет консультацию врача.</p></section>'
+    return page("Справочник Vidal", search + sections + notice, account=account, active="vidal")
+
+
+@authenticated
+async def vidal_search(request: web.Request, account: Account) -> web.Response:
+    if not await require_platform_admin(account):
+        return error_page("Справочник Vidal доступен только администратору платформы.", status=403, account=account)
+    query = request.query.get("q", "").strip()
+    if len(query) < 2:
+        return error_page("Введите не менее двух символов для поиска.", account=account)
+    raise web.HTTPFound(f"https://www.vidal.ru/drugs?t=all&q={quote(query)}")
+
+
 @authenticated
 async def access_page(request: web.Request, account: Account) -> web.Response:
     if not await can(account, Permission.ROLE_ASSIGN):
@@ -1636,6 +1702,8 @@ def create_application() -> web.Application:
     application.router.add_get("/tickets", tickets_page)
     application.router.add_get("/tickets/{id:\\d+}", ticket_card)
     application.router.add_get("/reports", reports_page)
+    application.router.add_get("/vidal", vidal_page)
+    application.router.add_get("/vidal/search", vidal_search)
     application.router.add_get("/access", access_page)
     application.router.add_get("/access/assign", access_assign_page)
     application.router.add_post("/access/assign", access_assign_submit)
