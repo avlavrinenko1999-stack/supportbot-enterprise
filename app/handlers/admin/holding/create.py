@@ -7,6 +7,7 @@ from app.handlers.admin.common import get_current_account_or_answer
 from app.handlers.admin.holding.card import render_holding_card
 from app.handlers.admin.holding.catalog import render_holdings_catalog
 from app.handlers.admin.holding.state import HoldingState
+from app.handlers.admin.organization.search import organization_matches_query
 from app.keyboards.organization import organization_button_text
 from app.security.access_scope import AccessScope
 from app.security.authorization import AuthorizationService
@@ -21,6 +22,16 @@ from app.ui.reply import reply_keyboard
 router = Router()
 
 CATALOG_BUTTON = "⬅️ Каталог холдингов"
+MAX_SEARCH_RESULTS = 8
+
+
+def organization_search_keyboard(
+    organization_map: dict[str, int] | None = None,
+):
+    return reply_keyboard(
+        [*(organization_map or {}), CATALOG_BUTTON],
+        input_field_placeholder="ИНН или наименование",
+    )
 
 
 @router.message(MenuActionFilter(MenuAction.HOLDING_CREATE))
@@ -28,51 +39,24 @@ CATALOG_BUTTON = "⬅️ Каталог холдингов"
 async def holding_create_start(
     message: Message,
     state: FSMContext,
-    account=None,
 ) -> None:
-    current_account = account or await get_current_account_or_answer(
-        message,
-        state,
-    )
-    if current_account is None:
-        return
-
-    async with AsyncSessionLocal() as session:
-        organizations = await OrganizationAccessService(
-            session
-        ).list_visible_organizations(current_account, active=True)
-
-    organization_map = {
-        organization_button_text(organization): organization.id
-        for organization in organizations
-    }
     await state.update_data(
-        create_holding_organization_map=organization_map,
+        create_holding_organization_map={},
     )
-    await state.set_state(HoldingState.create_organization)
-
-    if not organization_map:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Нет доступных активных организаций для создания холдинга.",
-            reply_markup=reply_keyboard([CATALOG_BUTTON]),
-        )
-        return
+    await state.set_state(HoldingState.create_organization_search)
 
     await MessageService.replace_service_message(
         message,
         state,
-        "Создание холдинга\n\nВыберите организацию.",
-        reply_markup=reply_keyboard(
-            [*organization_map, CATALOG_BUTTON],
-            input_field_placeholder="Организация холдинга",
-        ),
+        "Создание холдинга\n\n"
+        "Введите ИНН или часть наименования организации.\n\n"
+        "Поиск выполняется только среди доступных вам организаций.",
+        reply_markup=organization_search_keyboard(),
     )
 
 
-@router.message(HoldingState.create_organization)
-async def holding_create_organization(
+@router.message(HoldingState.create_organization_search)
+async def holding_create_organization_search(
     message: Message,
     state: FSMContext,
 ) -> None:
@@ -86,14 +70,62 @@ async def holding_create_organization(
     organization_id = organization_map.get((message.text or "").strip())
 
     if organization_id is None:
+        query = " ".join((message.text or "").split())
+        if len(query) < 2:
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Запрос должен содержать не менее двух символов.",
+                reply_markup=organization_search_keyboard(),
+            )
+            return
+
+        account = await get_current_account_or_answer(message, state)
+        if account is None:
+            return
+
+        async with AsyncSessionLocal() as session:
+            visible_organizations = await OrganizationAccessService(
+                session
+            ).list_visible_organizations(account, active=True)
+
+        matches = [
+            organization
+            for organization in visible_organizations
+            if organization_matches_query(organization, query)
+        ]
+        shown_matches = matches[:MAX_SEARCH_RESULTS]
+        organization_map = {
+            organization_button_text(organization): organization.id
+            for organization in shown_matches
+        }
+        await state.update_data(
+            create_holding_organization_map=organization_map,
+        )
+
+        if not matches:
+            text = (
+                "Совпадений среди доступных вам организаций не найдено.\n\n"
+                "Введите другой ИНН или часть наименования."
+            )
+        else:
+            suffix = (
+                f"\nПоказаны первые {MAX_SEARCH_RESULTS}. "
+                "Уточните запрос."
+                if len(matches) > MAX_SEARCH_RESULTS
+                else ""
+            )
+            text = (
+                f"Найдено организаций: {len(matches)}.\n\n"
+                "Выберите организацию кнопкой или уточните поиск."
+                f"{suffix}"
+            )
+
         await MessageService.replace_service_message(
             message,
             state,
-            "Выберите организацию кнопкой.",
-            reply_markup=reply_keyboard(
-                [*organization_map, CATALOG_BUTTON],
-                input_field_placeholder="Организация холдинга",
-            ),
+            text,
+            reply_markup=organization_search_keyboard(organization_map),
         )
         return
 
