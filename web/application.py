@@ -580,7 +580,7 @@ async def employees_page(request: web.Request, account: Account) -> web.Response
             )
     items = [f'<a class="data-card glass" href="/employees/{item.id}"><div class="card-icon">👤</div><div><h3>{esc(item.full_name)}</h3><p>{esc(item.role.value)} · {"Активен" if item.is_active else "Отключён"}</p></div></a>' for item in values]
     invite_action = ""
-    if await can(account, Permission.EMPLOYEE_INVITE):
+    if await can(account, Permission.ROLE_ASSIGN):
         invite_action = (
             '<div class="action-bar"><a class="button" '
             'href="/admin/invitations/new">Пригласить по email</a></div>'
@@ -740,7 +740,7 @@ async def mail_settings_update(request: web.Request, account: Account) -> web.Re
 
 @authenticated
 async def invitation_page(request: web.Request, account: Account) -> web.Response:
-    if not await can(account, Permission.EMPLOYEE_INVITE):
+    if not await can(account, Permission.ROLE_ASSIGN):
         return error_page("Недостаточно прав.", status=403, account=account)
     async with AsyncSessionLocal() as db:
         units = await BusinessUnitAccessService(db).list_visible_units(
@@ -767,7 +767,7 @@ async def invitation_page(request: web.Request, account: Account) -> web.Respons
 
 @authenticated
 async def invitation_create(request: web.Request, account: Account) -> web.Response:
-    if not await can(account, Permission.EMPLOYEE_INVITE):
+    if not await can(account, Permission.ROLE_ASSIGN):
         return error_page("Недостаточно прав.", status=403, account=account)
     form = await request.post()
     if not valid_csrf(request, form):
@@ -782,6 +782,12 @@ async def invitation_create(request: web.Request, account: Account) -> web.Respo
     if len(full_name) < 2 or len(full_name) > 255:
         return error_page("Проверьте ФИО.", account=account)
     async with AsyncSessionLocal() as db:
+        if role == InviteRole.ADMIN and not await has_platform_access(db, account):
+            return error_page(
+                "Назначать администратора может только администратор платформы.",
+                status=403,
+                account=account,
+            )
         unit_access = BusinessUnitAccessService(db)
         if not await unit_access.can_access_unit(account, unit_id):
             return error_page("Подразделение недоступно.", status=403, account=account)

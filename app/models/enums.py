@@ -30,6 +30,7 @@ class TicketStatus(str, Enum):
 class InviteRole(str, Enum):
     """Кого приглашает ссылка."""
 
+    ADMIN = "admin"
     COORDINATOR = "coordinator"
 
     OPERATOR = "operator"

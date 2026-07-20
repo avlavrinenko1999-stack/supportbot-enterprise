@@ -2,6 +2,7 @@ import pytest
 
 from app.models.account import Account
 from app.models.invite import Invite
+from app.models.enums import InviteRole
 from app.models.mail_settings import MailSettings
 from app.services.web_identity_service import WebIdentityService
 
@@ -17,6 +18,7 @@ def test_account_supports_email_identity_without_telegram() -> None:
 def test_invite_supports_email_delivery() -> None:
     assert Invite.__table__.c.email.nullable
     assert not Invite.__table__.c.delivery_channel.nullable
+    assert InviteRole.ADMIN.value == "admin"
 
 
 def test_mail_password_round_trip_is_encrypted() -> None:
