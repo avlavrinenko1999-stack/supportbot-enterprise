@@ -57,10 +57,10 @@ class AccessScope:
         )
 
     @classmethod
-    def company(cls, company_id: int) -> AccessScope:
+    def business_unit(cls, business_unit_id: int) -> AccessScope:
         return cls(
-            scope_type=ScopeType.COMPANY,
-            scope_id=company_id,
+            scope_type=ScopeType.BUSINESS_UNIT,
+            scope_id=business_unit_id,
         )
 
     @classmethod

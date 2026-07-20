@@ -91,7 +91,7 @@ class ScopeType(str, Enum):
     PLATFORM = "platform"
     ORGANIZATION = "organization"
     HOLDING = "holding"
-    COMPANY = "company"
+    BUSINESS_UNIT = "business_unit"
     SUPPORT_CONTRACT = "support_contract"
     SUPPORT_QUEUE = "support_queue"
     TICKET = "ticket"

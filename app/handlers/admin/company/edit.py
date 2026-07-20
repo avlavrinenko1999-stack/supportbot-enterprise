@@ -18,8 +18,8 @@ from app.security.permissions import Permission
 from app.security.scope_resolvers import (
     business_unit_scope_from_state,
 )
-from app.services.company_legal_entity_service import (
-    CompanyLegalEntityService,
+from app.services.business_unit_legal_entity_service import (
+    BusinessUnitLegalEntityService,
 )
 from app.services.business_unit_service import (
     BusinessUnitService,
@@ -146,7 +146,7 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_FILL_BY_INN))
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_fill_by_inn_start(
@@ -179,7 +179,7 @@ async def company_fill_by_inn_start(
 
 @router.message(CompanyState.legal_inn)
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_fill_by_inn_finish(
@@ -228,10 +228,10 @@ async def company_fill_by_inn_finish(
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyLegalEntityService(session)
+        service = BusinessUnitLegalEntityService(session)
 
         try:
-            await service.fill_by_inn_for_unit(
+            await service.fill_by_inn(
                 business_unit_id,
                 text,
                 actor_account_id=account.id,
@@ -255,7 +255,7 @@ async def company_fill_by_inn_finish(
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_REGISTRY_UPDATE))
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_registry_update(
@@ -282,10 +282,10 @@ async def company_registry_update(
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyLegalEntityService(session)
+        service = BusinessUnitLegalEntityService(session)
 
         try:
-            await service.refresh_from_registry_for_unit(
+            await service.refresh_from_registry(
                 business_unit_id,
                 actor_account_id=account.id,
             )
@@ -307,7 +307,7 @@ async def company_registry_update(
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_RENAME))
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_rename_start(message: Message, state: FSMContext) -> None:
@@ -335,7 +335,7 @@ async def company_rename_start(message: Message, state: FSMContext) -> None:
 
 @router.message(CompanyState.rename_name)
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_rename_finish(message: Message, state: FSMContext) -> None:
@@ -387,7 +387,7 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_DISABLE))
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_disable_from_reply(message: Message, state: FSMContext) -> None:
@@ -417,7 +417,7 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_ENABLE))
 @require_permission(
-    Permission.COMPANY_MANAGE,
+    Permission.BUSINESS_UNIT_MANAGE,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_enable_from_reply(message: Message, state: FSMContext) -> None:

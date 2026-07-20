@@ -81,10 +81,10 @@ def test_business_unit_card_uses_route() -> None:
     assert "Координаторы подразделения" in source
 
 
-def test_legacy_routes_remain_available() -> None:
+def test_business_unit_service_is_used() -> None:
     source = HANDLER.read_text(encoding="utf-8")
 
     assert "company:coordinators:" in source
     assert "company_coordinator:create:" in source
-    assert "CompanySearchService" in source
+    assert "BusinessUnitSearchService" in source
     assert "CompanyService" not in source

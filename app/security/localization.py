@@ -12,9 +12,9 @@ ROLE_NAMES = {
 
 
 PERMISSION_NAMES = {
-    Permission.COMPANY_VIEW: "Просмотр компаний",
-    Permission.COMPANY_MANAGE: "Управление компаниями",
-    Permission.COMPANY_AUDIT_VIEW: "Просмотр истории изменений компаний",
+    Permission.BUSINESS_UNIT_VIEW: "Просмотр компаний",
+    Permission.BUSINESS_UNIT_MANAGE: "Управление компаниями",
+    Permission.BUSINESS_UNIT_AUDIT_VIEW: "Просмотр истории изменений компаний",
 
     Permission.EMPLOYEE_VIEW: "Просмотр сотрудников",
     Permission.EMPLOYEE_INVITE: "Создание приглашений",

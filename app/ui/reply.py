@@ -1,7 +1,7 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from app.ui.keyboard_i18n import localize_button
-from app.services.company_name_service import CompanyNameService
+from app.services.entity_name_service import EntityNameService
 
 
 def reply_keyboard(
@@ -25,7 +25,7 @@ async def reply_keyboard_async(
     input_field_placeholder: str | None = None,
 ) -> ReplyKeyboardMarkup:
     visible_buttons = [
-        await CompanyNameService.visible_text(localize_button(button))
+        await EntityNameService.visible_text(localize_button(button))
         for button in buttons
     ]
 

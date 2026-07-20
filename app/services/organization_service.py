@@ -40,7 +40,6 @@ class OrganizationService(BaseService):
             statement = statement.options(
                 selectinload(Organization.children),
                 selectinload(Organization.holdings),
-                selectinload(Organization.companies),
             )
 
         return await self.session.scalar(statement)

@@ -246,7 +246,7 @@ async def update_company_legal_data() -> RegistryJobResult:
     """
     Временное совместимое имя для существующего systemd-unit.
 
-    Задача больше не обновляет Company. Она синхронизирует
+    Задача синхронизирует
     только уникальные LegalEntity.
     """
 

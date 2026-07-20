@@ -71,7 +71,7 @@ def assignment_role_menu(
     role_codes: set[str] | frozenset[str] | None = None,
 ) -> ReplyKeyboardMarkup:
     labels = {
-        "company_admin": "🏢 Администратор компании",
+        "business_unit_admin": "🏢 Администратор компании",
         "support_manager": "🧭 Руководитель поддержки",
         "coordinator": "👤 Координатор доступа",
         "operator": "👷 Оператор доступа",
@@ -81,7 +81,7 @@ def assignment_role_menu(
     }
 
     ordered_codes = (
-        "company_admin",
+        "business_unit_admin",
         "support_manager",
         "coordinator",
         "operator",

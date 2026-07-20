@@ -9,9 +9,9 @@ from app.security.authorization import AuthorizationService
 from app.security.permissions import Permission
 
 
-COMPANY_SCOPE_ROLE_CODES = frozenset(
+BUSINESS_UNIT_SCOPE_ROLE_CODES = frozenset(
     {
-        "company_admin",
+        "business_unit_admin",
         "support_manager",
         "coordinator",
         "operator",
@@ -23,7 +23,7 @@ COMPANY_SCOPE_ROLE_CODES = frozenset(
 
 
 ROLE_LABELS = {
-    "company_admin": "Администратор компании",
+    "business_unit_admin": "Администратор подразделения",
     "support_manager": "Руководитель поддержки",
     "coordinator": "Координатор",
     "operator": "Оператор",
@@ -45,7 +45,7 @@ class RoleGrantPolicy:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def list_grantable_company_roles(
+    async def list_grantable_business_unit_roles(
         self,
         actor: Account,
         *,
@@ -55,7 +55,7 @@ class RoleGrantPolicy:
             allowed = await AuthorizationService.can_async(
                 actor,
                 Permission.ROLE_ASSIGN,
-                scope=AccessScope.company(company_id),
+                scope=AccessScope.business_unit(company_id),
                 session=self.session,
             )
         else:
@@ -72,7 +72,7 @@ class RoleGrantPolicy:
             await self.session.scalars(
                 select(Role)
                 .where(
-                    Role.code.in_(COMPANY_SCOPE_ROLE_CODES),
+                    Role.code.in_(BUSINESS_UNIT_SCOPE_ROLE_CODES),
                     Role.is_active.is_(True),
                 )
                 .order_by(Role.name, Role.code)
@@ -86,10 +86,10 @@ class RoleGrantPolicy:
         role_code: str,
         scope: AccessScope,
     ) -> bool:
-        if scope.scope_type != ScopeType.COMPANY:
+        if scope.scope_type != ScopeType.BUSINESS_UNIT:
             return False
 
-        if role_code not in COMPANY_SCOPE_ROLE_CODES:
+        if role_code not in BUSINESS_UNIT_SCOPE_ROLE_CODES:
             return False
 
         role_exists = await self.session.scalar(

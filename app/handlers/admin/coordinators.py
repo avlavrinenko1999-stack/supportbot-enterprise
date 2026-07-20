@@ -9,7 +9,7 @@ from app.handlers.admin.common import edit_callback_message, get_current_admin, 
 from app.keyboards.coordinator_admin import coordinators_menu, coordinators_reply_menu
 from app.keyboards.employee import employee_card_menu
 from app.models.account import Account
-from app.models.company import Company
+from app.models.organizational_unit import OrganizationalUnit
 from app.models.enums import UserRole
 from app.security.localization import get_role_name
 from app.services.account_admin_service import AccountAdminService
@@ -46,9 +46,8 @@ def coordinators_text(
 
     for coordinator in coordinators[start:end]:
         status = "активен" if coordinator.is_active else "отключён"
-        company_id = coordinator.company_id if coordinator.company_id else "без компании"
         lines.append(
-            f"{coordinator.id}. {coordinator.full_name} — {status}, компания: {company_id}"
+            f"{coordinator.id}. {coordinator.full_name} — {status}"
         )
 
     return "\n".join(lines)
@@ -138,9 +137,9 @@ async def coordinator_create_start_from_reply(message: Message, state: FSMContex
     async with AsyncSessionLocal() as session:
         companies = (
             await session.scalars(
-                select(Company)
-                .where(Company.is_active.is_(True))
-                .order_by(Company.id)
+                select(OrganizationalUnit)
+                .where(OrganizationalUnit.is_active.is_(True))
+                .order_by(OrganizationalUnit.id)
             )
         ).all()
 
@@ -148,7 +147,7 @@ async def coordinator_create_start_from_reply(message: Message, state: FSMContex
         await MessageService.replace_service_message(
             message,
             state,
-            "Активных компаний пока нет. Сначала создайте компанию.",
+            "Активных подразделений пока нет. Сначала создайте подразделение.",
         )
         return
 
@@ -161,7 +160,7 @@ async def coordinator_create_start_from_reply(message: Message, state: FSMContex
     await MessageService.replace_service_message(
         message,
         state,
-        "Введите ID компании для координатора:\n\n"
+        "Введите ID подразделения для координатора:\n\n"
         f"{companies_text}",
     )
 
@@ -197,7 +196,6 @@ async def coordinator_view_from_reply(message: Message, state: FSMContext) -> No
         f"ID: {coordinator.id}\n"
         f"ФИО: {coordinator.full_name}\n"
         f"Роль: {get_role_name(coordinator.role)}\n"
-        f"Компания ID: {coordinator.company_id or 'не привязана'}\n"
         f"Статус: {status}",
         reply_markup=employee_card_menu(is_active=coordinator.is_active),
     )
@@ -208,16 +206,16 @@ async def coordinator_create_start(callback: CallbackQuery, state: FSMContext) -
     async with AsyncSessionLocal() as session:
         companies = (
             await session.scalars(
-                select(Company)
-                .where(Company.is_active.is_(True))
-                .order_by(Company.id)
+                select(OrganizationalUnit)
+                .where(OrganizationalUnit.is_active.is_(True))
+                .order_by(OrganizationalUnit.id)
             )
         ).all()
 
     if not companies:
         await edit_callback_message(
             callback,
-            "Активных компаний пока нет. Сначала создайте компанию.",
+            "Активных подразделений пока нет. Сначала создайте подразделение.",
         )
         return
 
@@ -229,7 +227,7 @@ async def coordinator_create_start(callback: CallbackQuery, state: FSMContext) -
 
     await edit_callback_message(
         callback,
-        "Введите ID компании для координатора:\n\n"
+        "Введите ID подразделения для координатора:\n\n"
         f"{companies_text}",
     )
 
@@ -252,7 +250,7 @@ async def coordinator_create_company(message: Message, state: FSMContext) -> Non
         await MessageService.replace_service_message(
             message,
             state,
-            "Введите числовой ID компании.",
+            "Введите числовой ID подразделения.",
         )
         return
 
@@ -260,9 +258,9 @@ async def coordinator_create_company(message: Message, state: FSMContext) -> Non
 
     async with AsyncSessionLocal() as session:
         company = await session.scalar(
-            select(Company).where(
-                Company.id == company_id,
-                Company.is_active.is_(True),
+            select(OrganizationalUnit).where(
+                OrganizationalUnit.id == company_id,
+                OrganizationalUnit.is_active.is_(True),
             )
         )
 
@@ -270,7 +268,7 @@ async def coordinator_create_company(message: Message, state: FSMContext) -> Non
         await MessageService.replace_service_message(
             message,
             state,
-            "Компания не найдена или отключена. Введите другой ID.",
+            "Подразделение не найдено или отключено. Введите другой ID.",
         )
         return
 
@@ -349,7 +347,7 @@ async def coordinator_create_finish(message: Message, state: FSMContext) -> None
         message,
         state,
         "Приглашение координатора создано.\n\n"
-        f"Компания: {result.company.name}\n"
+        f"Подразделение: {result.business_unit.name}\n"
         f"ФИО: {full_name}\n"
         f"Срок действия: 7 дней\n\n"
         f"Ссылка:\n{result.created_invite.link}",
@@ -385,7 +383,6 @@ async def coordinator_view(callback: CallbackQuery) -> None:
         f"ID: {coordinator.id}\n"
         f"ФИО: {coordinator.full_name}\n"
         f"Роль: {get_role_name(coordinator.role)}\n"
-        f"Компания ID: {coordinator.company_id or 'не привязана'}\n"
         f"Статус: {status}",
         reply_markup=employee_card_menu(is_active=coordinator.is_active),
     )

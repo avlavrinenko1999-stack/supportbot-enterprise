@@ -8,13 +8,10 @@ from app.models.account import Account
 from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
-from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
+from app.models.organizational_unit import OrganizationalUnit
 from app.services.invite_service import CreatedInvite, InviteService
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
-)
 
 
 USER_ROLE_TO_INVITE_ROLE = {
@@ -26,16 +23,13 @@ USER_ROLE_TO_INVITE_ROLE = {
 
 @dataclass(frozen=True)
 class AccountInviteResult:
-    company: Company
+    business_unit: OrganizationalUnit
     created_invite: CreatedInvite
 
 
 class AccountAdminService:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.mapping = LegacyCompanyMappingService(
-            session
-        )
 
     async def list_company_accounts(
         self,
@@ -44,20 +38,12 @@ class AccountAdminService:
         role: UserRole,
     ) -> list[Account]:
         """
-        Compatibility API для Company UI.
+        Возвращает аккаунты рабочего подразделения.
 
         Каноническая принадлежность сотрудника определяется
         через AccountOrganizationalUnitMembership.
         """
-        business_unit_id = (
-            await self.mapping
-            .get_unit_id_by_legacy_company_id(
-                company_id
-            )
-        )
-
-        if business_unit_id is None:
-            return []
+        business_unit_id = company_id
 
         return list(
             await self.session.scalars(
@@ -123,20 +109,12 @@ class AccountAdminService:
         role: UserRole,
     ) -> Invite | None:
         """
-        Compatibility API для Company UI.
+        Ищет активное приглашение рабочего подразделения.
 
         Поиск приглашения выполняется в канонической
         области рабочего подразделения.
         """
-        business_unit_id = (
-            await self.mapping
-            .get_unit_id_by_legacy_company_id(
-                company_id
-            )
-        )
-
-        if business_unit_id is None:
-            return None
+        business_unit_id = company_id
 
         invite_role = self._invite_role_for_user_role(role)
 
@@ -185,28 +163,28 @@ class AccountAdminService:
         role: UserRole,
         bot_username: str,
     ) -> AccountInviteResult:
-        company = await self.session.scalar(
-            select(Company).where(
-                Company.id == company_id,
-                Company.is_active.is_(True),
+        business_unit = await self.session.scalar(
+            select(OrganizationalUnit).where(
+                OrganizationalUnit.id == company_id,
+                OrganizationalUnit.is_active.is_(True),
             )
         )
 
-        if company is None:
-            raise ValueError("Компания не найдена или отключена.")
+        if business_unit is None:
+            raise ValueError("Рабочее подразделение не найдено или отключено.")
 
         invite_service = InviteService(self.session)
 
         created_invite = await invite_service.create_invite(
             created_by=admin,
-            company_id=company.id,
+            business_unit_id=business_unit.id,
             role=self._invite_role_for_user_role(role),
             full_name=full_name,
             bot_username=bot_username,
         )
 
         return AccountInviteResult(
-            company=company,
+            business_unit=business_unit,
             created_invite=created_invite,
         )
 
@@ -221,8 +199,7 @@ class AccountAdminService:
         Повторно выдаёт приглашение сотруднику через его
         каноническое основное membership.
 
-        Company используется только как compatibility
-        контракт старого UI.
+        Область приглашения определяется основным membership.
         """
         business_unit_id = await self.session.scalar(
             select(
@@ -244,20 +221,8 @@ class AccountAdminService:
                 "рабочее подразделение."
             )
 
-        company_id = (
-            await self.mapping.get_legacy_company_id(
-                business_unit_id
-            )
-        )
-
-        if company_id is None:
-            raise ValueError(
-                "Для рабочего подразделения не найдена "
-                "совместимая компания."
-            )
-
         pending_invite = await self.get_pending_invite(
-            company_id=company_id,
+            company_id=business_unit_id,
             full_name=account.full_name,
             role=account.role,
         )
@@ -269,7 +234,7 @@ class AccountAdminService:
 
         return await self.create_invite(
             admin=admin,
-            company_id=company_id,
+            company_id=business_unit_id,
             full_name=account.full_name,
             role=account.role,
             bot_username=bot_username,

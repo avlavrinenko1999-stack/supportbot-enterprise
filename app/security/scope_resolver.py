@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.company import Company
 from app.models.enums import ScopeType
 from app.models.holding import Holding
 from app.models.organization import Organization
@@ -23,7 +22,7 @@ class ScopeResolver:
     PLATFORM
         └── ORGANIZATION
                 └── HOLDING
-                        └── COMPANY
+                        └── BUSINESS_UNIT
 
     Для ещё не реализованных уровней используется PLATFORM
     и точное совпадение scope.
@@ -45,8 +44,8 @@ class ScopeResolver:
         if target.scope_type == ScopeType.HOLDING:
             return await self._resolve_holding(target)
 
-        if target.scope_type == ScopeType.COMPANY:
-            return await self._resolve_company(target)
+        if target.scope_type == ScopeType.BUSINESS_UNIT:
+            return await self._resolve_business_unit(target)
 
         return (
             AccessScope.platform(),
@@ -96,66 +95,20 @@ class ScopeResolver:
             target,
         )
 
-    async def _resolve_company(
+    async def _resolve_business_unit(
         self,
         target: AccessScope,
     ) -> tuple[AccessScope, ...]:
-        company_id = self._required_scope_id(target)
+        from app.models.organizational_unit import OrganizationalUnit
 
-        company = await self.session.get(
-            Company,
-            company_id,
-        )
+        business_unit_id = self._required_scope_id(target)
+        unit = await self.session.get(OrganizationalUnit, business_unit_id)
 
-        if company is None:
+        if unit is None:
             raise ScopeResolutionError(
-                "Компания области доступа не найдена."
+                "Рабочее подразделение области доступа не найдено."
             )
-
-        scopes: list[AccessScope] = [
-            AccessScope.platform(),
-        ]
-
-        effective_organization_id = company.organization_id
-
-        if company.holding_id is not None:
-            holding = await self.session.get(
-                Holding,
-                company.holding_id,
-            )
-
-            if holding is None:
-                raise ScopeResolutionError(
-                    "Холдинг компании не найден."
-                )
-
-            if (
-                effective_organization_id is not None
-                and effective_organization_id
-                != holding.organization_id
-            ):
-                raise ScopeResolutionError(
-                    "Компания и её холдинг принадлежат "
-                    "разным организациям."
-                )
-
-            effective_organization_id = holding.organization_id
-
-            scopes.append(
-                AccessScope.holding(holding.id)
-            )
-
-        if effective_organization_id is not None:
-            scopes.insert(
-                1,
-                AccessScope.organization(
-                    effective_organization_id
-                ),
-            )
-
-        scopes.append(target)
-
-        return self._unique(scopes)
+        return (AccessScope.platform(), target)
 
     @staticmethod
     def _required_scope_id(scope: AccessScope) -> int:

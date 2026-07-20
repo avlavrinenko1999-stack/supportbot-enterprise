@@ -9,17 +9,11 @@ from app.models.account_organizational_unit_membership import (
 from app.models.category import Category
 from app.models.category_member import CategoryMember
 from app.models.enums import UserRole
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
-)
 
 
 class CategoryMemberService:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.mapping = LegacyCompanyMappingService(
-            session
-        )
 
     async def list_members(
         self,
@@ -46,17 +40,12 @@ class CategoryMemberService:
         role: UserRole,
     ) -> list[Account]:
         """
-        Compatibility API для старого Company UI.
+        Возвращает доступные аккаунты рабочего подразделения.
 
         Каноническая область сотрудников определяется
         через Business Unit membership.
         """
-        business_unit_id = await self._get_business_unit_id(
-            company_id
-        )
-
-        if business_unit_id is None:
-            return []
+        business_unit_id = company_id
 
         return list(
             await self.session.scalars(
@@ -141,17 +130,6 @@ class CategoryMemberService:
         await self.session.refresh(member)
 
         return member
-
-    async def _get_business_unit_id(
-        self,
-        company_id: int,
-    ) -> int | None:
-        return (
-            await self.mapping
-            .get_unit_id_by_legacy_company_id(
-                company_id
-            )
-        )
 
     async def remove_member(self, member_id: int) -> CategoryMember:
         member = await self.session.scalar(

@@ -13,15 +13,6 @@ class Category(Base, IDMixin, TimestampMixin):
 
     __tablename__ = "categories"
 
-    company_id: Mapped[int | None] = mapped_column(
-        ForeignKey(
-            "companies.id",
-            ondelete="SET NULL",
-        ),
-        nullable=True,
-        index=True,
-    )
-
     business_unit_id: Mapped[int] = mapped_column(
         ForeignKey(
             "organizational_units.id",

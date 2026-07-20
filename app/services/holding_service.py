@@ -2,7 +2,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.company import Company
 from app.models.holding import Holding
 from app.models.organization import Organization
 from app.services.base_service import BaseService
@@ -24,8 +23,6 @@ class HoldingService(BaseService):
     async def get_holding(
         self,
         holding_id: int,
-        *,
-        include_companies: bool = False,
     ) -> Holding | None:
         statement = (
             select(Holding)
@@ -35,22 +32,14 @@ class HoldingService(BaseService):
             )
         )
 
-        if include_companies:
-            statement = statement.options(
-                selectinload(Holding.companies)
-            )
-
         return await self.session.scalar(statement)
 
     async def require_holding(
         self,
         holding_id: int,
-        *,
-        include_companies: bool = False,
     ) -> Holding:
         holding = await self.get_holding(
             holding_id,
-            include_companies=include_companies,
         )
 
         if holding is None:
@@ -281,126 +270,6 @@ class HoldingService(BaseService):
             raise
 
         return holding
-
-    async def add_company(
-        self,
-        holding_id: int,
-        company_id: int,
-        *,
-        actor_account_id: int | None = None,
-    ) -> Company:
-        holding = await self.require_holding(holding_id)
-
-        company = await self.session.get(
-            Company,
-            company_id,
-        )
-
-        if company is None:
-            raise ValueError("Компания не найдена.")
-
-        if company.holding_id == holding.id:
-            return company
-
-        if company.holding_id is not None:
-            raise ValueError(
-                "Компания уже входит в другой холдинг."
-            )
-
-        if (
-            company.organization_id is not None
-            and company.organization_id
-            != holding.organization_id
-        ):
-            raise ValueError(
-                "Компания и холдинг принадлежат "
-                "разным организациям."
-            )
-
-        old_organization_id = company.organization_id
-
-        company.organization_id = holding.organization_id
-        company.holding_id = holding.id
-
-        try:
-            await self.audit.create_event(
-                holding_id=holding.id,
-                actor_account_id=actor_account_id,
-                event_type="holding_company_added",
-                source="admin",
-                title="Компания добавлена в холдинг",
-                payload={
-                    "company_id": company.id,
-                    "company_name": company.name,
-                    "old_organization_id": (
-                        old_organization_id
-                    ),
-                    "new_organization_id": (
-                        holding.organization_id
-                    ),
-                },
-                commit=False,
-            )
-
-            await self.session.commit()
-            await self.session.refresh(company)
-        except Exception:
-            await self.session.rollback()
-            raise
-
-        return company
-
-    async def remove_company(
-        self,
-        holding_id: int,
-        company_id: int,
-        *,
-        actor_account_id: int | None = None,
-    ) -> Company:
-        holding = await self.require_holding(holding_id)
-
-        company = await self.session.get(
-            Company,
-            company_id,
-        )
-
-        if company is None:
-            raise ValueError("Компания не найдена.")
-
-        if company.holding_id is None:
-            return company
-
-        if company.holding_id != holding.id:
-            raise ValueError(
-                "Компания не входит в этот холдинг."
-            )
-
-        company.holding_id = None
-
-        try:
-            await self.audit.create_event(
-                holding_id=holding.id,
-                actor_account_id=actor_account_id,
-                event_type="holding_company_removed",
-                source="admin",
-                title="Компания исключена из холдинга",
-                payload={
-                    "company_id": company.id,
-                    "company_name": company.name,
-                    "organization_id": (
-                        company.organization_id
-                    ),
-                },
-                commit=False,
-            )
-
-            await self.session.commit()
-            await self.session.refresh(company)
-        except Exception:
-            await self.session.rollback()
-            raise
-
-        return company
 
     async def _find_name_duplicate(
         self,

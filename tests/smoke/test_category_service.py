@@ -23,7 +23,6 @@ def make_session() -> MagicMock:
 def make_category(
     *,
     category_id: int = 10,
-    company_id: int | None = 1,
     business_unit_id: int = 101,
     parent_id: int | None = None,
     name: str = "Поддержка",
@@ -32,7 +31,6 @@ def make_category(
 ) -> Category:
     return Category(
         id=category_id,
-        company_id=company_id,
         business_unit_id=business_unit_id,
         parent_id=parent_id,
         name=name,
@@ -132,7 +130,6 @@ async def test_create_child_rejects_other_business_unit() -> None:
     session = make_session()
     parent = make_category(
         category_id=5,
-        company_id=2,
         business_unit_id=202,
     )
 

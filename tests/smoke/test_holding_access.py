@@ -183,7 +183,7 @@ async def test_company_assignment_does_not_grant_holding_access() -> None:
     session.scalars.side_effect = [
         [
             make_assignment(
-                ScopeType.COMPANY,
+                ScopeType.BUSINESS_UNIT,
                 30,
             )
         ],

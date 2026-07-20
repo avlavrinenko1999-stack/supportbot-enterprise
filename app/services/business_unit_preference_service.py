@@ -18,7 +18,7 @@ class BusinessUnitPreferenceService(BaseService):
     Избранные и последние рабочие подразделения.
 
     Сервис работает непосредственно с
-    OrganizationalUnit и не использует Company.
+    OrganizationalUnit является единственным источником подразделений.
     """
 
     def __init__(self, session: AsyncSession):

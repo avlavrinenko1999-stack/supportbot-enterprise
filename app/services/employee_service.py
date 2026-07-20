@@ -5,20 +5,14 @@ from app.models.account import Account
 from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
-from app.models.company import Company
 from app.models.enums import UserRole
+from app.models.organizational_unit import OrganizationalUnit
 from app.services.base_service import BaseService
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
-)
 
 
 class EmployeeService(BaseService):
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.mapping = LegacyCompanyMappingService(
-            session
-        )
 
     async def get(self, account_id: int) -> Account | None:
         return await self.session.scalar(
@@ -54,12 +48,7 @@ class EmployeeService(BaseService):
         self,
         company_id: int,
     ) -> list[Account]:
-        business_unit_id = await self._get_business_unit_id(
-            company_id
-        )
-
-        if business_unit_id is None:
-            return []
+        business_unit_id = company_id
 
         return list(
             await self.session.scalars(
@@ -74,12 +63,7 @@ class EmployeeService(BaseService):
         company_id: int,
         role: UserRole,
     ) -> list[Account]:
-        business_unit_id = await self._get_business_unit_id(
-            company_id
-        )
-
-        if business_unit_id is None:
-            return []
+        business_unit_id = company_id
 
         return list(
             await self.session.scalars(
@@ -113,12 +97,7 @@ class EmployeeService(BaseService):
             )
 
         if company_id is not None:
-            business_unit_id = await self._get_business_unit_id(
-                company_id
-            )
-
-            if business_unit_id is None:
-                return []
+            business_unit_id = company_id
 
             statement = (
                 statement
@@ -168,7 +147,7 @@ class EmployeeService(BaseService):
         company_id: int | None,
     ) -> Account:
         """
-        Compatibility API для старого Company UI.
+        Перемещает сотрудника между рабочими подразделениями.
 
         Каноническое перемещение выполняется только
         через primary AccountOrganizationalUnitMembership.
@@ -176,26 +155,16 @@ class EmployeeService(BaseService):
         business_unit_id: int | None = None
 
         if company_id is not None:
-            company = await self.session.scalar(
-                select(Company).where(
-                    Company.id == company_id
+            unit = await self.session.scalar(
+                select(OrganizationalUnit).where(
+                    OrganizationalUnit.id == company_id
                 )
             )
 
-            if company is None:
-                raise ValueError("Компания не найдена.")
+            if unit is None:
+                raise ValueError("Рабочее подразделение не найдено.")
 
-            business_unit_id = (
-                await self._get_business_unit_id(
-                    company_id
-                )
-            )
-
-            if business_unit_id is None:
-                raise ValueError(
-                    "Для компании не найдено рабочее "
-                    "подразделение."
-                )
+            business_unit_id = unit.id
 
         memberships = list(
             await self.session.scalars(
@@ -262,12 +231,7 @@ class EmployeeService(BaseService):
         self,
         company_id: int,
     ) -> int:
-        business_unit_id = await self._get_business_unit_id(
-            company_id
-        )
-
-        if business_unit_id is None:
-            return 0
+        business_unit_id = company_id
 
         return int(
             await self.session.scalar(
@@ -288,17 +252,6 @@ class EmployeeService(BaseService):
                 )
             )
             or 0
-        )
-
-    async def _get_business_unit_id(
-        self,
-        company_id: int,
-    ) -> int | None:
-        return (
-            await self.mapping
-            .get_unit_id_by_legacy_company_id(
-                company_id
-            )
         )
 
     @staticmethod

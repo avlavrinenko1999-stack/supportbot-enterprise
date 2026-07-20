@@ -54,7 +54,7 @@ class MenuAction(StrEnum):
     ACCESS_ASSIGNMENTS_BACK = "access_assignments_back"
     ACCESS_ACCOUNT_SEARCH_AGAIN = "access_account_search_again"
     ACCESS_COMPANY_SEARCH_AGAIN = "access_company_search_again"
-    ACCESS_ROLE_COMPANY_ADMIN = "access_role_company_admin"
+    ACCESS_ROLE_COMPANY_ADMIN = "access_role_business_unit_admin"
     ACCESS_ROLE_SUPPORT_MANAGER = "access_role_support_manager"
     ACCESS_ROLE_COORDINATOR = "access_role_coordinator"
     ACCESS_ROLE_OPERATOR = "access_role_operator"

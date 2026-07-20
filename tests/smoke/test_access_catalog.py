@@ -8,7 +8,7 @@ from app.security.access_catalog import (
 EXPECTED_ROLES = {
     "platform_admin",
     "holding_admin",
-    "company_admin",
+    "business_unit_admin",
     "support_manager",
     "coordinator",
     "operator",

@@ -11,14 +11,10 @@ from app.models.account import Account
 from app.models.account_organizational_unit_membership import (
     AccountOrganizationalUnitMembership,
 )
-from app.models.company import Company
 from app.models.enums import InviteRole, UserRole
 from app.models.invite import Invite
 from app.models.organizational_unit import (
     OrganizationalUnit,
-)
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
 )
 
 
@@ -32,9 +28,6 @@ class CreatedInvite:
 class InviteService:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.mapping = LegacyCompanyMappingService(
-            session
-        )
 
     @staticmethod
     def make_token_hash(token: str) -> str:
@@ -138,43 +131,15 @@ class InviteService:
         self,
         *,
         created_by: Account,
-        company_id: int,
+        business_unit_id: int,
         role: InviteRole,
         full_name: str,
         bot_username: str,
         expires_days: int = 7,
     ) -> CreatedInvite:
-        """
-        Compatibility-wrapper для старого Company API.
-        """
-        company = await self.session.scalar(
-            select(Company).where(
-                Company.id == company_id,
-                Company.is_active.is_(True),
-            )
-        )
-
-        if company is None:
-            raise ValueError(
-                "Компания не найдена или отключена."
-            )
-
-        business_unit_id = (
-            await self.mapping
-            .get_unit_id_by_legacy_company_id(
-                company.id
-            )
-        )
-
-        if business_unit_id is None:
-            raise ValueError(
-                "Для компании не найдено рабочее "
-                "подразделение."
-            )
-
-        return await self._private_create_invite_record(
+        return await self.create_for_business_unit(
             created_by=created_by,
-            organizational_unit_id=business_unit_id,
+            business_unit_id=business_unit_id,
             role=role,
             full_name=full_name,
             bot_username=bot_username,

@@ -1,13 +1,13 @@
 from app.security.role_grant_policy import (
-    COMPANY_SCOPE_ROLE_CODES,
+    BUSINESS_UNIT_SCOPE_ROLE_CODES,
     ROLE_LABELS,
 )
 from app.ui.actions import MenuAction, resolve_menu_action
 
 
 def test_company_scope_roles_are_complete() -> None:
-    assert COMPANY_SCOPE_ROLE_CODES == {
-        "company_admin",
+    assert BUSINESS_UNIT_SCOPE_ROLE_CODES == {
+        "business_unit_admin",
         "support_manager",
         "coordinator",
         "operator",
@@ -16,12 +16,12 @@ def test_company_scope_roles_are_complete() -> None:
         "auditor",
     }
 
-    assert set(ROLE_LABELS) == COMPANY_SCOPE_ROLE_CODES
+    assert set(ROLE_LABELS) == BUSINESS_UNIT_SCOPE_ROLE_CODES
 
 
 def test_privileged_global_roles_are_not_company_grantable() -> None:
-    assert "platform_admin" not in COMPANY_SCOPE_ROLE_CODES
-    assert "holding_admin" not in COMPANY_SCOPE_ROLE_CODES
+    assert "platform_admin" not in BUSINESS_UNIT_SCOPE_ROLE_CODES
+    assert "holding_admin" not in BUSINESS_UNIT_SCOPE_ROLE_CODES
 
 
 def test_company_role_buttons_are_registered() -> None:

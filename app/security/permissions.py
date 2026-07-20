@@ -12,9 +12,9 @@ class Permission(StrEnum):
     HOLDING_MANAGE = "holding.manage"
     HOLDING_AUDIT_VIEW = "holding.audit.view"
 
-    COMPANY_VIEW = "company.view"
-    COMPANY_MANAGE = "company.manage"
-    COMPANY_AUDIT_VIEW = "company.audit.view"
+    BUSINESS_UNIT_VIEW = "business_unit.view"
+    BUSINESS_UNIT_MANAGE = "business_unit.manage"
+    BUSINESS_UNIT_AUDIT_VIEW = "business_unit.audit.view"
 
     EMPLOYEE_VIEW = "employee.view"
     EMPLOYEE_INVITE = "employee.invite"
@@ -35,8 +35,8 @@ class Permission(StrEnum):
 ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
     UserRole.ADMIN: set(Permission),
     UserRole.COORDINATOR: {
-        Permission.COMPANY_VIEW,
-        Permission.COMPANY_AUDIT_VIEW,
+        Permission.BUSINESS_UNIT_VIEW,
+        Permission.BUSINESS_UNIT_AUDIT_VIEW,
         Permission.EMPLOYEE_VIEW,
         Permission.EMPLOYEE_INVITE,
         Permission.EMPLOYEE_MANAGE,
@@ -49,13 +49,13 @@ ROLE_PERMISSIONS: dict[UserRole, set[Permission]] = {
         Permission.REPORT_VIEW,
     },
     UserRole.OPERATOR: {
-        Permission.COMPANY_VIEW,
+        Permission.BUSINESS_UNIT_VIEW,
         Permission.TICKET_VIEW,
         Permission.TICKET_REPLY,
     },
     UserRole.OBSERVER: {
-        Permission.COMPANY_VIEW,
-        Permission.COMPANY_AUDIT_VIEW,
+        Permission.BUSINESS_UNIT_VIEW,
+        Permission.BUSINESS_UNIT_AUDIT_VIEW,
         Permission.TICKET_VIEW,
         Permission.REPORT_VIEW,
     },

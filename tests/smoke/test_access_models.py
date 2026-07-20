@@ -87,7 +87,7 @@ def test_role_assignment_structure() -> None:
 
 def test_scope_type_is_used_by_role_assignment() -> None:
     assert ScopeType.PLATFORM.value == "platform"
-    assert ScopeType.COMPANY.value == "company"
+    assert ScopeType.BUSINESS_UNIT.value == "business_unit"
 
 
 def test_account_role_is_preserved_without_company_column() -> None:

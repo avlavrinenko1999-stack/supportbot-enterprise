@@ -35,5 +35,5 @@ def test_company_roles_map_to_company_scope(
     target = legacy_role_target(legacy_role)
 
     assert target.role_code == role_code
-    assert target.scope_type == ScopeType.COMPANY
+    assert target.scope_type == ScopeType.BUSINESS_UNIT
     assert target.requires_company is True

@@ -43,14 +43,14 @@ def test_business_unit_access_uses_unit_tree() -> None:
     assert "OrganizationalUnit.parent_id" in source
 
 
-def test_company_is_only_legacy_scope_bridge() -> None:
+def test_business_unit_scope_is_canonical() -> None:
     source = Path(
         "app/security/business_unit_access.py"
     ).read_text(encoding="utf-8")
 
-    assert "LegacyCompanyMappingService" in source
-    assert "ScopeType.COMPANY" in source
-    assert "resolve_assignment_seed_unit_ids" in source
+    assert "LegacyCompanyMappingService" not in source
+    assert "ScopeType.BUSINESS_UNIT" in source
+    assert "business_unit_ids" in source
     assert "Company.holding_id" not in source
     assert "Company.organization_id" not in source
 
@@ -64,9 +64,7 @@ def test_business_unit_access_supports_all_current_scopes() -> None:
     ).read_text(encoding="utf-8")
 
     assert "ScopeType.PLATFORM" in source
-    assert "ScopeType.ORGANIZATION" in source
-    assert "ScopeType.HOLDING" in source
-    assert "ScopeType.COMPANY" in source
+    assert "ScopeType.BUSINESS_UNIT" in source
 
 
 def test_assignments_override_legacy_account_fields() -> None:

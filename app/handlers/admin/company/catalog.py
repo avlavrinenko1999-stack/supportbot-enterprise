@@ -402,7 +402,7 @@ async def render_current_section(
 @router.message(
     MenuActionFilter(MenuAction.COMPANIES)
 )
-@require_permission(Permission.COMPANY_VIEW)
+@require_permission(Permission.BUSINESS_UNIT_VIEW)
 async def companies_entry(
     message: Message,
     state: FSMContext,

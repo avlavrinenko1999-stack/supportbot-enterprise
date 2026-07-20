@@ -14,83 +14,12 @@ ScopeResolver = Callable[
 ]
 
 
-async def company_scope_from_reply(
-    event: ScopeEvent,
-    state: FSMContext | None,
-) -> AccessScope | None:
-    del state
-
-    if not isinstance(event, Message):
-        return None
-
-    raw_text = (event.text or "").strip()
-
-    try:
-        company_id = int(
-            raw_text.split(".", 1)[0].split()[-1]
-        )
-    except (IndexError, ValueError):
-        return None
-
-    if company_id <= 0:
-        return None
-
-    return AccessScope.company(company_id)
-
-
-async def company_scope_from_callback(
-    event: ScopeEvent,
-    state: FSMContext | None,
-) -> AccessScope | None:
-    del state
-
-    if not isinstance(event, CallbackQuery):
-        return None
-
-    data = event.data or ""
-
-    try:
-        company_id = int(data.rsplit(":", 1)[-1])
-    except ValueError:
-        return None
-
-    if company_id <= 0:
-        return None
-
-    return AccessScope.company(company_id)
-
-
-async def _company_scope_for_business_unit(
+async def _scope_for_business_unit(
     business_unit_id: int,
 ) -> AccessScope | None:
-    """
-    Временный адаптер текущей модели разрешений.
-
-    Пока роли используют ScopeType.COMPANY, область
-    Business Unit преобразуется через legacy mapping.
-    """
     if business_unit_id <= 0:
         return None
-
-    from app.database.db import AsyncSessionLocal
-    from app.services.legacy_company_mapping_service import (
-        LegacyCompanyMappingService,
-    )
-
-    async with AsyncSessionLocal() as session:
-        mapping_service = LegacyCompanyMappingService(
-            session
-        )
-        company_id = (
-            await mapping_service.get_legacy_company_id(
-                business_unit_id
-            )
-        )
-
-    if company_id is None:
-        return None
-
-    return AccessScope.company(company_id)
+    return AccessScope.business_unit(business_unit_id)
 
 
 async def business_unit_scope_from_state(
@@ -111,7 +40,7 @@ async def business_unit_scope_from_state(
     if business_unit_id is None:
         return None
 
-    return await _company_scope_for_business_unit(
+    return await _scope_for_business_unit(
         business_unit_id
     )
 
@@ -134,7 +63,7 @@ async def business_unit_scope_from_reply(
     except (IndexError, ValueError):
         return None
 
-    return await _company_scope_for_business_unit(
+    return await _scope_for_business_unit(
         business_unit_id
     )
 
@@ -160,6 +89,6 @@ async def business_unit_scope_from_callback(
     except ValueError:
         return None
 
-    return await _company_scope_for_business_unit(
+    return await _scope_for_business_unit(
         business_unit_id
     )

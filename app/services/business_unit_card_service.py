@@ -40,8 +40,7 @@ class BusinessUnitCardService(BaseService):
     - LegalEntity;
     - memberships.
 
-    Company используется только как переходный источник
-    legacy company_id и телефона подразделения.
+    Источники данных — OrganizationalUnit и LegalEntity.
     """
 
     def __init__(self, session: AsyncSession):

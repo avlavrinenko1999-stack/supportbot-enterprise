@@ -161,8 +161,8 @@ class BusinessUnitService(BaseService):
         """
         Переименовывает рабочее подразделение.
 
-        Операция использует только каноническую модель
-        OrganizationalUnit и не обращается к Company.
+        Операция использует каноническую модель
+        OrganizationalUnit.
         """
         unit = await self.require_unit(unit_id)
 

@@ -14,7 +14,7 @@ def test_every_legacy_permission_has_mapping() -> None:
 @pytest.mark.parametrize(
     ("permission", "expected_code"),
     [
-        (Permission.COMPANY_VIEW, "company.read"),
+        (Permission.BUSINESS_UNIT_VIEW, "business_unit.read"),
         (Permission.EMPLOYEE_INVITE, "employee.invite"),
         (Permission.CATEGORY_MANAGE, "category.manage"),
         (Permission.TICKET_REPLY, "ticket.reply"),
@@ -31,12 +31,12 @@ def test_coarse_read_permissions_map_to_all_scope_variants() -> None:
     assert permission_codes(Permission.TICKET_VIEW) == {
         "ticket.read.own",
         "ticket.read.queue",
-        "ticket.read.company",
+        "ticket.read.business_unit",
         "ticket.read.all",
     }
 
     assert permission_codes(Permission.REPORT_VIEW) == {
-        "report.read.company",
+        "report.read.business_unit",
         "report.read.holding",
         "report.read.platform",
     }

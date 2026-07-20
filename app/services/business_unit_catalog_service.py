@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.company import Company
 from app.models.legal_entity import LegalEntity
 from app.models.organizational_unit import (
     OrganizationalUnit,
@@ -12,9 +11,6 @@ from app.security.business_unit_access import (
     BusinessUnitAccessService,
 )
 from app.services.base_service import BaseService
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,8 +21,6 @@ class BusinessUnitCatalogItem:
     id и unit_id содержат канонический идентификатор
     OrganizationalUnit.
 
-    legacy_company_id временно используется только
-    адаптерами старых company:* маршрутов.
     """
 
     id: int
@@ -36,7 +30,6 @@ class BusinessUnitCatalogItem:
     legal_entity_id: int
     legal_name: str | None
     inn: str | None
-    legacy_company_id: int | None = None
 
 
 class BusinessUnitCatalogService(BaseService):
@@ -46,16 +39,11 @@ class BusinessUnitCatalogService(BaseService):
     Основным идентификатором является
     OrganizationalUnit.id.
 
-    Legacy Company используется только для поддержки
-    старых company:* маршрутов.
     """
 
     def __init__(self, session: AsyncSession):
         self.session = session
         self.access = BusinessUnitAccessService(session)
-        self.mapping = LegacyCompanyMappingService(
-            session
-        )
 
     async def list_visible_items(
         self,
@@ -79,30 +67,9 @@ class BusinessUnitCatalogService(BaseService):
         if not unit_list:
             return []
 
-        unit_ids = {
-            unit.id
-            for unit in unit_list
-        }
-
-        company_ids_by_unit = (
-            await self.mapping
-            .get_company_ids_by_unit_ids(
-                unit_ids
-            )
-        )
-
         items: list[BusinessUnitCatalogItem] = []
 
         for unit in unit_list:
-            company_id = company_ids_by_unit.get(
-                unit.id
-            )
-
-            # Пока карточка использует legacy company_id,
-            # подразделение без mapping открыть невозможно.
-            if company_id is None:
-                continue
-
             legal_entity = unit.legal_entity
 
             if legal_entity is None:
@@ -118,7 +85,6 @@ class BusinessUnitCatalogService(BaseService):
                 BusinessUnitCatalogItem(
                     id=unit.id,
                     unit_id=unit.id,
-                    legacy_company_id=company_id,
                     name=unit.name,
                     is_active=unit.is_active,
                     legal_entity_id=legal_entity.id,
@@ -128,55 +94,6 @@ class BusinessUnitCatalogService(BaseService):
             )
 
         return items
-
-    async def items_for_legacy_companies(
-        self,
-        account,
-        companies: Iterable[Company],
-    ) -> list[BusinessUnitCatalogItem]:
-        company_order = [
-            company.id
-            for company in companies
-        ]
-
-        if not company_order:
-            return []
-
-        visible_units = (
-            await self.access.list_visible_roots(
-                account
-            )
-        )
-
-        visible_unit_ids = {
-            unit.id
-            for unit in visible_units
-        }
-
-        rows = await self.mapping.get_catalog_rows(
-            company_ids=company_order,
-            unit_ids=visible_unit_ids,
-        )
-
-        by_company_id = {
-            company_id: BusinessUnitCatalogItem(
-                id=unit.id,
-                unit_id=unit.id,
-                legacy_company_id=company_id,
-                name=unit.name,
-                is_active=unit.is_active,
-                legal_entity_id=legal_entity.id,
-                legal_name=legal_entity.legal_name,
-                inn=legal_entity.inn,
-            )
-            for company_id, unit, legal_entity in rows
-        }
-
-        return [
-            by_company_id[company_id]
-            for company_id in company_order
-            if company_id in by_company_id
-        ]
 
     @staticmethod
     def search(
@@ -197,11 +114,6 @@ class BusinessUnitCatalogService(BaseService):
                 normalized_query.isdigit()
                 and (
                     int(normalized_query) == item.unit_id
-                    or (
-                        item.legacy_company_id is not None
-                        and int(normalized_query)
-                        == item.legacy_company_id
-                    )
                 )
             )
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from app.handlers.admin.company import router as company_router
 from app.handlers.admin.company.audit import format_audit_payload_pretty
-from app.handlers.admin.company.card import render_company_card
+from app.handlers.admin.company.card import render_business_unit_card
 from app.handlers.admin.company.catalog import companies_entry
 from app.ui.actions import MenuAction, resolve_menu_action
 
@@ -19,7 +19,7 @@ def test_company_package_router_contains_all_domain_routers() -> None:
 
 def test_company_entry_points_are_importable() -> None:
     assert callable(companies_entry)
-    assert callable(render_company_card)
+    assert callable(render_business_unit_card)
 
 
 def test_company_menu_actions_are_resolved() -> None:

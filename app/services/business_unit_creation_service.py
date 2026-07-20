@@ -37,7 +37,7 @@ class BusinessUnitCreationResult:
 class BusinessUnitCreationService(BaseService):
     """
     Создаёт юридическое лицо и корневое рабочее
-    подразделение без записи в legacy Company.
+    подразделение в канонической модели.
     """
 
     def __init__(

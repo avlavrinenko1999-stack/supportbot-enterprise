@@ -122,17 +122,9 @@ def test_legacy_invite_api_remains_available() -> None:
     )
 
     assert block is not None
-    assert "company_id: int" in block
-    assert "self.mapping" in block
-    assert (
-        "get_unit_id_by_legacy_company_id"
-        in block
-    )
+    assert "business_unit_id: int" in block
+    assert "self.mapping" not in block
     assert "LegacyCompanyMapping." not in block
-    assert "organizational_unit_id" in block
-    assert (
-        "self._private_create_invite_record("
-        in block
-    )
+    assert "create_for_business_unit" in block
     assert "company_id=company.id" not in block
     assert "company_id=" not in block

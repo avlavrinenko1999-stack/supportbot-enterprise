@@ -22,9 +22,6 @@ from app.keyboards.company_categories import (
     company_categories_reply_menu,
     company_category_card_menu,
 )
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
-)
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
@@ -55,25 +52,13 @@ class CompanyCategoryState(StatesGroup):
 async def _unit_id_by_legacy_company_id(
     company_id: int,
 ) -> int | None:
-    async with AsyncSessionLocal() as session:
-        service = LegacyCompanyMappingService(
-            session
-        )
-        return await service.get_unit_id_by_legacy_company_id(
-            company_id
-        )
+    return company_id if company_id > 0 else None
 
 
 async def _legacy_company_id_by_unit_id(
     business_unit_id: int,
 ) -> int | None:
-    async with AsyncSessionLocal() as session:
-        service = LegacyCompanyMappingService(
-            session
-        )
-        return await service.get_legacy_company_id(
-            business_unit_id
-        )
+    return business_unit_id if business_unit_id > 0 else None
 
 
 async def _business_unit_id_from_state(

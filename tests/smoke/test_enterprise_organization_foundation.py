@@ -129,10 +129,10 @@ def test_domain_relationships_are_registered() -> None:
     )
 
 
-def test_company_domain_remains_without_account_bridge() -> None:
+def test_company_domain_is_removed() -> None:
     tables = Base.metadata.tables
 
-    assert "companies" in tables
+    assert "companies" not in tables
     assert "accounts" in tables
     assert "company_id" not in tables["accounts"].columns
     assert (

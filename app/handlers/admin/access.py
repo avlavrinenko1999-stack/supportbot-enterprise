@@ -32,13 +32,13 @@ from app.models.role_assignment import RoleAssignment
 from app.security.access_audit_access import AccessAuditAccessService
 from app.security.access_scope import AccessScope
 from app.security.authorization import AuthorizationService
-from app.security.company_access import CompanyAccessService
+from app.security.business_unit_access import BusinessUnitAccessService
 from app.security.permissions import Permission
 from app.security.role_grant_policy import (
     ROLE_LABELS,
     RoleGrantPolicy,
 )
-from app.services.company_search_service import CompanySearchService
+from app.services.business_unit_search_service import BusinessUnitSearchService
 from app.services.message_service import MessageService
 from app.services.role_assignment_service import (
     RoleAssignmentService,
@@ -288,8 +288,8 @@ async def access_entry(
                 )
             )
         else:
-            company_access = CompanyAccessService(session)
-            visible_ids = await company_access.visible_company_ids(
+            company_access = BusinessUnitAccessService(session)
+            visible_ids = await company_access.visible_unit_ids(
                 manager
             )
 
@@ -299,7 +299,7 @@ async def access_entry(
                         RoleAssignment.is_active.is_(True),
                         RoleAssignment.revoked_at.is_(None),
                         RoleAssignment.scope_type
-                        == ScopeType.COMPANY,
+                        == ScopeType.BUSINESS_UNIT,
                         RoleAssignment.scope_id.in_(visible_ids),
                     )
                 )
@@ -468,7 +468,7 @@ async def access_account_select(
     async with AsyncSessionLocal() as session:
         policy = RoleGrantPolicy(session)
         grantable_roles = (
-            await policy.list_grantable_company_roles(
+            await policy.list_grantable_business_unit_roles(
                 manager
             )
         )
@@ -518,7 +518,7 @@ async def access_role_select(
 
     action_to_role = {
         MenuAction.ACCESS_ROLE_COMPANY_ADMIN:
-            "company_admin",
+            "business_unit_admin",
         MenuAction.ACCESS_ROLE_SUPPORT_MANAGER:
             "support_manager",
         MenuAction.ACCESS_ROLE_COORDINATOR:
@@ -592,15 +592,15 @@ async def access_company_search(
         return
 
     async with AsyncSessionLocal() as session:
-        access_service = CompanyAccessService(session)
+        access_service = BusinessUnitAccessService(session)
         allowed_company_ids = (
-            await access_service.visible_company_ids(manager)
+            await access_service.visible_unit_ids(manager)
         )
 
-        search_service = CompanySearchService(session)
+        search_service = BusinessUnitSearchService(session)
         companies = await search_service.search(
             raw_text,
-            allowed_company_ids=allowed_company_ids,
+            allowed_business_unit_ids=allowed_company_ids,
             limit=8,
         )
 
@@ -682,7 +682,7 @@ async def access_company_select(
     if manager is None:
         return
 
-    company_scope = AccessScope.company(company_id)
+    company_scope = AccessScope.business_unit(company_id)
 
     role_code = str(data["access_role_code"])
 
@@ -706,9 +706,9 @@ async def access_company_select(
         return
 
     async with AsyncSessionLocal() as session:
-        from app.models.company import Company
+        from app.models.organizational_unit import OrganizationalUnit
 
-        company = await session.get(Company, company_id)
+        company = await session.get(OrganizationalUnit, company_id)
 
     if company is None:
         await _show_company_search(
@@ -790,7 +790,7 @@ async def access_assignment_confirm(
     )
     company_name = str(data["access_company_name"])
 
-    scope = AccessScope.company(company_id)
+    scope = AccessScope.business_unit(company_id)
 
     async with AsyncSessionLocal() as session:
         grant_policy = RoleGrantPolicy(session)
@@ -835,7 +835,7 @@ async def access_assignment_confirm(
                 == target_account_id,
                 RoleAssignment.role_id == role.id,
                 RoleAssignment.scope_type
-                == ScopeType.COMPANY,
+                == ScopeType.BUSINESS_UNIT,
                 RoleAssignment.scope_id == company_id,
                 RoleAssignment.is_active.is_(True),
                 RoleAssignment.revoked_at.is_(None),
@@ -909,9 +909,9 @@ async def access_active_assignments(
         )
 
         if not platform_access:
-            company_access = CompanyAccessService(session)
+            company_access = BusinessUnitAccessService(session)
             visible_ids = (
-                await company_access.visible_company_ids(
+                await company_access.visible_unit_ids(
                     manager
                 )
             )
@@ -921,7 +921,7 @@ async def access_active_assignments(
             else:
                 statement = statement.where(
                     RoleAssignment.scope_type
-                    == ScopeType.COMPANY,
+                    == ScopeType.BUSINESS_UNIT,
                     RoleAssignment.scope_id.in_(visible_ids),
                 )
                 assignments = list(

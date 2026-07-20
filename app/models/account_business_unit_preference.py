@@ -23,7 +23,7 @@ class AccountBusinessUnitPreference(
     Пользовательские настройки рабочего подразделения.
 
     Предпочтение связано непосредственно с
-    OrganizationalUnit и не зависит от legacy Company.
+    OrganizationalUnit является каноническим объектом настройки.
     """
 
     __tablename__ = (

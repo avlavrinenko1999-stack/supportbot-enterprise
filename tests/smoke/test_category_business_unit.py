@@ -20,8 +20,7 @@ def test_category_business_unit_model_contract() -> None:
         is False
     )
 
-    assert "company_id" in table.columns
-    assert table.c.company_id.nullable is True
+    assert "company_id" not in table.columns
 
 
 def test_category_business_unit_relationship() -> None:

@@ -36,21 +36,21 @@ LEGACY_PERMISSION_CODES: dict[Permission, frozenset[str]] = {
             "audit.read.platform",
         }
     ),
-    Permission.COMPANY_VIEW: frozenset(
+    Permission.BUSINESS_UNIT_VIEW: frozenset(
         {
-            "company.read",
+            "business_unit.read",
         }
     ),
-    Permission.COMPANY_MANAGE: frozenset(
+    Permission.BUSINESS_UNIT_MANAGE: frozenset(
         {
-            "company.update",
-            "company.disable",
-            "company.settings.manage",
+            "business_unit.update",
+            "business_unit.disable",
+            "business_unit.settings.manage",
         }
     ),
-    Permission.COMPANY_AUDIT_VIEW: frozenset(
+    Permission.BUSINESS_UNIT_AUDIT_VIEW: frozenset(
         {
-            "audit.read.company",
+            "audit.read.business_unit",
             "audit.read.holding",
             "audit.read.organization",
             "audit.read.platform",
@@ -92,7 +92,7 @@ LEGACY_PERMISSION_CODES: dict[Permission, frozenset[str]] = {
         {
             "ticket.read.own",
             "ticket.read.queue",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "ticket.read.all",
         }
     ),
@@ -116,7 +116,7 @@ LEGACY_PERMISSION_CODES: dict[Permission, frozenset[str]] = {
     ),
     Permission.REPORT_VIEW: frozenset(
         {
-            "report.read.company",
+            "report.read.business_unit",
             "report.read.holding",
             "report.read.platform",
         }

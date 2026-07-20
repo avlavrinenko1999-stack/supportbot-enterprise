@@ -4,7 +4,8 @@ from aiogram.types import Message
 
 from app.database.db import AsyncSessionLocal
 from app.keyboards.company import company_card_reply_menu
-from app.services.company_audit_service import CompanyAuditService
+from app.services.business_unit_legal_entity_service import BusinessUnitLegalEntityService
+from app.services.legal_entity_audit_service import LegalEntityAuditService
 from app.security.decorators import require_permission
 from app.security.permissions import Permission
 from app.security.scope_resolvers import (
@@ -85,7 +86,7 @@ def format_audit_payload_pretty(payload: dict | None) -> list[str]:
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_AUDIT_HISTORY))
 @require_permission(
-    Permission.COMPANY_AUDIT_VIEW,
+    Permission.BUSINESS_UNIT_AUDIT_VIEW,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_audit_history(
@@ -108,12 +109,12 @@ async def company_audit_history(
         return
 
     async with AsyncSessionLocal() as session:
-        audit_service = CompanyAuditService(session)
-        events = (
-            await audit_service.list_business_unit_events(
-                business_unit_id,
-                limit=20,
-            )
+        legal_entity = await BusinessUnitLegalEntityService(
+            session
+        ).require_legal_entity(business_unit_id)
+        events = await LegalEntityAuditService(session).list_events(
+            legal_entity.id,
+            limit=20,
         )
 
     if not events:

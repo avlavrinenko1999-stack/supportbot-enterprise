@@ -6,7 +6,7 @@ from app.models.account import Account
 from app.models.enums import ScopeType
 from app.security.access_scope import AccessScope
 from app.security.authorization import AuthorizationService
-from app.security.company_access import CompanyAccessService
+from app.security.business_unit_access import BusinessUnitAccessService
 from app.security.permissions import Permission
 
 
@@ -37,10 +37,8 @@ class AccessAuditAccessService:
         if platform_access:
             return statement
 
-        company_access = CompanyAccessService(self.session)
-        company_ids = await company_access.visible_company_ids(
-            account
-        )
+        unit_access = BusinessUnitAccessService(self.session)
+        company_ids = await unit_access.visible_unit_ids(account)
 
         if not company_ids:
             return statement.where(false())
@@ -49,7 +47,7 @@ class AccessAuditAccessService:
             or_(
                 (
                     AccessAuditEvent.scope_type
-                    == ScopeType.COMPANY
+                    == ScopeType.BUSINESS_UNIT
                 )
                 & (
                     AccessAuditEvent.scope_id.in_(

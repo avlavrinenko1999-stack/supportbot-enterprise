@@ -5,10 +5,10 @@ SYSTEM_ROLES: dict[str, dict[str, str]] = {
     },
     "holding_admin": {
         "name": "Администратор холдинга",
-        "description": "Управление компаниями и доступами своего холдинга.",
+        "description": "Управление подразделениеми и доступами своего холдинга.",
     },
-    "company_admin": {
-        "name": "Администратор компании",
+    "business_unit_admin": {
+        "name": "Администратор подразделения",
         "description": "Управление одной компанией и её сотрудниками.",
     },
     "support_manager": {
@@ -67,20 +67,20 @@ PERMISSIONS: dict[str, dict[str, object]] = {
         "name": "Управление политиками холдинга",
         "inherits_downward": True,
     },
-    "company.read": {
-        "name": "Просмотр компании",
+    "business_unit.read": {
+        "name": "Просмотр подразделения",
         "inherits_downward": True,
     },
-    "company.update": {
-        "name": "Изменение компании",
+    "business_unit.update": {
+        "name": "Изменение подразделения",
         "inherits_downward": False,
     },
-    "company.disable": {
-        "name": "Отключение компании",
+    "business_unit.disable": {
+        "name": "Отключение подразделения",
         "inherits_downward": False,
     },
-    "company.settings.manage": {
-        "name": "Управление настройками компании",
+    "business_unit.settings.manage": {
+        "name": "Управление настройками подразделения",
         "inherits_downward": False,
     },
     "employee.read": {
@@ -111,8 +111,8 @@ PERMISSIONS: dict[str, dict[str, object]] = {
         "name": "Просмотр собственных обращений",
         "inherits_downward": False,
     },
-    "ticket.read.company": {
-        "name": "Просмотр обращений компании",
+    "ticket.read.business_unit": {
+        "name": "Просмотр обращений подразделения",
         "inherits_downward": True,
     },
     "ticket.read.queue": {
@@ -175,8 +175,8 @@ PERMISSIONS: dict[str, dict[str, object]] = {
         "name": "Управление SLA",
         "inherits_downward": False,
     },
-    "report.read.company": {
-        "name": "Просмотр отчётов компании",
+    "report.read.business_unit": {
+        "name": "Просмотр отчётов подразделения",
         "inherits_downward": True,
     },
     "report.read.holding": {
@@ -187,8 +187,8 @@ PERMISSIONS: dict[str, dict[str, object]] = {
         "name": "Просмотр отчётов платформы",
         "inherits_downward": True,
     },
-    "audit.read.company": {
-        "name": "Просмотр аудита компании",
+    "audit.read.business_unit": {
+        "name": "Просмотр аудита подразделения",
         "inherits_downward": True,
     },
     "audit.read.holding": {
@@ -221,15 +221,15 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "holding.read",
             "holding.manage",
             "holding.policy.manage",
-            "company.read",
-            "company.update",
-            "company.settings.manage",
+            "business_unit.read",
+            "business_unit.update",
+            "business_unit.settings.manage",
             "employee.read",
             "employee.invite",
             "employee.update",
             "employee.disable",
             "employee.role.assign",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "ticket.assign",
             "ticket.reply",
             "ticket.status.change",
@@ -243,23 +243,23 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "queue.member.manage",
             "sla.read",
             "sla.manage",
-            "report.read.company",
+            "report.read.business_unit",
             "report.read.holding",
-            "audit.read.company",
+            "audit.read.business_unit",
             "audit.read.holding",
         }
     ),
-    "company_admin": frozenset(
+    "business_unit_admin": frozenset(
         {
-            "company.read",
-            "company.update",
-            "company.settings.manage",
+            "business_unit.read",
+            "business_unit.update",
+            "business_unit.settings.manage",
             "employee.read",
             "employee.invite",
             "employee.update",
             "employee.disable",
             "employee.role.assign",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "ticket.assign",
             "ticket.reply",
             "ticket.status.change",
@@ -273,15 +273,15 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "queue.member.manage",
             "sla.read",
             "sla.manage",
-            "report.read.company",
-            "audit.read.company",
+            "report.read.business_unit",
+            "audit.read.business_unit",
         }
     ),
     "support_manager": frozenset(
         {
-            "company.read",
+            "business_unit.read",
             "employee.read",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "ticket.read.queue",
             "ticket.assign",
             "ticket.reply",
@@ -295,15 +295,15 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "queue.member.manage",
             "sla.read",
             "sla.manage",
-            "report.read.company",
-            "audit.read.company",
+            "report.read.business_unit",
+            "audit.read.business_unit",
         }
     ),
     "coordinator": frozenset(
         {
-            "company.read",
+            "business_unit.read",
             "employee.read",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "ticket.read.queue",
             "ticket.assign",
             "ticket.reply",
@@ -318,7 +318,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "operator": frozenset(
         {
-            "company.read",
+            "business_unit.read",
             "ticket.read.queue",
             "ticket.reply",
             "ticket.status.change",
@@ -330,19 +330,19 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "observer": frozenset(
         {
-            "company.read",
+            "business_unit.read",
             "employee.read",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "ticket.read.queue",
             "category.read",
             "queue.read",
             "sla.read",
-            "report.read.company",
+            "report.read.business_unit",
         }
     ),
     "user": frozenset(
         {
-            "company.read",
+            "business_unit.read",
             "ticket.create",
             "ticket.read.own",
             "ticket.reply",
@@ -351,14 +351,14 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "auditor": frozenset(
         {
-            "company.read",
+            "business_unit.read",
             "employee.read",
-            "ticket.read.company",
+            "ticket.read.business_unit",
             "category.read",
             "queue.read",
             "sla.read",
-            "report.read.company",
-            "audit.read.company",
+            "report.read.business_unit",
+            "audit.read.business_unit",
         }
     ),
 }

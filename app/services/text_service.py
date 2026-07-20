@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 from deep_translator import GoogleTranslator
-from app.services.company_name_service import CompanyNameService
+from app.services.entity_name_service import EntityNameService
 from app.ui.keyboard_i18n import current_language
 
 CACHE_PATH = Path("/opt/supportbot_v2/data/text_translation_cache.json")
@@ -44,9 +44,12 @@ class TextService:
             placeholders[key] = replacement if replacement is not None else value
             return key
 
-        for company_name in await CompanyNameService.all_names():
-            if company_name in text:
-                text = text.replace(company_name, put(company_name, CompanyNameService.visible_name(company_name)))
+        for entity_name in await EntityNameService.all_names():
+            if entity_name in text:
+                text = text.replace(
+                    entity_name,
+                    put(entity_name, EntityNameService.visible_name(entity_name)),
+                )
 
         patterns = [
             r"\{[^{}]+\}",

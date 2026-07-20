@@ -1,12 +1,10 @@
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-from sqlalchemy import func, select
 
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import get_current_account_or_answer
 from app.keyboards.holding import holding_card_reply_menu
-from app.models.company import Company
 from app.security.decorators import require_permission
 from app.security.holding_access import HoldingAccessService
 from app.security.permissions import Permission
@@ -50,7 +48,6 @@ async def render_holding_card(
         service = HoldingService(session)
         holding = await service.get_holding(
             holding_id,
-            include_companies=True,
         )
 
         if holding is None:
@@ -60,15 +57,6 @@ async def render_holding_card(
                 "Холдинг не найден.",
             )
             return
-
-        companies_count = (
-            await session.scalar(
-                select(func.count(Company.id)).where(
-                    Company.holding_id == holding.id
-                )
-            )
-            or 0
-        )
 
         organization_name = (
             holding.organization.name
@@ -101,8 +89,7 @@ async def render_holding_card(
         "Холдинг\n\n"
         f"Название: {holding.name}\n"
         f"Организация: {organization_name}\n"
-        f"Статус: {status}\n"
-        f"Компаний: {companies_count}",
+        f"Статус: {status}",
         reply_markup=holding_card_reply_menu(
             is_active=holding.is_active
         ),

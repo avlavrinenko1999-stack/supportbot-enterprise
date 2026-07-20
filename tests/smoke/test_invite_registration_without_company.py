@@ -44,7 +44,7 @@ def test_legacy_auth_registration_is_business_unit_first() -> None:
     assert "ensure_primary_membership" in source
 
 
-def test_invite_company_bridge_is_creation_only() -> None:
+def test_invite_creation_uses_business_unit_only() -> None:
     source = INVITE_SERVICE.read_text(encoding="utf-8")
 
     create_start = source.index("async def create_invite(")
@@ -53,7 +53,8 @@ def test_invite_company_bridge_is_creation_only() -> None:
     creation_block = source[create_start:register_start]
     registration_block = source[register_start:]
 
-    assert "company_id" in creation_block
+    assert "business_unit_id" in creation_block
+    assert "company_id" not in creation_block
     assert "invite.company_id" not in registration_block
 
 

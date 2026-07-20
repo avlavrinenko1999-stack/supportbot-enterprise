@@ -1,6 +1,6 @@
 from sqlalchemy import inspect
 
-from app.models import Base, Company, Holding, Organization
+from app.models import Base, Holding, Organization
 from app.models.enums import OrganizationType
 
 
@@ -9,7 +9,7 @@ def test_organization_models_are_registered() -> None:
 
     assert "organizations" in table_names
     assert "holdings" in table_names
-    assert "companies" in table_names
+    assert "companies" not in table_names
 
 
 def test_organization_type_values_are_stable() -> None:
@@ -52,16 +52,6 @@ def test_holding_table_structure() -> None:
     }.issubset(table.columns.keys())
 
     assert table.c.organization_id.nullable is False
-
-
-def test_company_organization_links_are_optional() -> None:
-    table = inspect(Company).local_table
-
-    assert "organization_id" in table.columns
-    assert "holding_id" in table.columns
-
-    assert table.c.organization_id.nullable is True
-    assert table.c.holding_id.nullable is True
 
 
 def test_account_role_model_uses_membership_scope() -> None:

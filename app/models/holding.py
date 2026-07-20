@@ -37,11 +37,6 @@ class Holding(Base, IDMixin, TimestampMixin):
         back_populates="holdings",
     )
 
-    companies = relationship(
-        "Company",
-        back_populates="holding",
-    )
-
     audit_events = relationship(
         "HoldingAuditEvent",
         back_populates="holding",

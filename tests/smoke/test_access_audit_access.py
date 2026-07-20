@@ -39,7 +39,7 @@ async def test_platform_admin_query_is_not_restricted(
 
 
 @pytest.mark.asyncio
-async def test_company_admin_query_contains_company_filter(
+async def test_business_unit_admin_query_contains_company_filter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = AccessAuditAccessService(
@@ -63,7 +63,7 @@ async def test_company_admin_query_contains_company_filter(
     monkeypatch.setattr(
         (
             "app.security.access_audit_access."
-            "CompanyAccessService.visible_company_ids"
+            "BusinessUnitAccessService.visible_unit_ids"
         ),
         fake_visible_ids,
     )
@@ -104,7 +104,7 @@ async def test_account_without_companies_receives_empty_query(
     monkeypatch.setattr(
         (
             "app.security.access_audit_access."
-            "CompanyAccessService.visible_company_ids"
+            "BusinessUnitAccessService.visible_unit_ids"
         ),
         fake_visible_ids,
     )

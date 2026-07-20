@@ -13,9 +13,6 @@ from app.models.organizational_unit import (
     OrganizationalUnit,
 )
 from app.models.role_assignment import RoleAssignment
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
-)
 
 
 class BusinessUnitAccessService:
@@ -29,17 +26,8 @@ class BusinessUnitAccessService:
     PLATFORM
         Все рабочие подразделения.
 
-    ORGANIZATION
-        Корневые подразделения legacy-компаний организации
-        и все их дочерние подразделения.
-
-    HOLDING
-        Корневые подразделения legacy-компаний холдинга
-        и все их дочерние подразделения.
-
-    COMPANY
-        Подразделение, связанное через
-        LegacyCompanyMapping, и всё его поддерево.
+    BUSINESS_UNIT
+        Выбранное подразделение и всё его поддерево.
 
     При наличии активных RoleAssignment они являются
     источником истины. Без назначений ADMIN сохраняет
@@ -49,9 +37,6 @@ class BusinessUnitAccessService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.mapping = LegacyCompanyMappingService(
-            session
-        )
 
     async def list_visible_units(
         self,
@@ -323,44 +308,16 @@ class BusinessUnitAccessService:
         self,
         assignments: list[RoleAssignment],
     ) -> set[int]:
-        company_ids = {
+        business_unit_ids = {
             assignment.scope_id
             for assignment in assignments
             if (
                 assignment.scope_type
-                == ScopeType.COMPANY
+                == ScopeType.BUSINESS_UNIT
                 and assignment.scope_id is not None
             )
         }
-
-        holding_ids = {
-            assignment.scope_id
-            for assignment in assignments
-            if (
-                assignment.scope_type
-                == ScopeType.HOLDING
-                and assignment.scope_id is not None
-            )
-        }
-
-        organization_ids = {
-            assignment.scope_id
-            for assignment in assignments
-            if (
-                assignment.scope_type
-                == ScopeType.ORGANIZATION
-                and assignment.scope_id is not None
-            )
-        }
-
-        return (
-            await self.mapping
-            .resolve_assignment_seed_unit_ids(
-                company_ids=company_ids,
-                holding_ids=holding_ids,
-                organization_ids=organization_ids,
-            )
-        )
+        return {int(unit_id) for unit_id in business_unit_ids}
 
     async def _legacy_seed_ids(
         self,

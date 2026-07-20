@@ -14,16 +14,12 @@ from app.security.scope_resolvers import (
     business_unit_scope_from_callback,
     business_unit_scope_from_reply,
     business_unit_scope_from_state,
-    company_scope_from_callback,
 )
 from app.services.business_unit_card_service import (
     BusinessUnitCardService,
 )
 from app.services.business_unit_preference_service import (
     BusinessUnitPreferenceService,
-)
-from app.services.legacy_company_mapping_service import (
-    LegacyCompanyMappingService,
 )
 from app.services.message_service import MessageService
 from app.ui.actions import MenuAction, MenuActionFilter
@@ -57,9 +53,6 @@ async def render_business_unit_card(
                 session
             )
         )
-        mapping_service = LegacyCompanyMappingService(
-            session
-        )
 
         try:
             card = await card_service.get_card(
@@ -76,12 +69,6 @@ async def render_business_unit_card(
                 ),
             )
             return
-
-        legacy_phone = (
-            await mapping_service.get_phone_by_unit_id(
-                card.unit.id
-            )
-        )
 
         await preference_service.touch_unit(
             account_id=account.id,
@@ -148,7 +135,7 @@ async def render_business_unit_card(
         f"Синхронизация: "
         f"{legal_entity.last_registry_sync_at or 'ещё не выполнялась'}\n\n"
         f"Телефон подразделения: "
-        f"{legacy_phone or 'не заполнен'}\n\n"
+        f"{legal_entity.phone or 'не заполнен'}\n\n"
         f"Координаторов: "
         f"{card.coordinators_count}\n"
         f"Сотрудников: "
@@ -161,48 +148,9 @@ async def render_business_unit_card(
     )
 
 
-async def render_company_card(
-    message: Message,
-    state: FSMContext,
-    company_id: int,
-) -> None:
-    """
-    Адаптер старого company_id для уже отправленных
-    кнопок и незавершённых пользовательских состояний.
-    """
-    async with AsyncSessionLocal() as session:
-        mapping_service = LegacyCompanyMappingService(
-            session
-        )
-        business_unit_id = (
-            await mapping_service
-            .get_unit_id_by_legacy_company_id(
-                company_id
-            )
-        )
-
-    if business_unit_id is None:
-        await MessageService.replace_service_message(
-            message,
-            state,
-            "Для компании не найдено рабочее "
-            "подразделение.",
-            reply_markup=(
-                companies_catalog_reply_menu()
-            ),
-        )
-        return
-
-    await render_business_unit_card(
-        message,
-        state,
-        business_unit_id,
-    )
-
-
 @router.message(F.text.regexp(r"^[✅⛔] \d+\. "))
 @require_permission(
-    Permission.COMPANY_VIEW,
+    Permission.BUSINESS_UNIT_VIEW,
     scope_resolver=business_unit_scope_from_reply,
 )
 async def business_unit_view_from_reply(
@@ -226,7 +174,7 @@ async def business_unit_view_from_reply(
     F.data.startswith("business_unit:view:")
 )
 @require_permission(
-    Permission.COMPANY_VIEW,
+    Permission.BUSINESS_UNIT_VIEW,
     scope_resolver=business_unit_scope_from_callback,
 )
 async def business_unit_view_from_inline(
@@ -245,36 +193,13 @@ async def business_unit_view_from_inline(
     await callback.answer()
 
 
-@router.callback_query(
-    F.data.startswith("company:view:")
-)
-@require_permission(
-    Permission.COMPANY_VIEW,
-    scope_resolver=company_scope_from_callback,
-)
-async def company_view_from_inline(
-    callback: CallbackQuery,
-    state: FSMContext,
-) -> None:
-    company_id = int(
-        callback.data.split(":")[-1]
-    )
-
-    await render_company_card(
-        callback.message,
-        state,
-        company_id,
-    )
-    await callback.answer()
-
-
 @router.message(
     MenuActionFilter(
         MenuAction.COMPANY_FAVORITE_ADD
     )
 )
 @require_permission(
-    Permission.COMPANY_VIEW,
+    Permission.BUSINESS_UNIT_VIEW,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_add_to_favorites(
@@ -329,7 +254,7 @@ async def company_add_to_favorites(
     )
 )
 @require_permission(
-    Permission.COMPANY_VIEW,
+    Permission.BUSINESS_UNIT_VIEW,
     scope_resolver=business_unit_scope_from_state,
 )
 async def company_remove_from_favorites(

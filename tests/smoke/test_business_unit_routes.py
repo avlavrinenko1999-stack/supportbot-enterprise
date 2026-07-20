@@ -2,7 +2,6 @@ from pathlib import Path
 
 from app.handlers.admin.company.card import (
     render_business_unit_card,
-    render_company_card,
 )
 from app.security.scope_resolvers import (
     business_unit_scope_from_callback,
@@ -13,7 +12,6 @@ from app.security.scope_resolvers import (
 
 def test_business_unit_card_entry_exists() -> None:
     assert callable(render_business_unit_card)
-    assert callable(render_company_card)
 
 
 def test_business_unit_scope_resolvers_exist() -> None:
@@ -35,7 +33,7 @@ def test_catalog_uses_canonical_unit_ids() -> None:
     ).read_text(encoding="utf-8")
 
     assert "id=unit.id" in source
-    assert "legacy_company_id=company_id" in source
+    assert "legacy_company_id" not in source
 
 
 def test_new_routes_are_registered() -> None:
@@ -50,9 +48,7 @@ def test_new_routes_are_registered() -> None:
     assert "business_unit:view:" in card_source
     assert "business_unit:list" in catalog_source
 
-    # Старые маршруты остаются адаптерами.
-    assert "company:view:" in card_source
-    assert "company:list" in catalog_source
+    assert "company:view:" not in card_source
 
 
 def test_reply_route_opens_unit_directly() -> None:

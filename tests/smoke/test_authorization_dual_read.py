@@ -45,7 +45,7 @@ async def test_dual_read_falls_back_when_no_assignments(
 
     assert not await AuthorizationService.can_async(
         account,
-        Permission.COMPANY_MANAGE,
+        Permission.BUSINESS_UNIT_MANAGE,
         session=object(),
     )
 
@@ -111,7 +111,7 @@ async def test_legacy_role_does_not_override_existing_assignments(
 
     assert not await AuthorizationService.can_async(
         account,
-        Permission.COMPANY_VIEW,
+        Permission.BUSINESS_UNIT_VIEW,
         session=object(),
     )
 
@@ -125,6 +125,6 @@ async def test_inactive_account_is_always_denied() -> None:
 
     assert not await AuthorizationService.can_async(
         account,
-        Permission.COMPANY_VIEW,
+        Permission.BUSINESS_UNIT_VIEW,
         session=object(),
     )

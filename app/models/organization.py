@@ -62,11 +62,6 @@ class Organization(Base, IDMixin, TimestampMixin):
         back_populates="organization",
     )
 
-    companies = relationship(
-        "Company",
-        back_populates="organization",
-    )
-
     audit_events = relationship(
         "OrganizationAuditEvent",
         back_populates="organization",

@@ -21,7 +21,6 @@ def test_business_unit_catalog_item_contract() -> None:
         "legal_entity_id",
         "legal_name",
         "inn",
-        "legacy_company_id",
     }
 
 
@@ -33,10 +32,6 @@ def test_business_unit_catalog_service_contract() -> None:
     assert hasattr(
         BusinessUnitCatalogService,
         "items_for_units",
-    )
-    assert hasattr(
-        BusinessUnitCatalogService,
-        "items_for_legacy_companies",
     )
     assert hasattr(
         BusinessUnitCatalogService,

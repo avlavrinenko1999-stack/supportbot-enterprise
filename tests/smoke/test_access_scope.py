@@ -8,7 +8,7 @@ def test_scope_type_values_are_stable() -> None:
     assert ScopeType.PLATFORM.value == "platform"
     assert ScopeType.ORGANIZATION.value == "organization"
     assert ScopeType.HOLDING.value == "holding"
-    assert ScopeType.COMPANY.value == "company"
+    assert ScopeType.BUSINESS_UNIT.value == "business_unit"
     assert (
         ScopeType.SUPPORT_CONTRACT.value
         == "support_contract"
@@ -28,20 +28,20 @@ def test_platform_scope_has_no_identifier() -> None:
 
 
 def test_company_scope_contains_identifier() -> None:
-    scope = AccessScope.company(15)
+    scope = AccessScope.business_unit(15)
 
-    assert scope.scope_type == ScopeType.COMPANY
+    assert scope.scope_type == ScopeType.BUSINESS_UNIT
     assert scope.scope_id == 15
     assert scope.is_platform is False
-    assert scope.as_key() == ("company", 15)
-    assert str(scope) == "company:15"
+    assert scope.as_key() == ("business_unit", 15)
+    assert str(scope) == "business_unit:15"
 
 
 def test_all_identifier_scopes_can_be_created() -> None:
     scopes = [
         AccessScope.organization(1),
         AccessScope.holding(2),
-        AccessScope.company(3),
+        AccessScope.business_unit(3),
         AccessScope.support_contract(4),
         AccessScope.support_queue(5),
         AccessScope.ticket(6),
@@ -60,10 +60,10 @@ def test_all_identifier_scopes_can_be_created() -> None:
 def test_non_platform_scope_requires_identifier() -> None:
     with pytest.raises(
         ValueError,
-        match="company scope требует scope_id",
+        match="business_unit scope требует scope_id",
     ):
         AccessScope(
-            scope_type=ScopeType.COMPANY,
+            scope_type=ScopeType.BUSINESS_UNIT,
             scope_id=None,
         )
 
@@ -73,13 +73,13 @@ def test_scope_identifier_must_be_positive() -> None:
         ValueError,
         match="положительным",
     ):
-        AccessScope.company(0)
+        AccessScope.business_unit(0)
 
     with pytest.raises(
         ValueError,
         match="положительным",
     ):
-        AccessScope.company(-1)
+        AccessScope.business_unit(-1)
 
 
 def test_platform_scope_rejects_identifier() -> None:
@@ -94,7 +94,7 @@ def test_platform_scope_rejects_identifier() -> None:
 
 
 def test_access_scope_is_immutable() -> None:
-    scope = AccessScope.company(15)
+    scope = AccessScope.business_unit(15)
 
     with pytest.raises(AttributeError):
         scope.scope_id = 20
