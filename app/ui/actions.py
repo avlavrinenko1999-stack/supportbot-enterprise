@@ -18,6 +18,16 @@ class MenuAction(StrEnum):
     ORGANIZATION_AUDIT = "organization_audit"
     ORGANIZATION_FILL_BY_INN = "organization_fill_by_inn"
     ORGANIZATION_REGISTRY_UPDATE = "organization_registry_update"
+    ORGANIZATION_UNITS = "organization_units"
+    ORGANIZATION_UNIT_CREATE = "organization_unit_create"
+    ORGANIZATION_UNIT_CHILDREN = "organization_unit_children"
+    ORGANIZATION_UNIT_CREATE_CHILD = "organization_unit_create_child"
+    ORGANIZATION_UNIT_RENAME = "organization_unit_rename"
+    ORGANIZATION_UNIT_DESCRIPTION = "organization_unit_description"
+    ORGANIZATION_UNIT_OWNER = "organization_unit_owner"
+    ORGANIZATION_UNIT_ADD_USER = "organization_unit_add_user"
+    ORGANIZATION_UNIT_REMOVE_USER = "organization_unit_remove_user"
+    ORGANIZATION_UNIT_BACK = "organization_unit_back"
 
     HOLDINGS = "holdings"
     HOLDINGS_ALL = "holdings_all"
@@ -122,6 +132,16 @@ ACTION_BUTTONS = {
     MenuAction.ORGANIZATION_AUDIT: "📜 История организации",
     MenuAction.ORGANIZATION_FILL_BY_INN: "🏢 Заполнить организацию по ИНН",
     MenuAction.ORGANIZATION_REGISTRY_UPDATE: "🔄 Обновить организацию из реестра",
+    MenuAction.ORGANIZATION_UNITS: "🏗 Подразделения",
+    MenuAction.ORGANIZATION_UNIT_CREATE: "➕ Создать подразделение",
+    MenuAction.ORGANIZATION_UNIT_CHILDREN: "🏗 Нижестоящие подразделения",
+    MenuAction.ORGANIZATION_UNIT_CREATE_CHILD: "➕ Создать нижестоящее подразделение",
+    MenuAction.ORGANIZATION_UNIT_RENAME: "✏️ Переименовать подразделение",
+    MenuAction.ORGANIZATION_UNIT_DESCRIPTION: "📝 Изменить описание",
+    MenuAction.ORGANIZATION_UNIT_OWNER: "👑 Назначить владельца",
+    MenuAction.ORGANIZATION_UNIT_ADD_USER: "➕ Привязать пользователя",
+    MenuAction.ORGANIZATION_UNIT_REMOVE_USER: "➖ Отвязать пользователя",
+    MenuAction.ORGANIZATION_UNIT_BACK: "⬅️ К подразделению",
     MenuAction.HOLDINGS: "Холдинги",
     MenuAction.HOLDINGS_ALL: "📋 Все холдинги",
     MenuAction.HOLDING_CATALOG: "⬅️ Каталог холдингов",

@@ -86,6 +86,12 @@ class Organization(Base, IDMixin, TimestampMixin):
         back_populates="organization",
     )
 
+    organizational_units = relationship(
+        "OrganizationalUnit",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+
     audit_events = relationship(
         "OrganizationAuditEvent",
         back_populates="organization",

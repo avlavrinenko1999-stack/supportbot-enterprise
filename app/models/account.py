@@ -99,6 +99,12 @@ class Account(Base, IDMixin, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+    owned_organizational_units = relationship(
+        "OrganizationalUnit",
+        foreign_keys="OrganizationalUnit.owner_account_id",
+        back_populates="owner",
+    )
+
     role_assignments = relationship(
         "RoleAssignment",
         foreign_keys="RoleAssignment.account_id",

@@ -5,6 +5,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -25,6 +26,12 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
     __tablename__ = "organizational_units"
 
     tenant_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+
+    organization_id: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         index=True,
@@ -65,6 +72,17 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         nullable=True,
     )
 
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    owner_account_id: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        index=True,
+    )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -76,6 +94,17 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
         "Tenant",
         back_populates="organizational_units",
         overlaps=("children,legal_entity,organizational_units,parent"),
+    )
+
+    organization = relationship(
+        "Organization",
+        back_populates="organizational_units",
+    )
+
+    owner = relationship(
+        "Account",
+        foreign_keys=[owner_account_id],
+        back_populates="owned_organizational_units",
     )
 
     legal_entity = relationship(
@@ -139,6 +168,18 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
             name=("uq_organizational_units_tenant_legal_entity_id"),
         ),
         ForeignKeyConstraint(
+            ["organization_id"],
+            ["organizations.id"],
+            name="fk_organizational_units_organization",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["owner_account_id"],
+            ["accounts.id"],
+            name="fk_organizational_units_owner",
+            ondelete="SET NULL",
+        ),
+        ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.id"],
             name="fk_organizational_units_tenant",
@@ -184,6 +225,7 @@ class OrganizationalUnit(Base, IDMixin, TimestampMixin):
     repr_cols = (
         "id",
         "tenant_id",
+        "organization_id",
         "legal_entity_id",
         "parent_id",
         "name",

@@ -6,8 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.dadata import DadataCompany
-from app.models.enums import OrganizationalUnitType
+from app.models.enums import (
+    OrganizationalUnitType,
+    OrganizationType,
+)
 from app.models.legal_entity import LegalEntity
+from app.models.organization import Organization
 from app.models.organizational_unit import (
     OrganizationalUnit,
 )
@@ -113,7 +117,24 @@ class BusinessUnitCreationService(BaseService):
             synchronized_at=synchronized_at,
         )
 
+        organization = Organization(
+            name=data.name,
+            organization_type=OrganizationType.CUSTOMER,
+            is_active=True,
+            legal_name=data.legal_name,
+            inn=data.inn,
+            kpp=data.kpp,
+            ogrn=data.ogrn,
+            legal_address=data.legal_address,
+            legal_status=data.legal_status,
+            legal_status_code=data.legal_status_code,
+            registration_date=data.registration_date,
+            liquidation_date=data.liquidation_date,
+            last_registry_sync_at=synchronized_at,
+        )
+
         unit = OrganizationalUnit(
+            organization=organization,
             tenant_id=tenant.id,
             legal_entity=legal_entity,
             parent_id=None,
@@ -126,6 +147,7 @@ class BusinessUnitCreationService(BaseService):
 
         try:
             self.session.add(legal_entity)
+            self.session.add(organization)
             self.session.add(unit)
             await self.session.flush()
 
@@ -282,6 +304,11 @@ class BusinessUnitCreationService(BaseService):
             return unit
 
         unit = OrganizationalUnit(
+            organization_id=(
+                await self._organization_id_for_legal_entity(
+                    legal_entity
+                )
+            ),
             tenant_id=legal_entity.tenant_id,
             legal_entity_id=legal_entity.id,
             parent_id=None,
@@ -324,3 +351,34 @@ class BusinessUnitCreationService(BaseService):
             raise
 
         return unit
+
+    async def _organization_id_for_legal_entity(
+        self,
+        legal_entity: LegalEntity,
+    ) -> int:
+        organization_id = await self.session.scalar(
+            select(Organization.id).where(
+                Organization.inn == legal_entity.inn
+            )
+        )
+        if organization_id is not None:
+            return int(organization_id)
+
+        organization = Organization(
+            name=legal_entity.name,
+            organization_type=OrganizationType.CUSTOMER,
+            is_active=legal_entity.is_active,
+            legal_name=legal_entity.legal_name,
+            inn=legal_entity.inn,
+            kpp=legal_entity.kpp,
+            ogrn=legal_entity.ogrn,
+            legal_address=legal_entity.legal_address,
+            legal_status=legal_entity.legal_status,
+            legal_status_code=legal_entity.legal_status_code,
+            registration_date=legal_entity.registration_date,
+            liquidation_date=legal_entity.liquidation_date,
+            last_registry_sync_at=legal_entity.last_registry_sync_at,
+        )
+        self.session.add(organization)
+        await self.session.flush()
+        return organization.id
