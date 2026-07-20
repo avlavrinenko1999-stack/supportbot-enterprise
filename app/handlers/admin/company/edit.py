@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -7,7 +5,6 @@ from aiogram.types import CallbackQuery, Message
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.company.card import (
     render_business_unit_card,
-    render_company_card,
 )
 from app.handlers.admin.company.common import get_current_account_or_answer
 from app.handlers.admin.company.state import CompanyState
@@ -21,19 +18,14 @@ from app.security.permissions import Permission
 from app.security.scope_resolvers import (
     business_unit_scope_from_state,
 )
-from app.services.company_audit_service import (
-    CompanyAuditService,
-    company_legal_snapshot,
-    diff_snapshots,
-)
 from app.services.company_legal_entity_service import (
     CompanyLegalEntityService,
 )
 from app.services.business_unit_service import (
     BusinessUnitService,
 )
-from app.services.company_creation_service import (
-    CompanyCreationService,
+from app.services.business_unit_creation_service import (
+    BusinessUnitCreationService,
 )
 from app.services.message_service import MessageService
 from app.ui.context import UIContext
@@ -119,78 +111,37 @@ async def company_create_finish(message: Message, state: FSMContext) -> None:
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyCreationService(session)
+        service = BusinessUnitCreationService(session)
 
-        duplicate = await service.find_duplicate_by_legal_data(legal_data)
-
-        if duplicate is not None:
-            if service.is_legal_data_empty(duplicate):
-                before = company_legal_snapshot(duplicate)
-
-                company = await service.update_legal_data(duplicate.id, legal_data)
-                company.last_registry_sync_at = datetime.now(timezone.utc)
-
-                after = company_legal_snapshot(company)
-                changes = diff_snapshots(before, after)
-
-                audit = CompanyAuditService(session)
-                await audit.create_event(
-                    company_id=company.id,
-                    actor_account_id=account.id,
-                    source="dadata",
-                    event_type="registry_enrichment",
-                    title="Пустая карточка заполнена из DaData",
-                    payload=changes,
-                    commit=False,
-                )
-
-                await session.commit()
-
-                await state.clear()
-                await MessageService.replace_service_message(
-                    message,
-                    state,
-                    "Найдена существующая пустая карточка компании.\n\n"
-                    f"ID: {company.id}\n"
-                    f"Название: {company.name}\n\n"
-                    "Карточка заполнена данными DaData.",
-                )
-                await render_company_card(message, state, company.id)
-                return
-
-            await state.clear()
+        try:
+            result = await service.create_from_legal_data(
+                legal_data,
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
             await MessageService.replace_service_message(
                 message,
                 state,
-                "Компания уже есть в базе и содержит реквизиты.\n\n"
-                f"ID: {duplicate.id}\n"
-                f"Название: {duplicate.name}\n"
-                f"ИНН: {duplicate.inn or 'не заполнен'}\n"
-                f"ОГРН: {duplicate.ogrn or 'не заполнен'}\n\n"
-                "Открываю существующую карточку.",
+                str(error),
+                reply_markup=companies_catalog_reply_menu(),
             )
-            await render_company_card(message, state, duplicate.id)
             return
 
-        company = await service.create_company_from_legal_data(legal_data)
-        company.last_registry_sync_at = datetime.now(timezone.utc)
+    await state.clear()
 
-        audit = CompanyAuditService(session)
-        await audit.create_event(
-            company_id=company.id,
-            actor_account_id=account.id,
-            source="admin",
-            event_type="company_created",
-            title="Создана компания",
-            details=f"Компания создана по ИНН {company.inn}",
-            payload={"company": company_legal_snapshot(company)},
-            commit=False,
+    if not result.created:
+        await MessageService.replace_service_message(
+            message,
+            state,
+            "Юридическое лицо уже существует. "
+            "Открываю рабочее подразделение.",
         )
 
-        await session.commit()
-
-    await state.clear()
-    await render_company_card(message, state, company.id)
+    await render_business_unit_card(
+        message,
+        state,
+        result.unit.id,
+    )
 
 
 @router.message(MenuActionFilter(MenuAction.COMPANY_FILL_BY_INN))
