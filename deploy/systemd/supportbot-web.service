@@ -8,7 +8,7 @@ WorkingDirectory=/opt/supportbot_v2
 Environment=WEB_HOST=0.0.0.0
 Environment=WEB_PORT=8080
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 -m web.server
+ExecStart=/opt/supportbot_v2/venv/bin/python -m web.server
 Restart=always
 RestartSec=3
 NoNewPrivileges=true
