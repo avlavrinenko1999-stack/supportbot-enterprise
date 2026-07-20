@@ -49,6 +49,9 @@ def test_profile_exposes_permissions_like_telegram() -> None:
 
 def test_language_uses_dynamic_language_pack_flow() -> None:
     assert "LanguagePackService.resolve_language(query)" in APPLICATION
-    assert "LanguagePackService.install_language_pack(query)" in APPLICATION
-    assert "installed_languages()" in APPLICATION
+    assert "LanguagePackService.install_language_pack(job.query)" in APPLICATION
     assert "Type your language" in APPLICATION
+    assert 'action="/language/install"' in APPLICATION
+    assert "run_language_install_job" in APPLICATION
+    assert "language_install_status" in APPLICATION
+    assert "window.location.replace('/language')" in APPLICATION

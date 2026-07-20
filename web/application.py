@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import html
 import os
@@ -45,7 +46,6 @@ from app.security.permissions import Permission
 from app.security.permissions import role_permissions
 from app.security.localization import get_permission_name, get_role_name
 from app.security.role_grant_policy import ROLE_LABELS, RoleGrantPolicy
-from app.i18n import installed_languages, language_label, search_languages
 from app.services.employee_service import EmployeeService
 from app.services.company_structure_pdf_service import CompanyStructurePdfService
 from app.services.holding_audit_service import HoldingAuditService
@@ -82,8 +82,23 @@ class WebSession:
     expires_at: datetime
 
 
+@dataclass(slots=True)
+class LanguageInstallJob:
+    account_id: int
+    query: str
+    language_code: str
+    language_name: str
+    progress: int
+    message: str
+    status: str
+    created_at: datetime
+    error: str | None = None
+
+
 LOGIN_CHALLENGES: dict[str, LoginChallenge] = {}
 WEB_SESSIONS: dict[str, WebSession] = {}
+LANGUAGE_INSTALL_JOBS: dict[str, LanguageInstallJob] = {}
+LANGUAGE_INSTALL_TASKS: set[asyncio.Task] = set()
 
 
 def esc(value) -> str:
@@ -1484,39 +1499,100 @@ async def profile_page(request: web.Request, account: Account) -> web.Response:
 async def language_page(request: web.Request, account: Account) -> web.Response:
     session = session_for(request)
     query = request.query.get("q", "").strip()
-    available = search_languages(query) if query else list(installed_languages().items())
-    options = ''.join(f'<form method="post" action="/language" class="data-card glass"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input type="hidden" name="language" value="{esc(code)}"><div class="card-icon">{"✅" if account.language == code else "🌐"}</div><div><h3>{esc(language_label(code))}</h3><p>{esc(code)}</p></div><button class="button" type="submit">Выбрать</button></form>' for code, _meta in available)
-    content = f'''<section class="panel glass"><h2>🌐 Language</h2><p>Введите название любого языка, например: English, Русский, Deutsch или Chinese Simplified. Если пакет ещё не установлен, сервер создаст его автоматически.</p><form class="search glass" method="post" action="/language"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input name="query" value="{esc(query)}" placeholder="Type your language" required><button type="submit">Найти и выбрать</button></form></section><section class="data-grid">{options or '<div class="empty glass">Установленные языки не найдены. Введите название языка.</div>'}</section>'''
+    cards_html = ""
+    message = "Введите название языка и нажмите «Найти»."
+    if query:
+        try:
+            meta = LanguagePackService.resolve_language(query)
+            code = meta["code"]
+            installed = LanguagePackService.is_installed(code)
+            cards_html = f'''<form method="post" action="/language/install" class="language-card data-card glass"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input type="hidden" name="query" value="{esc(query)}"><div class="card-icon">{"✅" if account.language == code else "🌐"}</div><div><h3>{esc(meta['native'])} / {esc(meta['english'])}</h3><p>{esc(code)} · {"установлен" if installed else "будет установлен"}</p></div><button class="language-card-submit" type="submit" aria-label="Выбрать язык">›</button></form>'''
+            message = "Нажмите на карточку, чтобы выбрать язык."
+        except Exception:
+            message = "Язык не найден. Проверьте название и попробуйте снова."
+    content = f'''<section class="panel glass"><h2>🌐 Language</h2><p>Введите любой язык, например: English, Русский, Deutsch или Chinese Simplified.</p><form class="search glass" method="get" action="/language"><input name="q" value="{esc(query)}" placeholder="Type your language" required><button type="submit">Найти</button></form></section><p class="language-hint">{esc(message)}</p><section class="data-grid">{cards_html}</section>'''
     return page("Language", content, account=account, active="language")
 
 
+async def run_language_install_job(job_id: str) -> None:
+    job = LANGUAGE_INSTALL_JOBS[job_id]
+    try:
+        job.status = "running"
+        job.progress = 5
+        translated = LanguagePackService.translate_progress_message(
+            job.query,
+            5,
+            "Язык устанавливается, ожидайте",
+        )
+        job.message = translated.rsplit("\n\n", 1)[-1]
+        await asyncio.sleep(0)
+        job.progress = 20
+        if not LanguagePackService.is_installed(job.language_code):
+            meta = await LanguagePackService.install_language_pack(job.query)
+            job.language_code = meta["code"]
+        job.progress = 90
+        async with AsyncSessionLocal() as db:
+            stored = await db.get(Account, job.account_id)
+            if stored is None or not stored.is_active:
+                raise ValueError("Аккаунт недоступен.")
+            stored.language = job.language_code
+            await db.commit()
+        job.progress = 100
+        job.status = "complete"
+    except Exception as error:
+        job.status = "failed"
+        job.error = str(error)
+        job.message = "Не удалось установить язык."
+
+
 @authenticated
-async def language_update(request: web.Request, account: Account) -> web.Response:
+async def language_install_start(request: web.Request, account: Account) -> web.Response:
     form = await request.post()
-    token = request.cookies.get(SESSION_COOKIE, "")
-    session = WEB_SESSIONS.get(token)
-    if session is None or not secrets.compare_digest(str(form.get("csrf", "")), session.csrf_token):
+    if not valid_csrf(request, form):
         return error_page("Проверка безопасности не пройдена.", status=403, account=account)
-    language = str(form.get("language", "")).strip()
     query = str(form.get("query", "")).strip()
-    if not language and not query:
+    if not query:
         return error_page("Введите название языка.", account=account)
     try:
-        if not language:
-            meta = LanguagePackService.resolve_language(query)
-            language = meta["code"]
-            if not LanguagePackService.is_installed(language):
-                meta = await LanguagePackService.install_language_pack(query)
-                language = meta["code"]
-        elif language not in installed_languages():
-            return error_page("Языковой пакет не установлен.", account=account)
-    except Exception as error:
-        return error_page(f"Не удалось установить язык: {error}", status=502, account=account)
-    async with AsyncSessionLocal() as db:
-        stored = await db.get(Account, account.id)
-        stored.language = language
-        await db.commit()
-    raise web.HTTPFound("/language")
+        meta = LanguagePackService.resolve_language(query)
+    except Exception:
+        return error_page("Язык не найден.", account=account)
+    job_id = secrets.token_urlsafe(18)
+    LANGUAGE_INSTALL_JOBS[job_id] = LanguageInstallJob(
+        account_id=account.id,
+        query=query,
+        language_code=meta["code"],
+        language_name=f"{meta['native']} / {meta['english']}",
+        progress=1,
+        message="Язык устанавливается, ожидайте",
+        status="queued",
+        created_at=now(),
+    )
+    task = asyncio.create_task(run_language_install_job(job_id))
+    LANGUAGE_INSTALL_TASKS.add(task)
+    task.add_done_callback(LANGUAGE_INSTALL_TASKS.discard)
+    content = f'''<section class="panel glass language-progress-panel"><div class="hero-icon">🌐</div><h2>{esc(meta['native'])}</h2><p id="install-message">{esc(LANGUAGE_INSTALL_JOBS[job_id].message)}</p><div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" id="install-progress" style="width:1%"></div></div><strong id="install-percent">1%</strong><p class="language-progress-error" id="install-error"></p></section><script>
+const pollLanguage = async () => {{
+  const response = await fetch('/language/jobs/{job_id}', {{cache: 'no-store'}});
+  const job = await response.json();
+  document.getElementById('install-message').textContent = job.message;
+  document.getElementById('install-progress').style.width = job.progress + '%';
+  document.getElementById('install-percent').textContent = job.progress + '%';
+  if (job.status === 'complete') {{ window.location.replace('/language'); return; }}
+  if (job.status === 'failed') {{ document.getElementById('install-error').textContent = job.error; return; }}
+  window.setTimeout(pollLanguage, 700);
+}};
+window.setTimeout(pollLanguage, 350);
+</script>'''
+    return page("Установка языка", content, account=account, active="language")
+
+
+@authenticated
+async def language_install_status(request: web.Request, account: Account) -> web.Response:
+    job = LANGUAGE_INSTALL_JOBS.get(request.match_info["job_id"])
+    if job is None or job.account_id != account.id or now() - job.created_at > timedelta(minutes=30):
+        return web.json_response({"error": "Задача не найдена."}, status=404)
+    return web.json_response({"status": job.status, "progress": job.progress, "message": job.message, "error": job.error or ""})
 
 
 def create_application() -> web.Application:
@@ -1573,5 +1649,6 @@ def create_application() -> web.Application:
     application.router.add_post("/admin/invitations", invitation_create)
     application.router.add_get("/profile", profile_page)
     application.router.add_get("/language", language_page)
-    application.router.add_post("/language", language_update)
+    application.router.add_post("/language/install", language_install_start)
+    application.router.add_get("/language/jobs/{job_id}", language_install_status)
     return application
