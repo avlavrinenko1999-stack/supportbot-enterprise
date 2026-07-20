@@ -5,7 +5,7 @@ HANDLER_PATH = Path(
     "app/handlers/admin/company/edit.py"
 )
 SERVICE_PATH = Path(
-    "app/services/company_crud_service.py"
+    "app/services/business_unit_service.py"
 )
 
 
@@ -41,14 +41,18 @@ def test_company_rename_uses_business_unit_context() -> None:
     assert "UIContext.get_company_id" not in block
     assert "rename_business_unit_id" in block
     assert "rename_company_id" not in block
-    assert "rename_company_for_unit" in block
+    assert "BusinessUnitService(session)" in block
+    assert "rename_unit" in block
+    assert "rename_company_for_unit" not in block
     assert "render_business_unit_card" in block
     assert "render_company_card" not in block
 
 
-def test_company_service_maps_rename_unit_internally() -> None:
+def test_business_unit_service_renames_canonical_unit() -> None:
     source = SERVICE_PATH.read_text(encoding="utf-8")
 
-    assert "rename_company_for_unit" in source
-    assert "LegacyCompanyMappingService" in source
-    assert "get_legacy_company_id" in source
+    assert "async def rename_unit(" in source
+    assert "OrganizationalUnit" in source
+    assert "LegacyCompanyMappingService" not in source
+    assert "get_legacy_company_id" not in source
+    assert "CompanyCrudService" not in source

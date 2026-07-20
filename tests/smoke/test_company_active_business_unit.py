@@ -5,7 +5,7 @@ HANDLER_PATH = Path(
     "app/handlers/admin/company/edit.py"
 )
 SERVICE_PATH = Path(
-    "app/services/company_crud_service.py"
+    "app/services/business_unit_service.py"
 )
 
 
@@ -33,17 +33,21 @@ def test_active_routes_use_business_unit_context() -> None:
     ) == 2
     assert "UIContext.get_company_id" not in block
     assert block.count(
-        "set_company_active_for_unit"
+        "BusinessUnitService(session)"
     ) == 2
+    assert block.count("set_active") == 2
+    assert "set_company_active_for_unit" not in block
     assert block.count(
         "render_business_unit_card"
     ) == 2
     assert "render_company_card" not in block
 
 
-def test_company_service_maps_active_unit_internally() -> None:
+def test_business_unit_service_updates_canonical_active_state() -> None:
     source = SERVICE_PATH.read_text(encoding="utf-8")
 
-    assert "set_company_active_for_unit" in source
-    assert "LegacyCompanyMappingService" in source
-    assert "get_legacy_company_id" in source
+    assert "async def set_active(" in source
+    assert "OrganizationalUnit" in source
+    assert "LegacyCompanyMappingService" not in source
+    assert "get_legacy_company_id" not in source
+    assert "CompanyCrudService" not in source

@@ -29,8 +29,8 @@ from app.services.company_audit_service import (
 from app.services.company_legal_entity_service import (
     CompanyLegalEntityService,
 )
-from app.services.company_crud_service import (
-    CompanyCrudService,
+from app.services.business_unit_service import (
+    BusinessUnitService,
 )
 from app.services.company_creation_service import (
     CompanyCreationService,
@@ -411,15 +411,19 @@ async def company_rename_finish(message: Message, state: FSMContext) -> None:
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyCrudService(session)
+        service = BusinessUnitService(session)
 
         try:
-            await service.rename_company_for_unit(
+            await service.rename_unit(
                 business_unit_id,
                 message.text or "",
             )
         except ValueError as error:
-            await MessageService.replace_service_message(message, state, str(error))
+            await MessageService.replace_service_message(
+                message,
+                state,
+                str(error),
+            )
             return
 
     await state.clear()
@@ -447,8 +451,8 @@ async def company_disable_from_reply(message: Message, state: FSMContext) -> Non
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyCrudService(session)
-        await service.set_company_active_for_unit(
+        service = BusinessUnitService(session)
+        await service.set_active(
             business_unit_id,
             False,
         )
@@ -477,8 +481,8 @@ async def company_enable_from_reply(message: Message, state: FSMContext) -> None
         return
 
     async with AsyncSessionLocal() as session:
-        service = CompanyCrudService(session)
-        await service.set_company_active_for_unit(
+        service = BusinessUnitService(session)
+        await service.set_active(
             business_unit_id,
             True,
         )

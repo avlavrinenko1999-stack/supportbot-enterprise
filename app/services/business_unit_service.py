@@ -153,6 +153,87 @@ class BusinessUnitService(BaseService):
             await self.session.scalars(statement)
         )
 
+    async def rename_unit(
+        self,
+        unit_id: int,
+        new_name: str,
+    ) -> OrganizationalUnit:
+        """
+        Переименовывает рабочее подразделение.
+
+        Операция использует только каноническую модель
+        OrganizationalUnit и не обращается к Company.
+        """
+        unit = await self.require_unit(unit_id)
+
+        clean_name = new_name.strip()
+
+        if len(clean_name) < 2:
+            raise ValueError(
+                "Название подразделения слишком короткое."
+            )
+
+        duplicate_statement = select(
+            OrganizationalUnit
+        ).where(
+            OrganizationalUnit.id != unit.id,
+            OrganizationalUnit.tenant_id
+            == unit.tenant_id,
+            OrganizationalUnit.legal_entity_id
+            == unit.legal_entity_id,
+            func.lower(OrganizationalUnit.name)
+            == clean_name.lower(),
+        )
+
+        if unit.parent_id is None:
+            duplicate_statement = (
+                duplicate_statement.where(
+                    OrganizationalUnit.parent_id.is_(
+                        None
+                    )
+                )
+            )
+        else:
+            duplicate_statement = (
+                duplicate_statement.where(
+                    OrganizationalUnit.parent_id
+                    == unit.parent_id
+                )
+            )
+
+        duplicate = await self.session.scalar(
+            duplicate_statement
+        )
+
+        if duplicate is not None:
+            raise ValueError(
+                "Подразделение с таким названием "
+                "уже существует."
+            )
+
+        unit.name = clean_name
+
+        await self.session.commit()
+        await self.session.refresh(unit)
+
+        return unit
+
+    async def set_active(
+        self,
+        unit_id: int,
+        is_active: bool,
+    ) -> OrganizationalUnit:
+        """
+        Изменяет активность канонического подразделения.
+        """
+        unit = await self.require_unit(unit_id)
+        unit.is_active = is_active
+
+        await self.session.commit()
+        await self.session.refresh(unit)
+
+        return unit
+
     async def get_summary(
         self,
         unit_id: int,
