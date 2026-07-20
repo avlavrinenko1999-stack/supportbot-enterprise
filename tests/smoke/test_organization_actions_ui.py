@@ -85,6 +85,10 @@ def test_active_card_contains_archive() -> None:
         "✅ Восстановить организацию"
         not in texts
     )
+    assert texts[-2:] == [
+        "⬅️ Каталог организаций",
+        "⬅️ Назад",
+    ]
 
 
 def test_archived_card_contains_restore() -> None:

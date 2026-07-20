@@ -1,4 +1,7 @@
 from app.handlers.admin.organization import router
+from app.handlers.admin.organization.card import (
+    organization_card_text,
+)
 from app.keyboards.admin import admin_main_menu
 from app.keyboards.organization import (
     organization_card_reply_menu,
@@ -100,4 +103,27 @@ def test_organization_card_has_catalog_back() -> None:
                 is_active=True
             )
         )
+    )
+
+
+def test_organization_card_uses_classic_company_layout() -> None:
+    text = organization_card_text(
+        organization_id=42,
+        name="Север",
+        type_label="Клиент",
+        is_active=False,
+        parent_name="Платформа",
+        children_count=3,
+        holdings_count=2,
+    )
+
+    assert text == (
+        "Организация\n\n"
+        "ID: 42\n"
+        "Название: Север\n"
+        "Тип: Клиент\n"
+        "Статус: отключена\n"
+        "Родитель: Платформа\n\n"
+        "Дочерних организаций: 3\n"
+        "Холдингов: 2"
     )

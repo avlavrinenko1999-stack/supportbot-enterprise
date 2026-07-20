@@ -25,6 +25,31 @@ from app.ui.screens import Screen
 router = Router()
 
 
+def organization_card_text(
+    *,
+    organization_id: int,
+    name: str,
+    type_label: str,
+    is_active: bool,
+    parent_name: str,
+    children_count: int,
+    holdings_count: int,
+) -> str:
+    """Формирует карточку в классическом формате карточки компании."""
+    status = "активна" if is_active else "отключена"
+
+    return (
+        "Организация\n\n"
+        f"ID: {organization_id}\n"
+        f"Название: {name}\n"
+        f"Тип: {type_label}\n"
+        f"Статус: {status}\n"
+        f"Родитель: {parent_name}\n\n"
+        f"Дочерних организаций: {children_count}\n"
+        f"Холдингов: {holdings_count}"
+    )
+
+
 async def render_organization_card(
     message: Message,
     state: FSMContext,
@@ -79,12 +104,6 @@ async def render_organization_card(
             organization.holdings
         )
 
-    status = (
-        "активна"
-        if organization.is_active
-        else "в архиве"
-    )
-
     type_label = organization_type_label(
         organization.organization_type
     )
@@ -105,13 +124,15 @@ async def render_organization_card(
     await MessageService.replace_service_message(
         message,
         state,
-        "Организация\n\n"
-        f"Название: {organization.name}\n"
-        f"Тип: {type_label}\n"
-        f"Статус: {status}\n"
-        f"Родитель: {parent_name}\n"
-        f"Дочерних организаций: {children_count}\n"
-        f"Холдингов: {holdings_count}",
+        organization_card_text(
+            organization_id=organization.id,
+            name=organization.name,
+            type_label=type_label,
+            is_active=organization.is_active,
+            parent_name=parent_name,
+            children_count=children_count,
+            holdings_count=holdings_count,
+        ),
         reply_markup=organization_card_reply_menu(
             is_active=organization.is_active
         ),

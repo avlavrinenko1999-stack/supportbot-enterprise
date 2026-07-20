@@ -73,6 +73,7 @@ def organization_card_reply_menu(
             lifecycle_action,
             "📜 История организации",
             "⬅️ Каталог организаций",
+            "⬅️ Назад",
         ],
         input_field_placeholder=(
             "Выберите действие"
