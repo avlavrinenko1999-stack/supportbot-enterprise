@@ -17,7 +17,7 @@ def keyboard_texts(markup) -> list[str]:
 
 
 def test_organization_router_contains_action_routers() -> None:
-    assert len(router.sub_routers) == 8
+    assert len(router.sub_routers) == 9
 
 
 def test_organization_create_action() -> None:
@@ -45,6 +45,14 @@ def test_organization_unit_actions() -> None:
     assert (
         resolve_menu_action("🏗 Подразделения")
         == MenuAction.ORGANIZATION_UNITS
+    )
+    assert (
+        resolve_menu_action("🗺 Структура компании")
+        == MenuAction.ORGANIZATION_STRUCTURE
+    )
+    assert (
+        resolve_menu_action("⭐ Назначить заместителя")
+        == MenuAction.ORGANIZATION_UNIT_DEPUTY
     )
     assert (
         resolve_menu_action(

@@ -127,7 +127,11 @@ class OrganizationUnitService:
 
         try:
             await self.session.flush()
-            await self._ensure_membership(unit.id, owner.id)
+            await self._ensure_membership(
+                unit.id,
+                owner.id,
+                position_name="Руководитель подразделения",
+            )
             await self.session.commit()
             await self.session.refresh(unit)
         except Exception:
@@ -165,10 +169,40 @@ class OrganizationUnitService:
     ) -> OrganizationalUnit:
         unit = await self._require_unit(unit_id)
         account = await self._require_account(account_id)
+        previous_owner_id = unit.owner_account_id
         unit.owner_account_id = account.id
-        await self._ensure_membership(unit.id, account.id)
+        await self._ensure_membership(
+            unit.id,
+            account.id,
+            position_name="Руководитель подразделения",
+        )
+        if previous_owner_id != account.id:
+            previous_membership = await self.session.scalar(
+                select(AccountOrganizationalUnitMembership).where(
+                    AccountOrganizationalUnitMembership.organizational_unit_id
+                    == unit.id,
+                    AccountOrganizationalUnitMembership.account_id
+                    == previous_owner_id,
+                )
+            )
+            if previous_membership is not None:
+                previous_membership.position_name = None
         await self.session.commit()
         return unit
+
+    async def set_deputy(
+        self,
+        unit_id: int,
+        account_id: int,
+    ) -> None:
+        await self._require_unit(unit_id)
+        await self._require_account(account_id)
+        await self._ensure_membership(
+            unit_id,
+            account_id,
+            position_name="Заместитель руководителя",
+        )
+        await self.session.commit()
 
     async def add_user(self, unit_id: int, account_id: int) -> None:
         await self._require_unit(unit_id)
@@ -258,7 +292,13 @@ class OrganizationUnitService:
         await self.session.flush()
         return entity
 
-    async def _ensure_membership(self, unit_id: int, account_id: int) -> None:
+    async def _ensure_membership(
+        self,
+        unit_id: int,
+        account_id: int,
+        *,
+        position_name: str | None = None,
+    ) -> None:
         membership = await self.session.scalar(
             select(AccountOrganizationalUnitMembership).where(
                 AccountOrganizationalUnitMembership.organizational_unit_id
@@ -272,12 +312,15 @@ class OrganizationUnitService:
                 AccountOrganizationalUnitMembership(
                     organizational_unit_id=unit_id,
                     account_id=account_id,
+                    position_name=position_name,
                     is_primary=False,
                     is_active=True,
                 )
             )
         else:
             membership.is_active = True
+            if position_name is not None:
+                membership.position_name = position_name
 
     async def _require_unit(self, unit_id: int) -> OrganizationalUnit:
         unit = await self.session.get(OrganizationalUnit, unit_id)

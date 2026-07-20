@@ -28,6 +28,8 @@ class MenuAction(StrEnum):
     ORGANIZATION_UNIT_ADD_USER = "organization_unit_add_user"
     ORGANIZATION_UNIT_REMOVE_USER = "organization_unit_remove_user"
     ORGANIZATION_UNIT_BACK = "organization_unit_back"
+    ORGANIZATION_STRUCTURE = "organization_structure"
+    ORGANIZATION_UNIT_DEPUTY = "organization_unit_deputy"
 
     HOLDINGS = "holdings"
     HOLDINGS_ALL = "holdings_all"
@@ -142,6 +144,8 @@ ACTION_BUTTONS = {
     MenuAction.ORGANIZATION_UNIT_ADD_USER: "➕ Привязать пользователя",
     MenuAction.ORGANIZATION_UNIT_REMOVE_USER: "➖ Отвязать пользователя",
     MenuAction.ORGANIZATION_UNIT_BACK: "⬅️ К подразделению",
+    MenuAction.ORGANIZATION_STRUCTURE: "🗺 Структура компании",
+    MenuAction.ORGANIZATION_UNIT_DEPUTY: "⭐ Назначить заместителя",
     MenuAction.HOLDINGS: "Холдинги",
     MenuAction.HOLDINGS_ALL: "📋 Все холдинги",
     MenuAction.HOLDING_CATALOG: "⬅️ Каталог холдингов",

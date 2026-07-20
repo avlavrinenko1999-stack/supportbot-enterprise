@@ -24,6 +24,9 @@ from app.handlers.admin.organization.registry import (
 from app.handlers.admin.organization.units import (
     router as units_router,
 )
+from app.handlers.admin.organization.structure import (
+    router as structure_router,
+)
 
 router = Router()
 
@@ -33,5 +36,6 @@ router.include_router(create_router)
 router.include_router(edit_router)
 router.include_router(registry_router)
 router.include_router(units_router)
+router.include_router(structure_router)
 router.include_router(audit_router)
 router.include_router(card_router)

@@ -16,3 +16,4 @@ class OrganizationState(StatesGroup):
     unit_set_owner = State()
     unit_add_user = State()
     unit_remove_user = State()
+    unit_set_deputy = State()

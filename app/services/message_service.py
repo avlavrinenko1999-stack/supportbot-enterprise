@@ -1,6 +1,6 @@
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import BufferedInputFile, Message
 
 from app.services.chat_registry import ChatRegistry
 from app.services.text_service import TextService
@@ -120,4 +120,20 @@ class MessageService:
         )
         ChatRegistry.remember(sent_message)
 
+        return sent_message
+
+    @staticmethod
+    async def send_service_document(
+        message: Message,
+        state: FSMContext,
+        data: bytes,
+        *,
+        filename: str,
+        caption: str,
+    ) -> Message:
+        caption = await TextService.translate(caption)
+        sent_message = await message.answer_document(
+            BufferedInputFile(data, filename=filename),
+            caption=caption,
+        )
         return sent_message

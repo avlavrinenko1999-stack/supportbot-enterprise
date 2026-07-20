@@ -145,11 +145,25 @@ async def render_unit_card(
                 "Подразделение не найдено.",
             )
             return
-        members = [
-            membership.account.full_name
+        active_memberships = [
+            membership
             for membership in unit.account_memberships
             if membership.is_active
             and membership.account is not None
+        ]
+        deputies = [
+            membership.account.full_name
+            for membership in active_memberships
+            if membership.position_name
+            == "Заместитель руководителя"
+        ]
+        members = [
+            membership.account.full_name
+            for membership in active_memberships
+            if membership.account_id
+            != unit.owner_account_id
+            and membership.position_name
+            != "Заместитель руководителя"
         ]
         owner_name = (
             unit.owner.full_name
@@ -178,6 +192,7 @@ async def render_unit_card(
         if members
         else "нет"
     )
+    deputy_text = ", ".join(deputies) if deputies else "нет"
     await MessageService.replace_service_message(
         message,
         state,
@@ -186,6 +201,7 @@ async def render_unit_card(
         f"Описание: {unit.description or 'не указано'}\n"
         f"Вышестоящее: {parent_name}\n"
         f"Владелец: {owner_name}\n"
+        f"Заместители: {deputy_text}\n"
         f"Нижестоящих: {children_count}\n\n"
         f"Пользователи ({len(members)}):\n{member_text}",
         reply_markup=unit_card_menu(),
@@ -412,6 +428,12 @@ async def unit_owner_start(message: Message, state: FSMContext) -> None:
     await _start_unit_input(message, state, OrganizationState.unit_set_owner, "Введите Telegram ID или точное имя нового владельца.")
 
 
+@router.message(MenuActionFilter(MenuAction.ORGANIZATION_UNIT_DEPUTY))
+@require_permission(Permission.ORGANIZATION_MANAGE, scope_resolver=organization_scope_from_state)
+async def unit_deputy_start(message: Message, state: FSMContext) -> None:
+    await _start_unit_input(message, state, OrganizationState.unit_set_deputy, "Введите Telegram ID или точное имя заместителя.")
+
+
 @router.message(MenuActionFilter(MenuAction.ORGANIZATION_UNIT_ADD_USER))
 @require_permission(Permission.ORGANIZATION_MANAGE, scope_resolver=organization_scope_from_state)
 async def unit_add_user_start(message: Message, state: FSMContext) -> None:
@@ -440,6 +462,12 @@ async def unit_description_submit(message: Message, state: FSMContext) -> None:
 @require_permission(Permission.ORGANIZATION_MANAGE, scope_resolver=organization_scope_from_state)
 async def unit_owner_submit(message: Message, state: FSMContext) -> None:
     await _mutate_unit(message, state, "owner")
+
+
+@router.message(OrganizationState.unit_set_deputy)
+@require_permission(Permission.ORGANIZATION_MANAGE, scope_resolver=organization_scope_from_state)
+async def unit_deputy_submit(message: Message, state: FSMContext) -> None:
+    await _mutate_unit(message, state, "deputy")
 
 
 @router.message(OrganizationState.unit_add_user)
@@ -474,6 +502,8 @@ async def _mutate_unit(message: Message, state: FSMContext, action: str) -> None
                 account = await service.find_account(message.text or "")
                 if action == "owner":
                     await service.set_owner(unit_id, account.id)
+                elif action == "deputy":
+                    await service.set_deputy(unit_id, account.id)
                 elif action == "add_user":
                     await service.add_user(unit_id, account.id)
                 else:
