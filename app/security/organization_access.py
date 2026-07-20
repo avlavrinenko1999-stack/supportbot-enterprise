@@ -7,7 +7,10 @@ from sqlalchemy.orm import selectinload
 from app.models.account import Account
 from app.models.enums import ScopeType, UserRole
 from app.models.organization import Organization
+from app.models.permission import PermissionDefinition
+from app.models.role import Role
 from app.models.role_assignment import RoleAssignment
+from app.models.role_permission import RolePermission
 
 
 class OrganizationAccessService:
@@ -156,6 +159,26 @@ class OrganizationAccessService:
                         RoleAssignment.valid_to > now,
                     ),
                 )
+                .join(
+                    Role,
+                    Role.id == RoleAssignment.role_id,
+                )
+                .join(
+                    RolePermission,
+                    RolePermission.role_id == Role.id,
+                )
+                .join(
+                    PermissionDefinition,
+                    PermissionDefinition.id
+                    == RolePermission.permission_id,
+                )
+                .where(
+                    Role.is_active.is_(True),
+                    PermissionDefinition.is_active.is_(True),
+                    PermissionDefinition.code
+                    == "organization.read",
+                )
+                .distinct()
             )
         )
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ScopeType
@@ -58,19 +59,11 @@ class ScopeResolver:
     ) -> tuple[AccessScope, ...]:
         organization_id = self._required_scope_id(target)
 
-        organization = await self.session.get(
-            Organization,
-            organization_id,
-        )
-
-        if organization is None:
-            raise ScopeResolutionError(
-                "Организация области доступа не найдена."
-            )
-
         return (
             AccessScope.platform(),
-            target,
+            *await self._organization_lineage(
+                organization_id
+            ),
         )
 
     async def _resolve_holding(
@@ -91,8 +84,49 @@ class ScopeResolver:
 
         return (
             AccessScope.platform(),
-            AccessScope.organization(holding.organization_id),
+            *await self._organization_lineage(
+                holding.organization_id
+            ),
             target,
+        )
+
+    async def _organization_lineage(
+        self,
+        organization_id: int,
+    ) -> tuple[AccessScope, ...]:
+        tree = (
+            select(
+                Organization.id,
+                Organization.parent_id,
+            )
+            .where(Organization.id == organization_id)
+            .cte(
+                name="organization_scope_lineage",
+                recursive=True,
+            )
+        )
+        parents = select(
+            Organization.id,
+            Organization.parent_id,
+        ).join(
+            tree,
+            Organization.id == tree.c.parent_id,
+        )
+        tree = tree.union_all(parents)
+        organization_ids = list(
+            await self.session.scalars(
+                select(tree.c.id)
+            )
+        )
+
+        if not organization_ids:
+            raise ScopeResolutionError(
+                "Организация области доступа не найдена."
+            )
+
+        return tuple(
+            AccessScope.organization(item_id)
+            for item_id in reversed(organization_ids)
         )
 
     async def _resolve_business_unit(

@@ -140,6 +140,24 @@ async def test_holding_assignment_does_not_grant_access() -> None:
 
 
 @pytest.mark.asyncio
+async def test_visibility_assignments_require_read_permission() -> None:
+    session = make_session()
+    session.scalars.return_value = []
+
+    await OrganizationAccessService(
+        session
+    ).list_visible_organizations(
+        make_account(role=UserRole.USER)
+    )
+
+    statement = session.scalars.await_args.args[0]
+    compiled = statement.compile(
+        compile_kwargs={"literal_binds": True}
+    )
+    assert "organization.read" in str(compiled)
+
+
+@pytest.mark.asyncio
 async def test_invalid_id_is_rejected() -> None:
     session = make_session()
 

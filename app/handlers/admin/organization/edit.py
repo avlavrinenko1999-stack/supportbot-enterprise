@@ -97,6 +97,10 @@ async def organization_rename_start(
 
 
 @router.message(OrganizationState.rename_name)
+@require_permission(
+    Permission.ORGANIZATION_MANAGE,
+    scope_resolver=organization_scope_from_state,
+)
 async def organization_rename_submit(
     message: Message,
     state: FSMContext,

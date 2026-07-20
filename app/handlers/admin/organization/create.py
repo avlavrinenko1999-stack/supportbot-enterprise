@@ -10,6 +10,8 @@ from app.handlers.admin.organization.state import OrganizationState
 from app.keyboards.organization import ORGANIZATION_TYPE_LABELS, organization_button_text
 from app.models.enums import OrganizationType
 from app.security.decorators import require_permission
+from app.security.access_scope import AccessScope
+from app.security.authorization import AuthorizationService
 from app.security.organization_access import OrganizationAccessService
 from app.security.permissions import Permission
 from app.services.message_service import MessageService
@@ -180,12 +182,34 @@ async def organization_create_name(
         return
 
     async with AsyncSessionLocal() as session:
+        parent_id = data.get("create_organization_parent_id")
+        target_scope = (
+            AccessScope.organization(parent_id)
+            if parent_id is not None
+            else AccessScope.platform()
+        )
+        allowed = await AuthorizationService.can_async(
+            account,
+            Permission.ORGANIZATION_MANAGE,
+            scope=target_scope,
+            session=session,
+        )
+        if not allowed:
+            await state.set_state(None)
+            await MessageService.replace_service_message(
+                message,
+                state,
+                "Недостаточно прав для создания организации "
+                "в выбранной области.",
+            )
+            return
+
         service = OrganizationService(session)
         try:
             organization = await service.create_organization(
                 name=message.text or "",
                 organization_type=organization_type,
-                parent_id=data.get("create_organization_parent_id"),
+                parent_id=parent_id,
                 actor_account_id=account.id,
             )
         except ValueError as error:
