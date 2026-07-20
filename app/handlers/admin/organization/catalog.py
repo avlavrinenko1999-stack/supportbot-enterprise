@@ -5,7 +5,6 @@ from aiogram.types import Message
 from app.database.db import AsyncSessionLocal
 from app.handlers.admin.common import get_current_account_or_answer
 from app.keyboards.organization import (
-    organization_button_text,
     organizations_catalog_reply_menu,
 )
 from app.security.decorators import require_permission
@@ -52,17 +51,10 @@ async def render_organizations_catalog(
         len(organizations) - active_count
     )
 
-    button_map = {
-        organization_button_text(
-            organization
-        ): organization.id
-        for organization in organizations
-    }
-
     await UIContext.set_value(
         state,
         "organization_button_map",
-        button_map,
+        {},
     )
     await UIContext.set_section(
         state,
@@ -76,10 +68,8 @@ async def render_organizations_catalog(
         f"Доступно: {len(organizations)}\n"
         f"Активных: {active_count}\n"
         f"В архиве: {archived_count}\n\n"
-        "Выберите организацию кнопкой.",
-        reply_markup=organizations_catalog_reply_menu(
-            organizations
-        ),
+        "Найдите организацию по ИНН или части наименования.",
+        reply_markup=organizations_catalog_reply_menu(),
     )
 
 

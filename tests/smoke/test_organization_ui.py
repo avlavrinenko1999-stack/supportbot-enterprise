@@ -2,10 +2,14 @@ from app.handlers.admin.organization import router
 from app.handlers.admin.organization.card import (
     organization_card_text,
 )
+from app.handlers.admin.organization.search import (
+    organization_matches_query,
+)
 from app.keyboards.admin import admin_main_menu
 from app.keyboards.organization import (
     organization_card_reply_menu,
     organization_type_label,
+    organizations_catalog_reply_menu,
 )
 from app.models.enums import OrganizationType
 from app.ui.actions import (
@@ -34,6 +38,42 @@ def test_admin_menu_contains_organizations() -> None:
 
     assert "Организации" in texts
     assert "Компании" not in texts
+
+
+def test_catalog_has_no_organization_buttons() -> None:
+    texts = keyboard_texts(
+        organizations_catalog_reply_menu()
+    )
+
+    assert texts == [
+        "➕ Создать организацию",
+        "🔎 Найти организацию",
+        "⬅️ Назад",
+    ]
+
+
+def test_organization_search_matches_name_and_inn() -> None:
+    organization = type(
+        "OrganizationStub",
+        (),
+        {
+            "name": 'ООО "СОКРАТ КАРГО"',
+            "inn": "3906320407",
+        },
+    )()
+
+    assert organization_matches_query(
+        organization,
+        "сократ",
+    )
+    assert organization_matches_query(
+        organization,
+        "632040",
+    )
+    assert not organization_matches_query(
+        organization,
+        "корона",
+    )
 
 
 def test_organization_actions_are_registered() -> None:

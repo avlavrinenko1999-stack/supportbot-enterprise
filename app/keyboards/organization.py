@@ -34,25 +34,15 @@ def organization_button_text(
 
 
 def organizations_catalog_reply_menu(
-    organizations: list[Organization],
 ) -> ReplyKeyboardMarkup:
-    buttons = [
-        organization_button_text(organization)
-        for organization in organizations
-    ]
-
-    buttons.extend(
+    return reply_keyboard(
         [
             "➕ Создать организацию",
             "🔎 Найти организацию",
             "⬅️ Назад",
-        ]
-    )
-
-    return reply_keyboard(
-        buttons,
+        ],
         input_field_placeholder=(
-            "Выберите организацию"
+            "Найдите организацию"
         ),
     )
 
