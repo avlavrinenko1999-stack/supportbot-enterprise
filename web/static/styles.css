@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-  background: #0c1230;
+  background: #44474c;
   color: #fff;
 }
 
@@ -12,7 +12,7 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
-  background: #0c1230;
+  background: #44474c;
 }
 
 button { font: inherit; }
@@ -23,32 +23,33 @@ button { font: inherit; }
   z-index: -1;
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 12%, rgba(92, 111, 255, .85), transparent 31%),
-    radial-gradient(circle at 86% 78%, rgba(10, 202, 192, .45), transparent 32%),
-    linear-gradient(145deg, #101741 0%, #271450 46%, #071d38 100%);
-  filter: saturate(1.15);
+    radial-gradient(circle at 16% 10%, rgba(255, 255, 255, .3), transparent 28%),
+    radial-gradient(circle at 84% 82%, rgba(220, 225, 230, .2), transparent 31%),
+    linear-gradient(145deg, #767a80 0%, #4d5157 44%, #2f3338 100%);
 }
 
 .wallpaper::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(5, 9, 29, .18);
-  backdrop-filter: blur(30px);
+  background:
+    linear-gradient(115deg, rgba(255,255,255,.08), transparent 38%),
+    rgba(31, 34, 38, .1);
+  backdrop-filter: blur(34px) saturate(.75);
 }
 
 .orb {
   position: absolute;
   display: block;
   border-radius: 45% 55% 60% 40%;
-  filter: blur(3px);
-  opacity: .7;
+  filter: blur(18px);
+  opacity: .42;
   transform: rotate(22deg);
 }
 
-.orb-one { width: 42vw; height: 42vw; left: -8%; bottom: -11%; background: #dd497f; }
-.orb-two { width: 38vw; height: 34vw; right: -4%; top: -8%; background: #315ee9; }
-.orb-three { width: 24vw; height: 24vw; right: 22%; bottom: 4%; background: #06a7a2; }
+.orb-one { width: 42vw; height: 42vw; left: -8%; bottom: -11%; background: #aeb2b8; }
+.orb-two { width: 38vw; height: 34vw; right: -4%; top: -8%; background: #d8dadd; }
+.orb-three { width: 24vw; height: 24vw; right: 22%; bottom: 4%; background: #777c83; }
 
 .launchpad {
   min-height: 100vh;
@@ -74,8 +75,9 @@ button { font: inherit; }
   place-items: center;
   border: 1px solid rgba(255,255,255,.24);
   border-radius: 9px;
-  background: rgba(255,255,255,.15);
-  box-shadow: inset 0 1px rgba(255,255,255,.2);
+  background: linear-gradient(145deg, rgba(255,255,255,.2), rgba(255,255,255,.07));
+  box-shadow: inset 0 1px rgba(255,255,255,.28), 0 7px 18px rgba(20,22,25,.16);
+  backdrop-filter: blur(18px) saturate(1.15);
 }
 
 .welcome { text-align: center; margin: clamp(54px, 9vh, 100px) 0 35px; }
@@ -114,23 +116,16 @@ button { font: inherit; }
   border-radius: 24%;
   font-size: clamp(38px, 4.4vw, 53px);
   line-height: 1;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.45), 0 16px 32px rgba(2,5,24,.3);
+  background: linear-gradient(145deg, rgba(255,255,255,.25), rgba(255,255,255,.07) 55%, rgba(20,24,28,.08));
+  box-shadow: inset 1px 1px 1px rgba(255,255,255,.52), inset -1px -1px 1px rgba(255,255,255,.05), 0 16px 32px rgba(20,22,25,.25);
+  backdrop-filter: blur(22px) saturate(1.2);
   transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
 }
 
-.app:hover .app-icon { transform: translateY(-5px) scale(1.04); filter: brightness(1.08); box-shadow: inset 0 1px 1px rgba(255,255,255,.5), 0 22px 38px rgba(2,5,24,.38); }
+.app:hover .app-icon { transform: translateY(-5px) scale(1.04); filter: brightness(1.12); box-shadow: inset 1px 1px 1px rgba(255,255,255,.65), 0 22px 38px rgba(20,22,25,.34); }
 .app:active .app-icon { transform: scale(.92); }
 .app:focus-visible { outline: 3px solid rgba(255,255,255,.9); outline-offset: 8px; border-radius: 18px; }
 .app-label { font-size: 15px; font-weight: 500; text-shadow: 0 2px 7px rgba(0,0,0,.55); }
-
-.icon-organizations { background: linear-gradient(145deg, #6f8cff, #3f4cc9); }
-.icon-holdings { background: linear-gradient(145deg, #b875ee, #713bbb); }
-.icon-employees { background: linear-gradient(145deg, #3bd7ca, #17869f); }
-.icon-tickets { background: linear-gradient(145deg, #ff9264, #d54650); }
-.icon-reports { background: linear-gradient(145deg, #65d58b, #1c9a72); }
-.icon-access { background: linear-gradient(145deg, #ffd66a, #e48a22); }
-.icon-profile { background: linear-gradient(145deg, #73b5ff, #3465cc); }
-.icon-language { background: linear-gradient(145deg, #ec7fb3, #a43fa1); }
 
 .status { min-height: 24px; margin: 32px 0 0; text-align: center; color: rgba(255,255,255,.68); font-size: 14px; }
 .page-dots { margin-top: auto; padding-top: 24px; display: flex; justify-content: center; gap: 7px; }
