@@ -13,6 +13,9 @@ TEXT_INPUT_ALLOWED_STATES = {
     "CompanyRenameState:name",
     "CategoryCreateState:name",
     "CategoryRenameState:name",
+    "HoldingState:create_name",
+    "HoldingState:rename_name",
+    "HoldingState:search_query",
 }
 
 

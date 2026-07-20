@@ -4,7 +4,14 @@ from app.ui.actions import MenuAction, resolve_menu_action
 
 
 def test_holding_router_contains_action_routers() -> None:
-    assert len(router.sub_routers) == 4
+    assert len(router.sub_routers) == 5
+
+
+def test_holding_create_action_is_resolved() -> None:
+    assert (
+        resolve_menu_action("➕ Создать холдинг")
+        == MenuAction.HOLDING_CREATE
+    )
 
 
 def test_holding_search_action_is_resolved() -> None:
@@ -42,5 +49,7 @@ def test_holding_restore_action_is_resolved() -> None:
 
 
 def test_holding_fsm_contains_only_input_states() -> None:
+    assert HoldingState.create_organization is not None
+    assert HoldingState.create_name is not None
     assert HoldingState.search_query is not None
     assert HoldingState.rename_name is not None
