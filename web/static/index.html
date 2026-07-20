@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111936">
+    <title>SupportBot Enterprise</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="wallpaper" aria-hidden="true">
+      <span class="orb orb-one"></span>
+      <span class="orb orb-two"></span>
+      <span class="orb orb-three"></span>
+    </div>
+
+    <main class="launchpad">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">S</span>
+          <span>SupportBot Enterprise</span>
+        </div>
+        <time id="clock" aria-label="Текущее время"></time>
+      </header>
+
+      <section class="welcome" aria-labelledby="page-title">
+        <p class="eyebrow">Рабочее пространство</p>
+        <h1 id="page-title">Главная</h1>
+        <p>Выберите раздел</p>
+      </section>
+
+      <nav class="app-grid" aria-label="Главное меню">
+        <button class="app" type="button" data-section="Организации">
+          <span class="app-icon icon-organizations" aria-hidden="true">🏢</span>
+          <span class="app-label">Организации</span>
+        </button>
+        <button class="app" type="button" data-section="Холдинги">
+          <span class="app-icon icon-holdings" aria-hidden="true">🏛️</span>
+          <span class="app-label">Холдинги</span>
+        </button>
+        <button class="app" type="button" data-section="Сотрудники">
+          <span class="app-icon icon-employees" aria-hidden="true">👥</span>
+          <span class="app-label">Сотрудники</span>
+        </button>
+        <button class="app" type="button" data-section="Тикеты">
+          <span class="app-icon icon-tickets" aria-hidden="true">🎫</span>
+          <span class="app-label">Тикеты</span>
+        </button>
+        <button class="app" type="button" data-section="Отчёты">
+          <span class="app-icon icon-reports" aria-hidden="true">📊</span>
+          <span class="app-label">Отчёты</span>
+        </button>
+        <button class="app" type="button" data-section="Доступы">
+          <span class="app-icon icon-access" aria-hidden="true">🔐</span>
+          <span class="app-label">Доступы</span>
+        </button>
+        <button class="app" type="button" data-section="Профиль">
+          <span class="app-icon icon-profile" aria-hidden="true">👤</span>
+          <span class="app-label">Профиль</span>
+        </button>
+        <button class="app" type="button" data-section="🌐 Language">
+          <span class="app-icon icon-language" aria-hidden="true">🌐</span>
+          <span class="app-label">Language</span>
+        </button>
+      </nav>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div class="page-dots" aria-hidden="true"><span></span><i></i></div>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
