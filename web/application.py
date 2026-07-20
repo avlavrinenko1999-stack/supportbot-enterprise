@@ -29,6 +29,7 @@ from app.models.enums import (
 from app.models.invite import Invite
 from app.models.mail_settings import MailSettings
 from app.models.message import Message
+from app.models.organization import Organization
 from app.models.organizational_unit import OrganizationalUnit
 from app.models.role_assignment import RoleAssignment
 from app.models.ticket import Ticket
@@ -40,6 +41,8 @@ from app.security.organization_access import OrganizationAccessService
 from app.security.permissions import Permission
 from app.services.employee_service import EmployeeService
 from app.services.company_structure_pdf_service import CompanyStructurePdfService
+from app.services.holding_audit_service import HoldingAuditService
+from app.services.holding_service import HoldingService
 from app.services.invite_service import InviteService
 from app.services.web_identity_service import WebIdentityService
 from app.services.organization_audit_service import OrganizationAuditService
@@ -767,7 +770,93 @@ async def holdings_page(request: web.Request, account: Account) -> web.Response:
     if query:
         values = [item for item in values if query in item.name.casefold() or query in item.organization.name.casefold()]
     items = [f'<a class="data-card glass" href="/holdings/{item.id}"><div class="card-icon">🏛️</div><div><h3>{esc(item.name)}</h3><p>{esc(item.organization.name)} · {"Активен" if item.is_active else "Архив"}</p></div></a>' for item in values]
-    return page("Холдинги", search_form("/holdings", request.query.get("q", ""), "Название холдинга или организации") + cards(items), account=account, active="holdings")
+    create_action = ""
+    if await can(account, Permission.HOLDING_MANAGE):
+        create_action = '<a class="button" href="/holdings/create">➕ Создать холдинг</a>'
+    navigation = (
+        f'<div class="action-bar"><a class="button secondary-link" href="/holdings">🔎 Найти холдинг</a>{create_action}'
+        '<a class="button secondary-link" href="/">⬅️ На главную</a></div>'
+    )
+    return page("Холдинги", navigation + search_form("/holdings", request.query.get("q", ""), "Название холдинга или организации") + cards(items), account=account, active="holdings")
+
+
+@authenticated
+async def holding_create_page(request: web.Request, account: Account) -> web.Response:
+    if not await can(account, Permission.HOLDING_MANAGE):
+        return error_page("Недостаточно прав.", status=403, account=account)
+    query = request.query.get("q", "").strip()
+    organization_id_text = request.query.get("organization_id", "")
+    session = session_for(request)
+    if organization_id_text.isdigit():
+        organization_id = int(organization_id_text)
+        async with AsyncSessionLocal() as db:
+            access = OrganizationAccessService(db)
+            allowed = await access.can_access_organization(account, organization_id)
+            allowed = allowed and await AuthorizationService.can_async(
+                account,
+                Permission.HOLDING_MANAGE,
+                scope=AccessScope.organization(organization_id),
+                session=db,
+            )
+            organization = await db.get(Organization, organization_id) if allowed else None
+        if organization is None:
+            return error_page("Организация недоступна.", status=403, account=account)
+        content = f'''<section class="panel glass form-panel"><h2>Новый холдинг</h2><p>Организация: <b>{esc(organization.name)}</b></p>
+<form method="post" action="/holdings/create"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><input type="hidden" name="organization_id" value="{organization.id}">
+<div class="form-grid"><label>Название холдинга<input name="name" required minlength="2" maxlength="255" autofocus></label></div>
+<div class="action-bar"><button class="button" type="submit">Создать</button><a class="button secondary-link" href="/holdings/create">Выбрать другую организацию</a></div></form></section>'''
+        return page("Создать холдинг", content, account=account, active="holdings")
+    search = search_form("/holdings/create", query, "ИНН или часть наименования организации")
+    if len(query) < 2:
+        prompt = "Введите ИНН или часть наименования организации."
+        if query:
+            prompt = "Запрос должен содержать не менее двух символов."
+        return page("Создать холдинг", search + f'<section class="empty glass">{prompt}</section>', account=account, active="holdings")
+    async with AsyncSessionLocal() as db:
+        organizations = await OrganizationAccessService(db).list_visible_organizations(account, active=True)
+    digits = "".join(filter(str.isdigit, query))
+    matches = [
+        item
+        for item in organizations
+        if query.casefold() in item.name.casefold()
+        or (digits and digits in (item.inn or ""))
+    ][:8]
+    results = [
+        f'<a class="data-card glass" href="/holdings/create?organization_id={item.id}"><div class="card-icon">🏢</div><div><h3>{esc(item.name)}</h3><p>ИНН {esc(item.inn or "не указан")}</p></div></a>'
+        for item in matches
+    ]
+    return page("Создать холдинг", search + cards(results, "Доступные организации не найдены"), account=account, active="holdings")
+
+
+@authenticated
+async def holding_create_submit(request: web.Request, account: Account) -> web.Response:
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    try:
+        organization_id = int(str(form.get("organization_id", "")))
+    except ValueError:
+        return error_page("Организация не выбрана.", account=account)
+    async with AsyncSessionLocal() as db:
+        access = OrganizationAccessService(db)
+        allowed = await access.can_access_organization(account, organization_id)
+        allowed = allowed and await AuthorizationService.can_async(
+            account,
+            Permission.HOLDING_MANAGE,
+            scope=AccessScope.organization(organization_id),
+            session=db,
+        )
+        if not allowed:
+            return error_page("Недостаточно прав.", status=403, account=account)
+        try:
+            holding = await HoldingService(db).create_holding(
+                organization_id=organization_id,
+                name=str(form.get("name", "")),
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
+            return error_page(str(error), account=account)
+    raise web.HTTPFound(f"/holdings/{holding.id}")
 
 
 @authenticated
@@ -778,8 +867,150 @@ async def holding_card(request: web.Request, account: Account) -> web.Response:
         if not await access.can_access_holding(account, holding_id):
             return error_page("Холдинг недоступен.", status=403, account=account)
         item = await db.scalar(select(Holding).where(Holding.id == holding_id).options(selectinload(Holding.organization)))
-    content = f'<section class="panel glass"><div class="hero-icon">🏛️</div><h2>{esc(item.name)}</h2><dl><dt>Организация</dt><dd><a href="/organizations/{item.organization_id}">{esc(item.organization.name)}</a></dd><dt>Статус</dt><dd>{"Активен" if item.is_active else "В архиве"}</dd><dt>Создан</dt><dd>{esc(item.created_at.strftime("%d.%m.%Y"))}</dd></dl></section>'
+        manage_allowed = await AuthorizationService.can_async(
+            account,
+            Permission.HOLDING_MANAGE,
+            scope=AccessScope.holding(holding_id),
+            session=db,
+        )
+        audit_allowed = await AuthorizationService.can_async(
+            account,
+            Permission.HOLDING_AUDIT_VIEW,
+            scope=AccessScope.holding(holding_id),
+            session=db,
+        )
+    session = session_for(request)
+    actions = [
+        f'<a class="org-action" href="/holdings/{holding_id}/companies">🏢 <span>Компании холдинга</span></a>',
+        f'<a class="org-action" href="/holdings/{holding_id}/admins">👤 <span>Администраторы холдинга</span></a>',
+    ]
+    if audit_allowed:
+        actions.append(f'<a class="org-action" href="/holdings/{holding_id}/audit">📜 <span>История холдинга</span></a>')
+    if manage_allowed:
+        actions.extend(
+            [
+                f'<a class="org-action" href="/holdings/{holding_id}/rename">✏️ <span>Переименовать холдинг</span></a>',
+                f'<form method="post" action="/holdings/{holding_id}/lifecycle"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><button class="org-action" type="submit">{"📦" if item.is_active else "✅"} <span>{"Архивировать холдинг" if item.is_active else "Восстановить холдинг"}</span></button></form>',
+            ]
+        )
+    actions.extend(
+        [
+            '<a class="org-action navigation" href="/holdings">⬅️ <span>Каталог холдингов</span></a>',
+            '<a class="org-action navigation" href="/">⌂ <span>На главную</span></a>',
+        ]
+    )
+    content = f'''<section class="organization-layout"><article class="panel glass"><div class="organization-heading"><div class="hero-icon">🏛️</div><div><span class="status-pill">{"активен" if item.is_active else "в архиве"}</span><h2>{esc(item.name)}</h2><p>Холдинг</p></div></div>
+<div class="card-section"><h3>Холдинг</h3><dl><dt>Название</dt><dd>{esc(item.name)}</dd><dt>Организация</dt><dd><a href="/organizations/{item.organization_id}">{esc(item.organization.name)}</a></dd><dt>Статус</dt><dd>{"активен" if item.is_active else "в архиве"}</dd><dt>Создан</dt><dd>{esc(item.created_at.strftime("%d.%m.%Y"))}</dd></dl></div></article>
+<aside class="organization-actions glass"><h3>Действия</h3>{''.join(actions)}</aside></section>'''
     return page("Карточка холдинга", content, account=account, active="holdings")
+
+
+async def require_holding_action(account: Account, holding_id: int, permission: Permission):
+    db = AsyncSessionLocal()
+    if not await HoldingAccessService(db).can_access_holding(account, holding_id):
+        await db.close()
+        return None
+    allowed = await AuthorizationService.can_async(
+        account,
+        permission,
+        scope=AccessScope.holding(holding_id),
+        session=db,
+    )
+    if not allowed:
+        await db.close()
+        return None
+    return db
+
+
+@authenticated
+async def holding_rename_page(request: web.Request, account: Account) -> web.Response:
+    holding_id = int(request.match_info["id"])
+    db = await require_holding_action(account, holding_id, Permission.HOLDING_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        holding = await HoldingService(db).require_holding(holding_id)
+    session = session_for(request)
+    content = f'''<section class="panel glass form-panel"><h2>Переименование холдинга</h2><form method="post" action="/holdings/{holding_id}/rename"><input type="hidden" name="csrf" value="{esc(session.csrf_token)}"><div class="form-grid"><label>Новое название<input name="name" value="{esc(holding.name)}" required minlength="2" maxlength="255"></label></div><div class="action-bar"><button class="button" type="submit">Сохранить</button><a class="button secondary-link" href="/holdings/{holding_id}">Отмена</a></div></form></section>'''
+    return page("Переименовать холдинг", content, account=account, active="holdings")
+
+
+@authenticated
+async def holding_rename_update(request: web.Request, account: Account) -> web.Response:
+    holding_id = int(request.match_info["id"])
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    db = await require_holding_action(account, holding_id, Permission.HOLDING_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        try:
+            await HoldingService(db).rename_holding(
+                holding_id,
+                str(form.get("name", "")),
+                actor_account_id=account.id,
+            )
+        except ValueError as error:
+            return error_page(str(error), account=account)
+    raise web.HTTPFound(f"/holdings/{holding_id}")
+
+
+@authenticated
+async def holding_lifecycle(request: web.Request, account: Account) -> web.Response:
+    holding_id = int(request.match_info["id"])
+    form = await request.post()
+    if not valid_csrf(request, form):
+        return error_page("Проверка безопасности не пройдена.", status=403, account=account)
+    db = await require_holding_action(account, holding_id, Permission.HOLDING_MANAGE)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        service = HoldingService(db)
+        holding = await service.require_holding(holding_id)
+        await service.set_holding_active(
+            holding_id,
+            not holding.is_active,
+            actor_account_id=account.id,
+        )
+    raise web.HTTPFound(f"/holdings/{holding_id}")
+
+
+@authenticated
+async def holding_companies(request: web.Request, account: Account) -> web.Response:
+    holding_id = int(request.match_info["id"])
+    db = await require_holding_action(account, holding_id, Permission.HOLDING_VIEW)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        holding = await HoldingService(db).get_holding(holding_id)
+    content = f'<div class="action-bar"><a class="button secondary-link" href="/holdings/{holding_id}">К карточке</a></div><section class="data-grid"><a class="data-card glass" href="/organizations/{holding.organization_id}"><div class="card-icon">🏢</div><div><h3>{esc(holding.organization.name)}</h3><p>Организация холдинга</p></div></a></section>'
+    return page("Компании холдинга", content, account=account, active="holdings")
+
+
+@authenticated
+async def holding_admins(request: web.Request, account: Account) -> web.Response:
+    holding_id = int(request.match_info["id"])
+    db = await require_holding_action(account, holding_id, Permission.HOLDING_VIEW)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        assignments = list(await db.scalars(select(RoleAssignment).where(RoleAssignment.scope_type == ScopeType.HOLDING, RoleAssignment.scope_id == holding_id, RoleAssignment.is_active.is_(True)).options(selectinload(RoleAssignment.account), selectinload(RoleAssignment.role))))
+    rows = [f'<div class="data-card glass"><div class="card-icon">👤</div><div><h3>{esc(item.account.full_name)}</h3><p>{esc(item.role.name)}</p></div></div>' for item in assignments]
+    return page("Администраторы холдинга", f'<div class="action-bar"><a class="button secondary-link" href="/holdings/{holding_id}">К карточке</a></div>' + cards(rows, "Администраторы не назначены"), account=account, active="holdings")
+
+
+@authenticated
+async def holding_audit_page(request: web.Request, account: Account) -> web.Response:
+    holding_id = int(request.match_info["id"])
+    db = await require_holding_action(account, holding_id, Permission.HOLDING_AUDIT_VIEW)
+    if db is None:
+        return error_page("Недостаточно прав.", status=403, account=account)
+    async with db:
+        holding = await HoldingService(db).require_holding(holding_id)
+        events = await HoldingAuditService(db).list_holding_events(holding_id, limit=30)
+    rows = "".join(f'<article class="message glass"><b>{esc(event.title)}</b><time>{event.created_at:%d.%m.%Y %H:%M}</time><p>{esc(event.details or event.event_type)}</p></article>' for event in events)
+    return page(f"История · {holding.name}", f'<div class="action-bar"><a class="button secondary-link" href="/holdings/{holding_id}">К карточке</a></div><section class="message-list">{rows or "<p>Изменений пока нет.</p>"}</section>', account=account, active="holdings")
 
 
 async def visible_unit_ids(db, account: Account) -> set[int]:
@@ -1144,7 +1375,15 @@ def create_application() -> web.Application:
     application.router.add_get("/organizations/{id:\\d+}/audit", organization_audit_page)
     application.router.add_get("/organizations/{id:\\d+}/structure", organization_structure)
     application.router.add_get("/holdings", holdings_page)
+    application.router.add_get("/holdings/create", holding_create_page)
+    application.router.add_post("/holdings/create", holding_create_submit)
     application.router.add_get("/holdings/{id:\\d+}", holding_card)
+    application.router.add_get("/holdings/{id:\\d+}/rename", holding_rename_page)
+    application.router.add_post("/holdings/{id:\\d+}/rename", holding_rename_update)
+    application.router.add_post("/holdings/{id:\\d+}/lifecycle", holding_lifecycle)
+    application.router.add_get("/holdings/{id:\\d+}/companies", holding_companies)
+    application.router.add_get("/holdings/{id:\\d+}/admins", holding_admins)
+    application.router.add_get("/holdings/{id:\\d+}/audit", holding_audit_page)
     application.router.add_get("/employees", employees_page)
     application.router.add_get("/employees/{id:\\d+}", employee_card)
     application.router.add_get("/tickets", tickets_page)
