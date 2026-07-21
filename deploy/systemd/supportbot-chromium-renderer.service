@@ -1,0 +1,21 @@
+[Unit]
+Description=SupportBot Enterprise server-side Chromium renderer
+After=network.target supportbot-web.service
+Requires=supportbot-web.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/supportbot_v2
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/supportbot_v2/.playwright-browsers
+Environment=SUPPORTBOT_RENDERER_TOKEN=SBRT-7pQv4nKm2xY8cFa6Dz3Hw9Lt5Re1
+ExecStart=/opt/supportbot_v2/venv/bin/python /opt/supportbot_v2/web/chromium_renderer.py
+Restart=always
+RestartSec=5
+MemoryMax=420M
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
