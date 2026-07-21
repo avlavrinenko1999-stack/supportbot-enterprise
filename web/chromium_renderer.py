@@ -9,7 +9,7 @@ from playwright.async_api import async_playwright
 
 TARGET_URL = "http://127.0.0.1:8080/?embedded=1c&remote=1"
 VIEWPORT = {"width": 1440, "height": 900}
-SESSION_TTL = 3600
+SESSION_TTL = 900
 ACCESS_TOKEN = os.environ.get("SUPPORTBOT_RENDERER_TOKEN", "")
 
 
@@ -29,6 +29,10 @@ class Renderer:
 
     async def start(self, app):
         self.playwright = await async_playwright().start()
+        await self.launch_browser()
+        app["cleanup_task"] = asyncio.create_task(self.cleanup_loop())
+
+    async def launch_browser(self):
         self.browser = await self.playwright.chromium.launch(
             headless=True,
             args=[
@@ -40,7 +44,21 @@ class Renderer:
                 "--js-flags=--max-old-space-size=160",
             ],
         )
-        app["cleanup_task"] = asyncio.create_task(self.cleanup_loop())
+
+    async def ensure_browser(self):
+        if self.browser is not None and self.browser.is_connected():
+            return
+        async with self.lock:
+            if self.browser is not None and self.browser.is_connected():
+                return
+            for entry in list(self.sessions.values()):
+                with contextlib.suppress(Exception):
+                    await entry["context"].close()
+            self.sessions.clear()
+            with contextlib.suppress(Exception):
+                if self.browser:
+                    await self.browser.close()
+            await self.launch_browser()
 
     async def stop(self, app):
         app["cleanup_task"].cancel()
@@ -63,17 +81,20 @@ class Renderer:
                     self.sessions.pop(sid, None)
 
     async def get_session(self, sid):
+        await self.ensure_browser()
         if not sid or sid not in self.sessions:
-            sid = secrets.token_urlsafe(24)
-            context = await self.browser.new_context(viewport=VIEWPORT)
-            page = await context.new_page()
-            await page.goto(TARGET_URL, wait_until="domcontentloaded", timeout=30000)
-            self.sessions[sid] = {
-                "context": context,
-                "page": page,
-                "last_seen": time.monotonic(),
-                "lock": asyncio.Lock(),
-            }
+            async with self.lock:
+                if not sid or sid not in self.sessions:
+                    sid = secrets.token_urlsafe(24)
+                    context = await self.browser.new_context(viewport=VIEWPORT)
+                    page = await context.new_page()
+                    await page.goto(TARGET_URL, wait_until="domcontentloaded", timeout=30000)
+                    self.sessions[sid] = {
+                        "context": context,
+                        "page": page,
+                        "last_seen": time.monotonic(),
+                        "lock": asyncio.Lock(),
+                    }
         self.sessions[sid]["last_seen"] = time.monotonic()
         return sid, self.sessions[sid]
 
