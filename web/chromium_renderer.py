@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import contextlib
 import os
 import secrets
@@ -65,7 +66,8 @@ class Renderer:
         with contextlib.suppress(asyncio.CancelledError):
             await app["cleanup_task"]
         for entry in list(self.sessions.values()):
-            await entry["context"].close()
+            with contextlib.suppress(Exception):
+                await entry["context"].close()
         if self.browser:
             await self.browser.close()
         if self.playwright:
@@ -89,12 +91,33 @@ class Renderer:
                     context = await self.browser.new_context(viewport=VIEWPORT)
                     page = await context.new_page()
                     await page.goto(TARGET_URL, wait_until="domcontentloaded", timeout=30000)
-                    self.sessions[sid] = {
+                    entry = {
                         "context": context,
                         "page": page,
                         "last_seen": time.monotonic(),
                         "lock": asyncio.Lock(),
+                        "frame": None,
                     }
+                    cdp = await context.new_cdp_session(page)
+                    entry["cdp"] = cdp
+
+                    async def accept_frame(params, current=entry):
+                        current["frame"] = base64.b64decode(params["data"])
+                        with contextlib.suppress(Exception):
+                            await current["cdp"].send(
+                                "Page.screencastFrameAck",
+                                {"sessionId": params["sessionId"]},
+                            )
+
+                    cdp.on(
+                        "Page.screencastFrame",
+                        lambda params: asyncio.create_task(accept_frame(params)),
+                    )
+                    await cdp.send(
+                        "Page.startScreencast",
+                        {"format": "jpeg", "quality": 84, "maxWidth": 1920, "maxHeight": 1200, "everyNthFrame": 1},
+                    )
+                    self.sessions[sid] = entry
         self.sessions[sid]["last_seen"] = time.monotonic()
         return sid, self.sessions[sid]
 
@@ -110,13 +133,15 @@ async def surface(request):
     sid, _ = await renderer.get_session(request.query.get("sid"))
     html = f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>SupportBot Enterprise</title>
-<style>html,body{{margin:0;width:100%;height:100%;overflow:hidden;background:#eef1f4}}#f{{width:100%;height:100%;object-fit:fill;user-select:none}}</style></head>
+<style>html,body{{margin:0;width:100%;height:100%;overflow:hidden;background:#eef1f4}}#f{{display:block;width:100%;height:100%;object-fit:fill;user-select:none}}</style></head>
 <body><img id="f" draggable="false" alt="SupportBot Enterprise">
 <script>
 var sid={sid!r}, token=new URLSearchParams(location.search).get('token'), img=document.getElementById('f'), busy=false;
 function frame(){{if(busy)return;busy=true;img.onload=img.onerror=function(){{busy=false}};img.src='/renderer/frame?token='+encodeURIComponent(token)+'&sid='+encodeURIComponent(sid)+'&t='+Date.now()}}
-setInterval(frame,300);frame();
+setInterval(frame,80);frame();
 function send(o){{o.sid=sid;fetch('/renderer/input?token='+encodeURIComponent(token),{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(o)}})}}
+function resize(){{var r=img.getBoundingClientRect();send({{type:'resize',width:Math.round(r.width),height:Math.round(r.height)}})}}
+window.addEventListener('resize',resize);setTimeout(resize,0);setTimeout(resize,500);
 img.addEventListener('mousedown',function(e){{var r=img.getBoundingClientRect();send({{type:'click',x:(e.clientX-r.left)*1440/r.width,y:(e.clientY-r.top)*900/r.height,button:e.button}})}});
 window.addEventListener('keydown',function(e){{e.preventDefault();send({{type:'key',key:e.key,code:e.code,ctrl:e.ctrlKey,alt:e.altKey,shift:e.shiftKey}})}});
 window.addEventListener('paste',function(e){{send({{type:'text',text:(e.clipboardData||window.clipboardData).getData('text')}})}});
@@ -126,8 +151,13 @@ window.addEventListener('paste',function(e){{send({{type:'text',text:(e.clipboar
 
 async def frame(request):
     sid, entry = await renderer.get_session(request.query.get("sid"))
-    async with entry["lock"]:
-        data = await entry["page"].screenshot(type="jpeg", quality=78, animations="disabled")
+    for _ in range(50):
+        data = entry.get("frame")
+        if data:
+            break
+        await asyncio.sleep(0.02)
+    else:
+        raise web.HTTPServiceUnavailable(text="renderer frame is not ready")
     return web.Response(body=data, content_type="image/jpeg", headers={"Cache-Control": "no-store", "X-Renderer-Session": sid})
 
 
@@ -136,9 +166,16 @@ async def user_input(request):
     _, entry = await renderer.get_session(payload.get("sid"))
     page = entry["page"]
     async with entry["lock"]:
-        if payload.get("type") == "click":
+        if payload.get("type") == "resize":
+            width = max(640, min(1920, int(payload.get("width", VIEWPORT["width"]))))
+            height = max(480, min(1200, int(payload.get("height", VIEWPORT["height"]))))
+            await page.set_viewport_size({"width": width, "height": height})
+        elif payload.get("type") == "click":
+            viewport = page.viewport_size or VIEWPORT
             button = {0: "left", 1: "middle", 2: "right"}.get(int(payload.get("button", 0)), "left")
-            await page.mouse.click(float(payload["x"]), float(payload["y"]), button=button)
+            x = float(payload["x"]) * viewport["width"] / VIEWPORT["width"]
+            y = float(payload["y"]) * viewport["height"] / VIEWPORT["height"]
+            await page.mouse.click(x, y, button=button)
         elif payload.get("type") == "text":
             await page.keyboard.insert_text(str(payload.get("text", "")))
         elif payload.get("type") == "key":
