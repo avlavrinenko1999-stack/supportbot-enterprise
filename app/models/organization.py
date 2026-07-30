@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Uuid
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -65,6 +65,7 @@ class Organization(Base, IDMixin, TimestampMixin):
     legal_status_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     registration_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
     liquidation_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    allowed_email_domains: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_registry_sync_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

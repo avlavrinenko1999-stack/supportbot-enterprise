@@ -73,6 +73,7 @@ class WebIdentityService:
         recipient: str,
         subject: str,
         text: str,
+        html: str | None = None,
     ) -> None:
         mail = await self.session.get(MailSettings, 1)
         if mail is None or not mail.is_active:
@@ -83,6 +84,8 @@ class WebIdentityService:
         message["From"] = formataddr((mail.from_name, mail.from_email))
         message["To"] = recipient
         message.set_content(text)
+        if html:
+            message.add_alternative(html, subtype="html")
         password = self.decrypt_secret(mail.smtp_password_encrypted)
 
         def deliver() -> None:

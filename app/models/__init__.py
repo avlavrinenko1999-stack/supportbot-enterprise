@@ -12,6 +12,7 @@ from .invite import Invite
 from .legal_entity import LegalEntity
 from .legal_entity_audit_event import LegalEntityAuditEvent
 from .mail_settings import MailSettings
+from .password_access_code import PasswordAccessCode
 from .organization import Organization
 from .organizational_unit import OrganizationalUnit
 from .organization_audit_event import OrganizationAuditEvent
@@ -22,6 +23,8 @@ from .role_permission import RolePermission
 from .message import Message
 from .ticket import Ticket
 from .ticket_event import TicketEvent
+from .two_factor_setting import TwoFactorSetting
+from .email_change_request import EmailChangeRequest
 from .tenant import Tenant
 
 __all__ = [
@@ -31,6 +34,7 @@ __all__ = [
     "LegalEntity",
     "LegalEntityAuditEvent",
     "MailSettings",
+    "PasswordAccessCode",
     "Tenant",
     "Organization",
     "OrganizationAuditEvent",
@@ -45,6 +49,7 @@ __all__ = [
     "Message",
     "Attachment",
     "TicketEvent",
+    "TwoFactorSetting",
     "InternalNote",
     "Role",
     "PermissionDefinition",

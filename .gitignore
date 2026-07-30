@@ -6,6 +6,7 @@ __pycache__/
 *.pyo
 *.log
 .DS_Store
+._*
 .idea/
 .vscode/
 
@@ -37,4 +38,14 @@ env/
 logs/
 run/
 tmp/
+data/web_login_times.json
+data/web_sessions.json
+data/work_tracking.json
+# Local backups and one-off deployment copies
+*.bak*
+*.backup*
+/application.py
+/requirements.txt.bak*
+# Obsolete test archives; current installers are committed separately.
+web/static/agents/*.zip
 # IDE and operating system

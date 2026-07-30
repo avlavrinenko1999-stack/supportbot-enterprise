@@ -8,24 +8,95 @@ from app.repositories.language_repository import LanguageRepository
 from app.ui.keyboard_i18n import clear_button_cache
 
 SOURCE_LANGUAGE = "ru"
+LANGUAGE_RESOLUTION_CACHE: dict[str, dict] = {}
+
+NATIVE_LANGUAGE_ALIASES = {
+    "日本語": "Japanese",
+    "中文": "Chinese Simplified",
+    "简体中文": "Chinese Simplified",
+    "繁體中文": "Chinese Traditional",
+    "한국어": "Korean",
+    "العربية": "Arabic",
+    "فارسی": "Persian",
+    "עברית": "Hebrew",
+    "ελληνικά": "Greek",
+    "ქართული": "Georgian",
+    "հայերեն": "Armenian",
+    "українська": "Ukrainian",
+    "беларуская": "Belarusian",
+    "қазақша": "Kazakh",
+    "кыргызча": "Kyrgyz",
+    "тоҷикӣ": "Tajik",
+    "oʻzbekcha": "Uzbek",
+    "हिन्दी": "Hindi",
+    "বাংলা": "Bengali",
+    "தமிழ்": "Tamil",
+    "తెలుగు": "Telugu",
+    "ไทย": "Thai",
+    "tiếng việt": "Vietnamese",
+    "bahasa indonesia": "Indonesian",
+    "bahasa melayu": "Malay",
+    "türkçe": "Turkish",
+    "deutsch": "German",
+    "español": "Spanish",
+    "français": "French",
+    "italiano": "Italian",
+    "português": "Portuguese",
+    "nederlands": "Dutch",
+    "polski": "Polish",
+    "čeština": "Czech",
+    "slovenčina": "Slovak",
+    "magyar": "Hungarian",
+    "română": "Romanian",
+    "български": "Bulgarian",
+    "српски": "Serbian",
+    "hrvatski": "Croatian",
+    "slovenščina": "Slovenian",
+    "svenska": "Swedish",
+    "norsk": "Norwegian",
+    "dansk": "Danish",
+    "suomi": "Finnish",
+    "íslenska": "Icelandic",
+    "eesti": "Estonian",
+    "latviešu": "Latvian",
+    "lietuvių": "Lithuanian",
+}
 
 
 class LanguagePackService:
     @staticmethod
     def resolve_language(query: str) -> dict:
         clean = query.strip()
+        if not clean:
+            raise ValueError("Введите название языка.")
         lowered = clean.lower()
+
+        cached = LANGUAGE_RESOLUTION_CACHE.get(lowered)
+        if cached is not None:
+            return dict(cached)
+
+        lookup = NATIVE_LANGUAGE_ALIASES.get(lowered, clean)
 
         if "simplified" in lowered or "упрощ" in lowered:
             code = "zh-CN"
         elif "traditional" in lowered or "традиц" in lowered:
             code = "zh-TW"
         else:
-            code = langcodes.find(clean).to_tag()
+            try:
+                code = langcodes.find(lookup).to_tag()
+            except (LookupError, ValueError):
+                translated_name = GoogleTranslator(
+                    source="auto",
+                    target="en",
+                ).translate(clean)
+                code = langcodes.find(translated_name).to_tag()
+
+        if not code or code.casefold() == "und":
+            raise LookupError(f"Язык не найден: {clean}")
 
         language = langcodes.Language.get(code)
 
-        return {
+        result = {
             "code": code,
             "native": language.display_name(code),
             "english": language.display_name("en"),
@@ -36,6 +107,8 @@ class LanguagePackService:
                 language.display_name(code),
             }),
         }
+        LANGUAGE_RESOLUTION_CACHE[lowered] = result
+        return dict(result)
 
     @staticmethod
     def _google_code(code: str) -> str:

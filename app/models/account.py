@@ -65,7 +65,7 @@ class Account(Base, IDMixin, TimestampMixin):
     )
 
     language: Mapped[str] = mapped_column(
-        String(8),
+        String(32),
         default="ru",
         nullable=False,
     )
